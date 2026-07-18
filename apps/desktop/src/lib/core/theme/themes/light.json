@@ -1,0 +1,42 @@
+{
+  "id": "light",
+  "name": "Light",
+  "colors": {
+    "background": "#FFFFFF",
+    "surface": "#F3F3F3",
+    "surfaceVariant": "#E8E8E8",
+    "sidebar": "#FAFAFA",
+    "toolbar": "#F3F3F3",
+    "primary": "#007ACC",
+    "secondary": "#3794FF",
+    "success": "#388A34",
+    "warning": "#B89500",
+    "error": "#E51400",
+    "text": "#000000",
+    "textMuted": "#666666",
+    "border": "#CCCCCC",
+    "divider": "#E1E1E1",
+    "hover": "#E5E5E5",
+    "focus": "#007ACC",
+    "selection": "#ADD6FF"
+  },
+  "radius": {
+    "small": 4,
+    "medium": 8,
+    "large": 12
+  },
+  "spacing": {
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 20,
+    "xl": 32
+  },
+  "typography": {
+    "fontFamily": "Inter",
+    "small": 12,
+    "body": 14,
+    "title": 18,
+    "headline": 26
+  }
+}

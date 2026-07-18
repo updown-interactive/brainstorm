@@ -1,0 +1,199 @@
+.shell-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background-color: var(--colors-background);
+}
+
+.shell-toolbar {
+  display: flex;
+  align-items: center;
+  height: 32px; /* Minimum height to push content up towards traffic lights */
+  border-bottom: 1px solid var(--colors-border);
+  background-color: var(--colors-toolbar);
+  user-select: none;
+  -webkit-app-region: drag;
+  flex-shrink: 0;
+}
+
+.shell-toolbar button, .shell-toolbar .project-picker-container {
+  -webkit-app-region: no-drag;
+}
+
+.mac-spacer {
+  width: 72px; /* Space for macOS traffic lights */
+  height: 100%;
+  flex-shrink: 0;
+}
+
+.toolbar-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 100%;
+}
+
+.project-picker-container {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.project-picker-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 6px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-small);
+  cursor: pointer;
+  color: var(--colors-text);
+  font-family: var(--typography-fontFamily);
+  font-size: var(--typography-body);
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.project-picker-btn:hover {
+  background-color: var(--colors-hover);
+}
+
+.project-name {
+  font-size: 13px;
+  letter-spacing: 0.2px;
+}
+
+.project-badge {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 12px;
+  background-color: var(--colors-surfaceVariant);
+  color: var(--colors-textMuted);
+  letter-spacing: 0.5px;
+  margin-left: 2px;
+}
+
+.project-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 220px;
+  background-color: var(--colors-surfaceVariant);
+  border: 1px solid var(--colors-border);
+  border-radius: var(--radius-medium);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+}
+
+.dropdown-header {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--colors-textMuted);
+  padding: 8px 10px 6px 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: none;
+  border: none;
+  color: var(--colors-text);
+  font-family: inherit;
+  font-size: var(--typography-body);
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-small);
+  transition: background-color 0.2s;
+}
+
+.dropdown-item:hover {
+  background-color: var(--colors-hover);
+}
+
+.dropdown-item.active {
+  background-color: rgba(0, 122, 204, 0.1);
+  color: var(--colors-primary);
+}
+
+.dropdown-divider {
+  height: 1px;
+  background-color: var(--colors-border);
+  margin: 4px 0;
+}
+
+.new-project-btn {
+  color: var(--colors-textMuted);
+}
+
+.new-project-btn:hover {
+  color: var(--colors-text);
+}
+
+.shell-body {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  overflow: hidden;
+}
+
+.shell-sidebar {
+  width: 48px;
+  background-color: var(--colors-sidebar);
+  border-right: 1px solid var(--colors-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 0;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.sidebar-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-medium);
+  border: none;
+  background: transparent;
+  color: var(--colors-textMuted);
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.sidebar-btn:hover {
+  background-color: var(--colors-hover);
+  color: var(--colors-text);
+}
+
+.sidebar-btn.active {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--colors-primary);
+}
+
+.shell-content {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+}
+
+
+
+.shell-content {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+}
