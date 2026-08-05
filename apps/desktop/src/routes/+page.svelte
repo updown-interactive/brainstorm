@@ -1,4 +1,4 @@
 <script>
-    import SplashView from "../lib/features/onboarding/SplashView.svelte";
+    import SplashView from "../lib/features/onboarding/components/SplashView.svelte";
 </script>
 <SplashView/>

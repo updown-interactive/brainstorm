@@ -1,5 +1,5 @@
-use super::db;
 use super::model::Project;
+use super::{bootstrap, db};
 use crate::core::error::AppError;
 use sqlx::SqlitePool;
 
@@ -45,6 +45,7 @@ pub async fn create_project(
         metadata: None,
     };
 
+    bootstrap::ensure_project_bootstrap(&project.path)?;
     db::create_project(pool, &project).await?;
 
     Ok(project)

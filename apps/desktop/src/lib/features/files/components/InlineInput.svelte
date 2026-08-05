@@ -1,13 +1,12 @@
 <script lang="ts">
-  import { onMount, createEventDispatcher } from 'svelte';
+  import { onMount } from 'svelte';
+  import { filesController } from '../controller';
   
   export let initialValue = '';
   export let depth = 0;
   
   let value = initialValue;
   let inputEl: HTMLInputElement;
-  
-  const dispatch = createEventDispatcher();
   
   onMount(() => {
     inputEl.focus();
@@ -24,9 +23,9 @@
   
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Enter') {
-      dispatch('commit', { value });
+      filesController.handleInlineCommit(value);
     } else if (e.key === 'Escape') {
-      dispatch('cancel');
+      filesController.handleInlineCancel();
     }
   }
 </script>
@@ -36,7 +35,7 @@
     bind:this={inputEl}
     bind:value
     onkeydown={handleKeydown}
-    onblur={() => dispatch('commit', { value })}
+    onblur={() => filesController.handleInlineCommit(value)}
     class="inline-input"
   />
 </div>

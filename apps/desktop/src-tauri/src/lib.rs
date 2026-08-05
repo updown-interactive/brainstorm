@@ -15,6 +15,12 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            #[cfg(target_os = "macos")]
+            if let Some(window) = app.get_webview_window("main") {
+                use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
+                let _ = apply_vibrancy(&window, NSVisualEffectMaterial::Sidebar, None, None);
+            }
+
             let handle = app.handle().clone();
             tauri::async_runtime::block_on(async move {
                 let db_state = core::db::init(&handle)

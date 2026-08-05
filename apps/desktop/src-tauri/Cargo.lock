@@ -329,6 +329,7 @@ dependencies = [
  "tokio",
  "trash",
  "uuid",
+ "window-vibrancy",
 ]
 
 [[package]]

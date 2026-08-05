@@ -1,78 +1,41 @@
 <script lang="ts">
-  import type { FileNode } from '../state';
-  import { fileTreeState } from '../state';
-  import { editorState } from '../stores/editor';
-  import { fileTreeController } from '../controller';
+  import type { FileNode } from '../types';
+  import { filesController } from '../controller';
   import { 
-    ChevronRight, ChevronDown, Folder, File, 
-    FileJson, FileCode, FileText, Image, FileArchive, Settings
+    ChevronRight, ChevronDown, Folder
   } from 'lucide-svelte';
 
   export let node: FileNode;
   export let gitStatus: string | undefined = undefined;
+  export let isDragging = false;
+  export let isDropTarget = false;
+  export let isDropSection = false;
 
-  function getGitClass(status: string | undefined): string {
-    if (!status) return '';
-    if (status.includes('M')) return 'git-modified';
-    if (status.includes('A') || status.includes('?')) return 'git-added';
-    if (status.includes('D')) return 'git-deleted';
-    return '';
-  }
-
-  let isDragOver = false;
-
-  function getFileIcon(filename: string) {
-    const ext = filename.split('.').pop()?.toLowerCase();
-    switch (ext) {
-      case 'js':
-      case 'ts':
-      case 'jsx':
-      case 'tsx':
-      case 'svelte':
-      case 'vue':
-      case 'html':
-      case 'css':
-        return FileCode;
-      case 'json':
-        return FileJson;
-      case 'md':
-      case 'txt':
-        return FileText;
-      case 'png':
-      case 'jpg':
-      case 'jpeg':
-      case 'gif':
-      case 'svg':
-        return Image;
-      case 'zip':
-      case 'tar':
-      case 'gz':
-        return FileArchive;
-      case 'toml':
-      case 'yml':
-      case 'yaml':
-      case 'conf':
-        return Settings;
-      default:
-        return File;
-    }
-  }
+  let isNativeDragOver = false;
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div 
   class="tree-node" 
-  class:active={$editorState.activeTabId === node.path}
-  class:focused={$fileTreeState.focusedPath === node.path}
-  class:drag-over={isDragOver}
+  class:active={filesController.isActiveNode(node.path)}
+  class:focused={filesController.isFocusedNode(node.path)}
+  class:dragging={isDragging}
+  class:drop-section={isDropSection}
+  class:drag-over={isDropTarget || isNativeDragOver}
+  data-file-tree-path={node.path}
+  data-file-tree-dir={node.isDir ? 'true' : 'false'}
   style="padding-left: {node.depth * 12 + 4}px"
-  onclick={() => fileTreeController.handleNodeClick(node)}
-  draggable="true"
-  ondragstart={(e) => fileTreeController.handleDragStart(node, e)}
-  ondragover={(e) => { isDragOver = fileTreeController.handleDragOver(node, e); }}
-  ondragleave={() => { isDragOver = false; }}
-  ondrop={(e) => { isDragOver = false; fileTreeController.handleDrop(node, e); }}
+  onpointerdown={(event) => filesController.handleNodePointerDown(node, event)}
+  onpointermove={(event) => filesController.handleNodePointerMove(node, event)}
+  onpointerup={(event) => filesController.handleNodePointerUp(node, event)}
+  onpointercancel={(event) => filesController.handleNodePointerCancel(event)}
+  onclick={() => filesController.handleNodeClick(node)}
+  draggable="false"
+  ondragstart={(event) => filesController.handleDragStart(node, event)}
+  ondragover={(event) => { isNativeDragOver = filesController.handleDragOver(node, event); }}
+  ondragleave={() => { isNativeDragOver = false; }}
+  ondrop={(event) => { isNativeDragOver = false; filesController.handleDrop(node, event); }}
 >
   {#if node.depth > 0}
     <div class="tree-guides" style="width: {node.depth * 12}px"></div>
@@ -90,16 +53,16 @@
     {#if node.isDir}
       <Folder size={14} color="var(--colors-primary)" />
     {:else}
-      <svelte:component this={getFileIcon(node.name)} size={14} color="var(--colors-textMuted)" />
+      <svelte:component this={filesController.fileIcon(node.name)} size={14} color="var(--colors-textMuted)" />
     {/if}
   </div>
   
-  <span class="node-name {getGitClass(gitStatus)}" class:is-dir={node.isDir}>
-    {node.isDir ? node.name : node.name.replace(/\.md$/, '')}
+  <span class="node-name {filesController.gitClass(gitStatus)}" class:is-dir={node.isDir}>
+    {filesController.displayNodeName(node)}
   </span>
   
   {#if gitStatus}
-    <span class="git-badge {getGitClass(gitStatus)}">
+    <span class="git-badge {filesController.gitClass(gitStatus)}">
       {gitStatus.charAt(gitStatus.length - 1)}
     </span>
   {/if}
@@ -145,6 +108,24 @@
   
   .tree-node:hover {
     background-color: var(--colors-surfaceVariant);
+  }
+
+  .tree-node.dragging {
+    cursor: grabbing;
+    background-color: color-mix(in srgb, var(--colors-primary) 22%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--colors-primary) 72%, transparent);
+    opacity: 0.74;
+    transform: translateX(2px);
+  }
+
+  .tree-node.drop-section {
+    background-color: color-mix(in srgb, var(--colors-primary) 9%, transparent);
+  }
+
+  .tree-node.drag-over {
+    background-color: color-mix(in srgb, var(--colors-primary) 20%, transparent);
+    outline: 1px solid color-mix(in srgb, var(--colors-primary) 68%, transparent);
+    outline-offset: -1px;
   }
   
   .tree-node.active {

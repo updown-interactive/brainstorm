@@ -3,10 +3,11 @@
   import { Blocks, ChevronsUpDown, Plus, MessageSquare, Folder, Network, Settings, Brain, Code, Rocket, Sparkles, Box } from 'lucide-svelte';
   import { shellState } from './state';
   import { shellController } from './controller';
+  import LiquidGlassPanel from '$lib/shared/ui/LiquidGlassPanel.svelte';
   import ChatView from '../chat/ChatView.svelte';
-  import FilesView from '../files/FilesView.svelte';
-  import GraphView from '../graph/GraphView.svelte';
-  import SettingsView from '../settings/SettingsView.svelte';
+  import FilesView from '../files/components/FilesView.svelte';
+  import GraphView from '../graph/components/GraphView.svelte';
+  import SettingsView from '../settings/components/SettingsView.svelte';
   import './shell.css';
   
   onMount(() => {
@@ -45,32 +46,32 @@
       <!-- Project Picker -->
       <div class="project-picker-container">
         <button class="project-picker-btn" onclick={() => shellController.toggleProjectDropdown()}>
-          <svelte:component this={currentIcon} size={16} color="var(--colors-textMuted)" strokeWidth={1.5} />
+          <svelte:component this={currentIcon} size={16} color="currentColor" strokeWidth={1.5} />
           <span class="project-name">{$shellState.currentProject?.name || ($shellState.loading ? 'Loading...' : 'No Project')}</span>
           {#if $shellState.currentProject?.metadata}
             <!-- Assuming we might store 'badge' inside metadata or just don't show badge for now -->
           {/if}
-          <ChevronsUpDown size={14} color="var(--colors-textMuted)" />
+          <ChevronsUpDown size={14} color="currentColor" />
         </button>
 
         {#if $shellState.showProjectDropdown}
-          <div class="project-dropdown-menu">
-            <div class="dropdown-header">Switch Project</div>
+          <LiquidGlassPanel class="project-dropdown-menu">
+            <div class="panel-label">Switch Project</div>
             {#each $shellState.allProjects as project}
               <button 
-                class="dropdown-item {$shellState.currentProject?.id === project.id ? 'active' : ''}"
+                class="panel-item {$shellState.currentProject?.id === project.id ? 'active' : ''}"
                 onclick={() => shellController.selectProject(project)}
               >
-                <svelte:component this={iconMap[project.icon || 'blocks'] || Blocks} size={14} />
+                <svelte:component this={iconMap[project.icon || 'blocks'] || Blocks} class="panel-icon" size={14} />
                 <span>{project.name}</span>
               </button>
             {/each}
-            <div class="dropdown-divider"></div>
-            <button class="dropdown-item new-project-btn" onclick={() => shellController.createNewProject()}>
-              <Plus size={14} />
+            <div class="panel-divider"></div>
+            <button class="panel-item" onclick={() => shellController.createNewProject()}>
+              <Plus class="panel-icon" size={14} />
               <span>New Project</span>
             </button>
-          </div>
+          </LiquidGlassPanel>
         {/if}
       </div>
     </div>

@@ -2,7 +2,7 @@ import { goto } from '$app/navigation';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { projectService, type Project } from '../../core/service/projectsService';
-import { buildVaultIndex, updateVaultIndexEntry } from '../files/vault-index';
+import { buildVaultIndex, updateVaultIndexEntry } from '../files/data/vault-index';
 import { shellState } from './state';
 import { ROUTES } from '../../app/routes';
 

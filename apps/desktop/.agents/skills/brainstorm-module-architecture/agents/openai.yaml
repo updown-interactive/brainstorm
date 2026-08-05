@@ -1,0 +1,4 @@
+interface:
+  display_name: "Brainstorm Module Architecture"
+  short_description: "Enforce Brainstorm feature module layout"
+  default_prompt: "Use $brainstorm-module-architecture to refactor or add a Brainstorm feature module."

@@ -2,23 +2,28 @@
   "id": "dark",
   "name": "Dark",
   "colors": {
-    "background": "#1E1E1E",
-    "surface": "#252526",
-    "surfaceVariant": "#2D2D30",
-    "sidebar": "#202020",
-    "toolbar": "#202020",
-    "primary": "#007ACC",
-    "secondary": "#3794FF",
-    "success": "#4EC9B0",
-    "warning": "#D7BA7D",
-    "error": "#F14C4C",
-    "text": "#FFFFFF",
-    "textMuted": "#AAAAAA",
-    "border": "#3F3F46",
-    "divider": "#333333",
-    "hover": "#2A2D2E",
-    "focus": "#007ACC",
-    "selection": "#264F78"
+    "background": "#161617",
+      "surface": "#1C1C1E",
+      "surfaceVariant": "#242426",
+      "sidebar": "#1A1A1C",
+      "toolbar": "#1A1A1C",
+
+      "primary": "#0A84FF",
+      "secondary": "#64D2FF",
+
+      "success": "#32D74B",
+      "warning": "#FFD60A",
+      "error": "#FF453A",
+
+      "text": "#F5F5F7",
+      "textMuted": "#98989D",
+
+      "border": "#2C2C2E",
+      "divider": "#2A2A2C",
+
+      "hover": "#2A2A2D",
+      "focus": "#0A84FF",
+      "selection": "#2C4F8A"
   },
   "radius": {
     "small": 4,
