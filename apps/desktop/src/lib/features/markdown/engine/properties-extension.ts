@@ -2,7 +2,6 @@ import { EditorSelection, StateField } from '@codemirror/state';
 import type { EditorState } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
-import { RangeSetBuilder } from '@codemirror/state';
 import { invoke } from '@tauri-apps/api/core';
 import { mount, unmount } from 'svelte';
 import { get } from 'svelte/store';
@@ -44,6 +43,7 @@ import {
 	type SharedTag
 } from '../data/tag-registry';
 import { getCachedEditorConfig } from '../config/editor-config';
+import { RenderSafeWidget, superviseDecorations } from './render-supervisor';
 
 const fileCollapseStateMap = new Map<string, boolean>();
 let globalFallbackCollapseState: boolean | null = null;
@@ -1211,16 +1211,28 @@ export function buildPropertiesDecorations(state: EditorState): DecorationSet {
 	const parsed = parseFrontmatter(state.doc.toString());
 	if (!parsed.range) return Decoration.none;
 
-	const builder = new RangeSetBuilder<Decoration>();
-	builder.add(
-		parsed.range.from,
-		parsed.range.to,
-		Decoration.replace({
-			widget: new PropertiesWidget(parsed),
-			block: true
-		})
-	);
-	return builder.finish();
+	return superviseDecorations({
+		docLength: state.doc.length,
+		source: 'properties-extension',
+		getText: (from, to) => state.doc.sliceString(from, to),
+		allowLineBreakReplacement: true,
+		decorations: [
+			{
+				from: parsed.range.from,
+				to: parsed.range.to,
+				kind: 'replace',
+				source: 'properties-extension:frontmatter',
+				deco: Decoration.replace({
+					widget: new RenderSafeWidget(new PropertiesWidget(parsed), {
+						label: 'Properties',
+						block: true,
+						minHeight: 48
+					}),
+					block: true
+				})
+			}
+		]
+	});
 }
 
 export function openAddPropertyPalette(view: EditorView) {

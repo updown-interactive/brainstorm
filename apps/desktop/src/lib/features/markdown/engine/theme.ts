@@ -109,6 +109,29 @@ export const brainstormTheme = EditorView.theme({
 		padding: '2px 4px',
 		borderRadius: '4px'
 	},
+	'.cm-render-widget-boundary': {
+		display: 'inline-block',
+		contain: 'layout style paint',
+		maxWidth: '100%',
+		verticalAlign: 'baseline'
+	},
+	'.cm-render-widget-boundary[data-render-widget="Mermaid"], .cm-render-widget-boundary[data-render-widget="Table"], .cm-render-widget-boundary[data-render-widget="Properties"], .cm-render-widget-boundary[data-render-widget="Horizontal Rule"]': {
+		display: 'block',
+		width: '100%'
+	},
+	'.cm-render-error': {
+		boxSizing: 'border-box',
+		margin: '8px 0',
+		padding: '8px 10px',
+		border: '1px solid var(--colors-error, #ff3b30)',
+		borderRadius: '6px',
+		color: 'var(--colors-error, #ff3b30)',
+		backgroundColor: 'color-mix(in srgb, var(--colors-error, #ff3b30) 10%, transparent)',
+		fontFamily: 'var(--font-mono, monospace)',
+		fontSize: '12px',
+		whiteSpace: 'pre-wrap',
+		overflowWrap: 'anywhere'
+	},
 	'.cm-frontmatter': {
 		color: 'var(--colors-textMuted)',
 		fontFamily: 'var(--font-mono, monospace)',
@@ -692,21 +715,61 @@ export const brainstormTheme = EditorView.theme({
 		marginTop: '4px'
 	},
 	
-	'.cm-callout': {
-		display: 'block',
-		padding: '12px 16px',
-		margin: '0',
-		backgroundColor: 'rgba(255, 255, 255, 0.05)',
-		borderLeft: '4px solid var(--colors-primary)',
-		borderRadius: '4px',
-		color: 'var(--colors-text)'
+	'.cm-callout-line': {
+		padding: '0 20px',
+		lineHeight: '1.6',
+		position: 'relative'
 	},
-	'.cm-callout-note': { borderLeftColor: 'var(--colors-primary)', backgroundColor: 'rgba(0, 122, 204, 0.1)' },
-	'.cm-callout-warning': { borderLeftColor: 'var(--colors-warning)', backgroundColor: 'rgba(255, 170, 0, 0.1)' },
-	'.cm-callout-danger': { borderLeftColor: 'var(--colors-error)', backgroundColor: 'rgba(255, 51, 51, 0.1)' },
-	'.cm-callout-success': { borderLeftColor: 'var(--colors-success)', backgroundColor: 'rgba(46, 204, 113, 0.1)' },
-	'.cm-callout-tip': { borderLeftColor: 'var(--colors-success)', backgroundColor: 'rgba(46, 204, 113, 0.1)' },
-	'.cm-callout-info': { borderLeftColor: 'var(--colors-primary)', backgroundColor: 'rgba(0, 122, 204, 0.1)' },
+	'.cm-callout-top': {
+		borderTopLeftRadius: '8px',
+		borderTopRightRadius: '8px',
+		paddingTop: '16px',
+		marginTop: '12px'
+	},
+	'.cm-callout-bottom': {
+		borderBottomLeftRadius: '8px',
+		borderBottomRightRadius: '8px',
+		paddingBottom: '16px',
+		marginBottom: '12px'
+	},
+
+	'.cm-callout-note': { backgroundColor: 'rgba(59, 130, 246, 0.12)' },
+	'.cm-callout-tip': { backgroundColor: 'rgba(45, 212, 191, 0.10)' },
+	'.cm-callout-warning': { backgroundColor: 'rgba(245, 158, 11, 0.10)' },
+	'.cm-callout-important': { backgroundColor: 'rgba(45, 212, 191, 0.10)' },
+	'.cm-callout-caution': { backgroundColor: 'rgba(245, 158, 11, 0.10)' },
+	'.cm-callout-success': { backgroundColor: 'rgba(34, 197, 94, 0.10)' },
+	'.cm-callout-bug': { backgroundColor: 'rgba(239, 68, 68, 0.12)' },
+	'.cm-callout-question': { backgroundColor: 'rgba(245, 158, 11, 0.10)' },
+	'.cm-callout-quote': { backgroundColor: 'rgba(255, 255, 255, 0.05)' },
+	'.cm-callout-danger': { backgroundColor: 'rgba(239, 68, 68, 0.12)' },
+	'.cm-callout-info': { backgroundColor: 'rgba(59, 130, 246, 0.12)' },
+
+	'.cm-callout-header': {
+		display: 'flex',
+		alignItems: 'center',
+		gap: '8px',
+		paddingBottom: '4px',
+		userSelect: 'none'
+	},
+	'.cm-callout-icon': {
+		display: 'inline-flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		flexShrink: '0'
+	},
+	'.cm-callout-title': {
+		fontFamily: '"Inter", var(--font-sans, sans-serif)',
+		fontSize: '14px',
+		fontWeight: '600'
+	},
+
+	'.cm-callout-header-note, .cm-callout-header-info': { color: '#3b82f6' },
+	'.cm-callout-header-tip, .cm-callout-header-important': { color: '#2dd4bf' },
+	'.cm-callout-header-warning, .cm-callout-header-caution, .cm-callout-header-question': { color: '#f59e0b' },
+	'.cm-callout-header-success': { color: '#22c55e' },
+	'.cm-callout-header-bug, .cm-callout-header-danger': { color: '#ef4444' },
+	'.cm-callout-header-quote': { color: '#94a3b8' },
 
 	'.cm-blockquote-line': {
 		position: 'relative',
@@ -728,9 +791,37 @@ export const brainstormTheme = EditorView.theme({
 	},
 	'.cm-list-marker-preview': {
 		display: 'inline-block',
-		minWidth: '1.25em',
-		color: 'var(--colors-primary)',
-		fontWeight: '600'
+		color: 'var(--colors-textMuted, #8e8e93)',
+		fontWeight: '500',
+		userSelect: 'none',
+		verticalAlign: 'baseline'
+	},
+	'.cm-list-marker-preview.is-unordered': {
+		minWidth: '1.2em',
+		marginRight: '0.4em',
+		textAlign: 'center',
+		fontSize: '1em',
+		lineHeight: '1'
+	},
+	'.cm-list-marker-preview.is-unordered.depth-1': {
+		fontSize: '1.1em'
+	},
+	'.cm-list-marker-preview.is-unordered.depth-2': {
+		fontSize: '1em'
+	},
+	'.cm-list-marker-preview.is-unordered.depth-3': {
+		fontSize: '0.85em'
+	},
+	'.cm-list-marker-preview.is-ordered': {
+		minWidth: '1.5em',
+		marginRight: '0.4em',
+		textAlign: 'right',
+		fontVariantNumeric: 'tabular-nums'
+	},
+	'.cm-render-widget-boundary[data-render-widget="List Marker"]': {
+		display: 'inline-block',
+		contain: 'none !important',
+		verticalAlign: 'baseline'
 	},
 	'.cm-definition-line, .cm-footnote-definition-line': {
 		color: 'var(--colors-textMuted)',
@@ -815,7 +906,11 @@ export const brainstormTheme = EditorView.theme({
 
 	'.cm-codeblock-line': {
 		backgroundColor: 'rgba(255, 255, 255, 0.04)',
-		padding: '0 16px'
+		padding: '0 20px',
+		position: 'relative',
+		fontFamily: 'var(--font-mono, "JetBrains Mono", "Fira Code", monospace)',
+		fontSize: '13.5px',
+		lineHeight: '1.6'
 	},
 	'.cm-codeblock-widget': {
 		position: 'relative',
@@ -825,8 +920,8 @@ export const brainstormTheme = EditorView.theme({
 		margin: '12px 0',
 		padding: '36px 16px 16px',
 		border: '1px solid color-mix(in srgb, var(--colors-border) 80%, transparent)',
-		borderRadius: '8px',
-		backgroundColor: 'rgba(0, 0, 0, 0.24)',
+		borderRadius: '10px',
+		backgroundColor: 'rgba(255, 255, 255, 0.04)',
 		overflow: 'hidden'
 	},
 	'.cm-codeblock-widget .cm-copy-code-btn': {
@@ -838,39 +933,71 @@ export const brainstormTheme = EditorView.theme({
 		top: '10px',
 		left: '16px',
 		color: 'var(--colors-textMuted)',
-		fontFamily: 'var(--font-mono, monospace)',
-		fontSize: '11px',
-		fontWeight: '700',
-		textTransform: 'uppercase'
+		fontFamily: '"Inter", var(--font-sans, sans-serif)',
+		fontSize: '13px',
+		fontWeight: '500'
 	},
 	'.cm-codeblock-pre': {
 		margin: '0',
 		overflowX: 'auto',
 		color: 'var(--colors-text)',
 		fontFamily: 'var(--font-mono, monospace)',
-		fontSize: '13px',
-		lineHeight: '1.55',
+		fontSize: '13.5px',
+		lineHeight: '1.6',
 		whiteSpace: 'pre'
 	},
 	'.cm-codeblock-top': {
-		borderTopLeftRadius: '8px',
-		borderTopRightRadius: '8px',
-		paddingTop: '12px',
+		borderTopLeftRadius: '10px',
+		borderTopRightRadius: '10px',
+		paddingTop: '16px',
+		marginTop: '8px',
 		position: 'relative'
 	},
 	'.cm-codeblock-bottom': {
-		borderBottomLeftRadius: '8px',
-		borderBottomRightRadius: '8px',
-		paddingBottom: '24px',
-		marginBottom: '0'
+		borderBottomLeftRadius: '10px',
+		borderBottomRightRadius: '10px',
+		paddingBottom: '16px',
+		marginBottom: '8px'
+	},
+	'.cm-codeblock-fence-hidden': {
+		display: 'none !important',
+		height: '0 !important',
+		lineHeight: '0 !important',
+		padding: '0 !important',
+		margin: '0 !important',
+		overflow: 'hidden !important'
+	},
+	'.cm-render-widget-boundary[data-render-widget="Copy Code"]': {
+		display: 'inline',
+		position: 'static',
+		contain: 'none !important'
+	},
+	'.cm-codeblock-action-wrap': {
+		position: 'absolute',
+		right: '20px',
+		top: '14px',
+		display: 'flex',
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: '10px',
+		whiteSpace: 'nowrap',
+		pointerEvents: 'auto',
+		zIndex: '20'
+	},
+	'.cm-codeblock-lang-tag': {
+		color: 'var(--colors-textMuted, rgba(255, 255, 255, 0.45))',
+		fontFamily: '"Inter", var(--font-sans, sans-serif)',
+		fontSize: '13px',
+		fontWeight: '500',
+		letterSpacing: '0.01em',
+		userSelect: 'none',
+		whiteSpace: 'nowrap'
 	},
 	'.cm-copy-code-btn': {
-		position: 'absolute',
-		right: '8px',
-		top: '8px',
-		background: 'rgba(255, 255, 255, 0.05)',
-		border: '1px solid rgba(255, 255, 255, 0.1)',
-		color: 'var(--colors-textMuted, #888)',
+		position: 'relative',
+		background: 'rgba(255, 255, 255, 0.06)',
+		border: '1px solid rgba(255, 255, 255, 0.12)',
+		color: 'var(--colors-textMuted, rgba(255, 255, 255, 0.6))',
 		borderRadius: '6px',
 		width: '28px',
 		height: '28px',
@@ -878,12 +1005,14 @@ export const brainstormTheme = EditorView.theme({
 		alignItems: 'center',
 		justifyContent: 'center',
 		cursor: 'pointer',
-		transition: 'all 0.2s ease',
-		zIndex: '10'
+		transition: 'all 0.15s ease',
+		flexShrink: '0',
+		opacity: '0.6'
 	},
 	'.cm-copy-code-btn:hover': {
 		background: 'rgba(255, 255, 255, 0.15)',
-		color: 'var(--colors-text, #fff)'
+		color: '#ffffff',
+		opacity: '1'
 	},
 	'.cm-inline-code': {
 		backgroundColor: 'rgba(0, 0, 0, 0.25)',
@@ -928,7 +1057,17 @@ export const brainstormHighlightStyle = HighlightStyle.define([
 	{ tag: t.link, color: 'var(--colors-primary)', textDecoration: 'underline' },
 	{ tag: t.quote, color: 'var(--colors-textMuted)', fontStyle: 'italic', borderLeft: '3px solid var(--colors-primary)', paddingLeft: '12px' },
 	{ tag: t.monospace, fontFamily: 'var(--font-mono, monospace)', fontSize: '0.9em', color: 'var(--colors-primary)' },
-	{ tag: t.list, color: 'var(--colors-primary)', fontWeight: '600' }
+	{ tag: t.keyword, color: '#ff79c6' },
+	{ tag: [t.variableName, t.definition(t.variableName)], color: '#f8f8f2' },
+	{ tag: [t.function(t.variableName), t.function(t.propertyName)], color: '#66d9ef' },
+	{ tag: t.propertyName, color: '#66d9ef' },
+	{ tag: t.string, color: '#f1fa8c' },
+	{ tag: t.number, color: '#bd93f9' },
+	{ tag: t.operator, color: '#ff79c6' },
+	{ tag: t.bool, color: '#bd93f9' },
+	{ tag: t.null, color: '#bd93f9' },
+	{ tag: t.comment, color: '#6272a4', fontStyle: 'italic' },
+	{ tag: t.typeName, color: '#8be9fd' }
 ]);
 
 export const brainstormHighlightStyleExtension = syntaxHighlighting(brainstormHighlightStyle);
@@ -983,8 +1122,7 @@ export function tagAccentTheme(color: string) {
 			{ tag: t.heading6, color, fontSize: '1.2em', fontWeight: '600' },
 			{ tag: t.link, color, textDecoration: 'underline' },
 			{ tag: t.quote, color: 'var(--colors-textMuted)', fontStyle: 'italic', borderLeft: `3px solid ${color}`, paddingLeft: '12px' },
-			{ tag: t.monospace, fontFamily: 'var(--font-mono, monospace)', fontSize: '0.9em', color },
-			{ tag: t.list, color, fontWeight: '600' }
+			{ tag: t.monospace, fontFamily: 'var(--font-mono, monospace)', fontSize: '0.9em', color }
 		]))
 	];
 }

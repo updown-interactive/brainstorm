@@ -1,12 +1,20 @@
 import { Decoration, EditorView, WidgetType, ViewPlugin } from '@codemirror/view';
 import type { DecorationSet, ViewUpdate } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
-import { RangeSetBuilder } from '@codemirror/state';
+import { StateField } from '@codemirror/state';
+import type { EditorState } from '@codemirror/state';
 import mermaid from 'mermaid';
 import { detectFrontmatter } from './frontmatter';
 import { getActiveRegion } from './active-region';
 import { RenderingScheduler } from './rendering-scheduler';
+import {
+	RenderSafeWidget,
+	createRenderGuard,
+	recordRenderPass,
+	superviseDecorations
+} from './render-supervisor';
 import type { ActiveRegion } from './active-region';
+import type { RenderDecorationInput, RenderGuardCounters } from './render-supervisor';
 
 mermaid.initialize({ startOnLoad: false, theme: 'dark' });
 
@@ -50,16 +58,60 @@ class HrWidget extends WidgetType {
 	}
 }
 
+function formatLanguageName(lang: string): string {
+	if (!lang) return '';
+	const l = lang.trim().toLowerCase();
+	const map: Record<string, string> = {
+		js: 'JavaScript',
+		javascript: 'JavaScript',
+		ts: 'TypeScript',
+		typescript: 'TypeScript',
+		dart: 'Dart',
+		json: 'JSON',
+		html: 'HTML',
+		css: 'CSS',
+		py: 'Python',
+		python: 'Python',
+		cpp: 'C++',
+		c: 'C',
+		rust: 'Rust',
+		go: 'Go',
+		sql: 'SQL',
+		bash: 'Bash',
+		sh: 'Bash',
+		shell: 'Shell',
+		yaml: 'YAML',
+		yml: 'YAML',
+		md: 'Markdown',
+		markdown: 'Markdown'
+	};
+	if (map[l]) return map[l];
+	return lang.charAt(0).toUpperCase() + lang.slice(1);
+}
+
 class CopyCodeWidget extends WidgetType {
-	constructor(public code: string) {
+	constructor(
+		public code: string,
+		public lang: string = ''
+	) {
 		super();
 	}
 
 	eq(other: CopyCodeWidget): boolean {
-		return other.code === this.code;
+		return other.code === this.code && other.lang === this.lang;
 	}
 
 	toDOM(): HTMLElement {
+		const wrap = document.createElement('span');
+		wrap.className = 'cm-codeblock-action-wrap';
+
+		if (this.lang) {
+			const tag = document.createElement('span');
+			tag.className = 'cm-codeblock-lang-tag';
+			tag.textContent = formatLanguageName(this.lang);
+			wrap.appendChild(tag);
+		}
+
 		const btn = document.createElement('button');
 		btn.className = 'cm-copy-code-btn';
 		btn.title = 'Copy Code';
@@ -72,10 +124,13 @@ class CopyCodeWidget extends WidgetType {
 			this.renderCheckIcon(btn);
 			setTimeout(() => this.renderCopyIcon(btn), 2000);
 		};
-		return btn;
+		wrap.appendChild(btn);
+		return wrap;
 	}
 
-	updateDOM(): boolean {
+	updateDOM(dom: HTMLElement): boolean {
+		const tag = dom.querySelector('.cm-codeblock-lang-tag');
+		if (tag) tag.textContent = formatLanguageName(this.lang);
 		return true;
 	}
 
@@ -124,6 +179,83 @@ class CheckboxWidget extends WidgetType {
 
 	ignoreEvent(event: Event): boolean {
 		return event.type !== 'mousedown';
+	}
+}
+
+function toLowerRoman(num: number): string {
+	const lookup: [number, string][] = [
+		[1000, 'm'], [900, 'cm'], [500, 'd'], [400, 'cd'],
+		[100, 'c'], [90, 'xc'], [50, 'l'], [40, 'xl'],
+		[10, 'x'], [9, 'ix'], [5, 'v'], [4, 'iv'], [1, 'i']
+	];
+	let roman = '';
+	let n = num;
+	for (const [val, char] of lookup) {
+		while (n >= val) {
+			roman += char;
+			n -= val;
+		}
+	}
+	return roman || 'i';
+}
+
+function toLowerAlpha(num: number): string {
+	if (num <= 0) return 'a';
+	let alpha = '';
+	let n = num;
+	while (n > 0) {
+		const rem = (n - 1) % 26;
+		alpha = String.fromCharCode(97 + rem) + alpha;
+		n = Math.floor((n - 1) / 26);
+	}
+	return alpha;
+}
+
+function parseMarkerNumber(marker: string): number {
+	const numMatch = marker.match(/\d+/);
+	if (numMatch) return parseInt(numMatch[0], 10);
+
+	const clean = marker.replace(/[\.\)]/g, '').trim().toLowerCase();
+	const romanMap: Record<string, number> = {
+		i: 1, ii: 2, iii: 3, iv: 4, v: 5, vi: 6, vii: 7, viii: 8, ix: 9, x: 10
+	};
+	if (romanMap[clean]) return romanMap[clean];
+
+	if (clean.length === 1 && clean >= 'a' && clean <= 'z') {
+		return clean.charCodeAt(0) - 96;
+	}
+
+	return 1;
+}
+
+class ListMarkerWidget extends WidgetType {
+	constructor(
+		private readonly symbol: string,
+		private readonly isUnordered: boolean,
+		private readonly depth: number
+	) {
+		super();
+	}
+
+	eq(other: ListMarkerWidget): boolean {
+		return other.symbol === this.symbol && other.isUnordered === this.isUnordered && other.depth === this.depth;
+	}
+
+	toDOM(): HTMLElement {
+		const marker = document.createElement('span');
+		marker.className = `cm-list-marker-preview ${this.isUnordered ? 'is-unordered' : 'is-ordered'} depth-${this.depth}`;
+		marker.textContent = this.symbol;
+		return marker;
+	}
+
+	updateDOM(dom: HTMLElement): boolean {
+		dom.className = `cm-list-marker-preview ${this.isUnordered ? 'is-unordered' : 'is-ordered'} depth-${this.depth}`;
+		dom.textContent = this.symbol;
+		return true;
+	}
+
+	ignoreEvent(): boolean {
+		return true;
 	}
 }
 
@@ -390,6 +522,113 @@ function isSelectionIntersecting(ranges: readonly { from: number; to: number }[]
 	return false;
 }
 
+function isNodeInActiveRegion(state: EditorState, activeRegion: ActiveRegion, from: number, to: number): boolean {
+	const startLine = state.doc.lineAt(from).number;
+	const endLine = state.doc.lineAt(to).number;
+
+	for (let lineNumber = startLine; lineNumber <= endLine; lineNumber += 1) {
+		if (activeRegion.activeLines.has(lineNumber)) return true;
+	}
+
+	return false;
+}
+
+function isFrontmatterNode(
+	frontmatterRange: { bodyFrom: number } | null,
+	from: number,
+	to: number
+): boolean {
+	return Boolean(frontmatterRange && from < frontmatterRange.bodyFrom && to <= frontmatterRange.bodyFrom);
+}
+
+function createBlockWidgetDecoration(
+	from: number,
+	to: number,
+	source: string,
+	widget: WidgetType,
+	label: string,
+	minHeight: number
+): RenderDecorationInput {
+	return {
+		from,
+		to,
+		kind: 'replace',
+		source,
+		deco: Decoration.replace({
+			widget: new RenderSafeWidget(widget, {
+				label,
+				block: true,
+				minHeight
+			}),
+			block: true
+		})
+	};
+}
+
+function buildBlockPreviewDecorations(state: EditorState): DecorationSet {
+	const activeRegion = getActiveRegion(state);
+	const frontmatterRange = detectFrontmatter(state.doc.toString());
+	const decos: RenderDecorationInput[] = [];
+
+	syntaxTree(state).iterate({
+		enter(node) {
+			if (isFrontmatterNode(frontmatterRange, node.from, node.to)) return false;
+			if (isNodeInActiveRegion(state, activeRegion, node.from, node.to)) return undefined;
+
+			if (node.name === 'FencedCode') {
+				const text = state.doc.sliceString(node.from, node.to);
+				const mermaidMatch = text.match(/```mermaid\s*\n([\s\S]*?)```/);
+				if (!mermaidMatch) return undefined;
+
+				decos.push(createBlockWidgetDecoration(
+					node.from,
+					node.to,
+					'block-preview:mermaid',
+					new MermaidWidget(mermaidMatch[1].trim()),
+					'Mermaid',
+					120
+				));
+				return false;
+			}
+
+			if (node.name === 'Table') {
+				decos.push(createBlockWidgetDecoration(
+					node.from,
+					node.to,
+					'block-preview:table',
+					new TableWidget(state.doc.sliceString(node.from, node.to)),
+					'Table',
+					72
+				));
+				return false;
+			}
+
+			return undefined;
+		}
+	});
+
+	return superviseDecorations({
+		docLength: state.doc.length,
+		decorations: decos,
+		source: 'block-preview',
+		getText: (from, to) => state.doc.sliceString(from, to),
+		allowLineBreakReplacement: true
+	});
+}
+
+export const blockPreviewExtension = StateField.define<DecorationSet>({
+	create(state) {
+		return buildBlockPreviewDecorations(state);
+	},
+	update(decorations, tr) {
+		if (tr.docChanged || tr.selection) {
+			return buildBlockPreviewDecorations(tr.state);
+		}
+		return decorations;
+	},
+	provide: (field) => EditorView.decorations.from(field)
+});
+
 // ---------------------------------------------------------------------------
 // Decoration builder — viewport-scoped, active-region-aware
 // ---------------------------------------------------------------------------
@@ -399,11 +638,10 @@ function buildPreviewDecorations(
 	activeRegion: ActiveRegion,
 	frontmatterRange: { bodyFrom: number } | null
 ): DecorationSet {
-	const builder = new RangeSetBuilder<Decoration>();
 	const state = view.state;
 	const { activeLines } = activeRegion;
 
-	const decos: { from: number; to: number; deco: Decoration }[] = [];
+	const decos: RenderDecorationInput[] = [];
 
 	for (const { from: visFrom, to: visTo } of view.visibleRanges) {
 		syntaxTree(state).iterate({
@@ -429,43 +667,110 @@ function buildPreviewDecorations(
 					}
 				}
 
+function extractInnerCodeAndLang(text: string): { innerCode: string; lang: string } {
+	const lines = text.split('\n');
+	if (lines.length === 0) return { innerCode: '', lang: '' };
+
+	const openingLine = lines[0];
+	const langMatch = openingLine.match(/^(?:```|~~~)\s*([A-Za-z0-9_+#.-]*)/);
+	const lang = langMatch ? langMatch[1] : '';
+
+	const hasClosingFence = lines.length > 1 && /^(?:```|~~~)\s*$/.test(lines[lines.length - 1].trim());
+	const innerLines = lines.slice(1, hasClosingFence ? lines.length - 1 : lines.length);
+
+	return {
+		innerCode: innerLines.join('\n'),
+		lang
+	};
+}
+
 				// Fenced code blocks & Mermaid
 				if (node.name === 'FencedCode') {
 					const text = state.doc.sliceString(node.from, node.to);
 					const mermaidMatch = text.match(/```mermaid\s*\n([\s\S]*?)```/);
 
 					if (mermaidMatch && !isActive) {
-						const code = mermaidMatch[1].trim();
-						decos.push({
-							from: node.from,
-							to: node.to,
-							deco: Decoration.replace({ widget: new MermaidWidget(code) })
-						});
-					} else {
-						const lines = text.split('\n');
-						let innerCode = '';
-						if (lines.length >= 2) {
-							innerCode = lines.slice(1, lines.length - 1).join('\n');
-						}
+						return false;
+					}
+
+					const { innerCode, lang } = extractInnerCodeAndLang(text);
+					const isOpeningFenceActive = activeLines.has(startLine);
+					const isClosingFenceActive = activeLines.has(endLine);
+
+					if (startLine < endLine) {
+						const firstVisibleLine = isOpeningFenceActive ? startLine : startLine + 1;
+						const lastVisibleLine = isClosingFenceActive ? endLine : endLine - 1;
 
 						for (let i = startLine; i <= endLine; i++) {
 							const line = state.doc.line(i);
-							let className = 'cm-codeblock-line';
-							if (i === startLine) {
-								className += ' cm-codeblock-top';
+							const isStartHidden = i === startLine && !isOpeningFenceActive;
+							const isEndHidden = i === endLine && !isClosingFenceActive;
+
+							if (isStartHidden || isEndHidden) {
 								decos.push({
-									from: line.to,
-									to: line.to,
-									deco: Decoration.widget({ widget: new CopyCodeWidget(innerCode), side: 1 })
+									from: line.from,
+									to: line.from,
+									kind: 'line',
+									source: 'live-preview:code-line-hidden',
+									deco: Decoration.line({ class: 'cm-codeblock-fence-hidden' })
 								});
+								decos.push({
+									from: line.from,
+									to: line.to,
+									kind: 'mark',
+									source: 'live-preview:code-fence-mark',
+									deco: hiddenMark
+								});
+							} else {
+								let className = 'cm-codeblock-line';
+								if (i === firstVisibleLine) className += ' cm-codeblock-top';
+								if (i === lastVisibleLine) className += ' cm-codeblock-bottom';
+
+								decos.push({
+									from: line.from,
+									to: line.from,
+									kind: 'line',
+									source: 'live-preview:code-line',
+									deco: Decoration.line({ class: className })
+								});
+
+								if (i === firstVisibleLine) {
+									decos.push({
+										from: line.to,
+										to: line.to,
+										kind: 'widget',
+										source: 'live-preview:copy-code',
+										deco: Decoration.widget({
+											widget: new RenderSafeWidget(new CopyCodeWidget(innerCode, lang), {
+												label: 'Copy Code'
+											}),
+											side: 1
+										})
+									});
+								}
 							}
-							if (i === endLine) className += ' cm-codeblock-bottom';
-							decos.push({
-								from: line.from,
-								to: line.from,
-								deco: Decoration.line({ class: className })
-							});
 						}
+					} else {
+						const line = state.doc.line(startLine);
+						decos.push({
+							from: line.from,
+							to: line.from,
+							kind: 'line',
+							source: 'live-preview:code-line',
+							deco: Decoration.line({ class: 'cm-codeblock-line cm-codeblock-top cm-codeblock-bottom' })
+						});
+						decos.push({
+							from: line.to,
+							to: line.to,
+							kind: 'widget',
+							source: 'live-preview:copy-code',
+							deco: Decoration.widget({
+								widget: new RenderSafeWidget(new CopyCodeWidget(innerCode, lang), {
+									label: 'Copy Code'
+								}),
+								side: 1
+							})
+						});
 					}
 					return false;
 				}
@@ -474,16 +779,97 @@ function buildPreviewDecorations(
 					decos.push({
 						from: node.from,
 						to: node.to,
+						kind: 'mark',
+						source: 'live-preview:inline-code',
 						deco: Decoration.mark({ class: 'cm-inline-code' })
 					});
 				}
 
 				if (!isActive) {
+					if (node.name === 'Table') {
+						return false;
+					}
+
 					if (node.name === 'HorizontalRule') {
 						decos.push({
 							from: node.from,
 							to: node.to,
-							deco: Decoration.replace({ widget: new HrWidget() })
+							kind: 'replace',
+							source: 'live-preview:horizontal-rule',
+							deco: Decoration.replace({
+								widget: new RenderSafeWidget(new HrWidget(), {
+									label: 'Horizontal Rule',
+									block: true
+								})
+							})
+						});
+					} else if (node.name === 'ListMark') {
+						const rawMarker = state.doc.sliceString(node.from, node.to);
+						const markerTo = node.to < state.doc.length && state.doc.sliceString(node.to, node.to + 1) === ' '
+							? node.to + 1
+							: node.to;
+
+						const cleanMarker = rawMarker.trim();
+						const isOrdered = /^\d+[\.\)]/.test(cleanMarker) || /^[ivx]+[\.\)]/i.test(cleanMarker) || /^[a-z][\.\)]/i.test(cleanMarker);
+
+						let bulletDepth = 0;
+						let orderedDepth = 0;
+						let curr = node.node.parent;
+						while (curr) {
+							if (curr.name === 'BulletList') {
+								bulletDepth++;
+							} else if (curr.name === 'OrderedList') {
+								orderedDepth++;
+							}
+							curr = curr.parent;
+						}
+
+						const lineText = state.doc.lineAt(node.from).text;
+						const leadingSpaces = lineText.match(/^\s*/)?.[0].length ?? 0;
+						const indentDepth = Math.floor(leadingSpaces / 2) + 1;
+
+						const effectiveBulletDepth = bulletDepth > 0 ? bulletDepth : indentDepth;
+						const effectiveOrderedDepth = orderedDepth > 0 ? orderedDepth : indentDepth;
+
+						let displaySymbol = cleanMarker;
+
+						if (!isOrdered) {
+							const depth = Math.max(1, effectiveBulletDepth);
+							if (depth === 1) {
+								displaySymbol = '•';
+							} else if (depth === 2) {
+								displaySymbol = '◦';
+							} else {
+								displaySymbol = '▪';
+							}
+						} else {
+							const depth = Math.max(1, effectiveOrderedDepth);
+							const num = parseMarkerNumber(cleanMarker);
+							const punctuation = cleanMarker.endsWith(')') ? ')' : '.';
+							if (depth === 1) {
+								displaySymbol = `${num}${punctuation}`;
+							} else if (depth === 2) {
+								displaySymbol = `${toLowerRoman(num)}${punctuation}`;
+							} else {
+								displaySymbol = `${toLowerAlpha(num)}${punctuation}`;
+							}
+						}
+
+						decos.push({
+							from: node.from,
+							to: markerTo,
+							kind: 'replace',
+							source: 'live-preview:list-marker-widget',
+							deco: Decoration.replace({
+								widget: new RenderSafeWidget(
+									new ListMarkerWidget(
+										displaySymbol,
+										!isOrdered,
+										isOrdered ? effectiveOrderedDepth : effectiveBulletDepth
+									),
+									{ label: 'List Marker' }
+								)
+							})
 						});
 					} else if (node.name === 'TaskMarker') {
 						const text = state.doc.sliceString(node.from, node.to);
@@ -491,7 +877,13 @@ function buildPreviewDecorations(
 						decos.push({
 							from: node.from,
 							to: node.to,
-							deco: Decoration.replace({ widget: new CheckboxWidget(isChecked) })
+							kind: 'replace',
+							source: 'live-preview:task-marker',
+							deco: Decoration.replace({
+								widget: new RenderSafeWidget(new CheckboxWidget(isChecked), {
+									label: 'Task Checkbox'
+								})
+							})
 						});
 					} else if (node.name === 'Image') {
 						const text = state.doc.sliceString(node.from, node.to);
@@ -500,7 +892,14 @@ function buildPreviewDecorations(
 							decos.push({
 								from: node.from,
 								to: node.to,
-								deco: Decoration.replace({ widget: new ImageWidget(imgMatch[2], imgMatch[1]) })
+								kind: 'replace',
+								source: 'live-preview:image',
+								deco: Decoration.replace({
+									widget: new RenderSafeWidget(new ImageWidget(imgMatch[2], imgMatch[1]), {
+										label: 'Image',
+										minHeight: 32
+									})
+								})
 							});
 						}
 					} else if (node.name === 'Link') {
@@ -510,7 +909,13 @@ function buildPreviewDecorations(
 							decos.push({
 								from: node.from,
 								to: node.to,
-								deco: Decoration.replace({ widget: new LinkWidget(link.label, link.href) })
+								kind: 'replace',
+								source: 'live-preview:link',
+								deco: Decoration.replace({
+									widget: new RenderSafeWidget(new LinkWidget(link.label, link.href), {
+										label: 'Link'
+									})
+								})
 							});
 						}
 					} else if (node.name === 'URL') {
@@ -518,19 +923,24 @@ function buildPreviewDecorations(
 						decos.push({
 							from: node.from,
 							to: node.to,
-							deco: Decoration.replace({ widget: new LinkWidget(text, normalizeHref(text)) })
-						});
-					} else if (node.name === 'Table') {
-						const text = state.doc.sliceString(node.from, node.to);
-						decos.push({
-							from: node.from,
-							to: node.to,
-							deco: Decoration.replace({ widget: new TableWidget(text) })
+							kind: 'replace',
+							source: 'live-preview:url',
+							deco: Decoration.replace({
+								widget: new RenderSafeWidget(new LinkWidget(text, normalizeHref(text)), {
+									label: 'URL'
+								})
+							})
 						});
 					} else if (hiddenMarkerTypes.has(node.name)) {
 						const isTokenActive = isSelectionIntersecting(state.selection.ranges, node.from, node.to);
 						if (isTokenActive) {
-							decos.push({ from: node.from, to: node.to, deco: visibleSyntaxMark });
+							decos.push({
+								from: node.from,
+								to: node.to,
+								kind: 'mark',
+								source: 'live-preview:visible-syntax',
+								deco: visibleSyntaxMark
+							});
 						} else {
 							const line = state.doc.lineAt(node.from);
 							let { from, to } = node;
@@ -541,7 +951,13 @@ function buildPreviewDecorations(
 								}
 							}
 
-							decos.push({ from, to, deco: hiddenMark });
+							decos.push({
+								from,
+								to,
+								kind: 'mark',
+								source: 'live-preview:hidden-syntax',
+								deco: hiddenMark
+							});
 						}
 					}
 				}
@@ -549,20 +965,12 @@ function buildPreviewDecorations(
 		});
 	}
 
-	decos.sort((a, b) => {
-		if (a.from !== b.from) return a.from - b.from;
-		return b.to - a.to;
+	return superviseDecorations({
+		docLength: state.doc.length,
+		decorations: decos,
+		source: 'live-preview',
+		getText: (from, to) => state.doc.sliceString(from, to)
 	});
-
-	let lastTo = -1;
-	for (const d of decos) {
-		if (d.from >= lastTo) {
-			builder.add(d.from, d.to, d.deco);
-			lastTo = d.to;
-		}
-	}
-
-	return builder.finish();
 }
 
 // ---------------------------------------------------------------------------
@@ -572,6 +980,7 @@ function buildPreviewDecorations(
 class LivePreviewPluginImpl {
 	decorations: DecorationSet;
 	private scheduler = new RenderingScheduler(300);
+	private guard: RenderGuardCounters = createRenderGuard();
 	private lastActiveRegion: ActiveRegion;
 	private cachedFrontmatter: { bodyFrom: number } | null = null;
 
@@ -585,6 +994,7 @@ class LivePreviewPluginImpl {
 		if (update.view.composing) return;
 
 		if (this.scheduler.consumeRebuild()) {
+			if (!this.canRender('render')) return;
 			this.lastActiveRegion = getActiveRegion(update.state);
 			this.decorations = buildPreviewDecorations(
 				update.view,
@@ -602,6 +1012,7 @@ class LivePreviewPluginImpl {
 		}
 
 		if (update.selectionSet) {
+			if (!this.canRender('render')) return;
 			const newRegion = getActiveRegion(update.state);
 			if (newRegion !== this.lastActiveRegion) {
 				this.lastActiveRegion = newRegion;
@@ -615,6 +1026,7 @@ class LivePreviewPluginImpl {
 		}
 
 		if (update.viewportChanged) {
+			if (!this.canRender('viewport')) return;
 			this.lastActiveRegion = getActiveRegion(update.state);
 			this.decorations = buildPreviewDecorations(
 				update.view,
@@ -626,6 +1038,14 @@ class LivePreviewPluginImpl {
 
 	destroy(): void {
 		this.scheduler.destroy();
+	}
+
+	private canRender(type: 'render' | 'viewport' | 'layout'): boolean {
+		const result = recordRenderPass(this.guard, type);
+		if (!result.shouldRender) {
+			console.warn(`[markdown-render] live preview ${result.reason}`);
+		}
+		return result.shouldRender;
 	}
 }
 

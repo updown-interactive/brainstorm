@@ -11,7 +11,7 @@ import { activeRegionField, getActiveRegion } from '../engine/active-region';
 import { advancedExtensionsPlugin } from '../engine/advanced-extensions';
 import { cursorAffinityExtension } from '../engine/cursor-affinity';
 import { detectFrontmatter, ensureMarkdownFrontmatter, parseFrontmatter } from '../engine/frontmatter';
-import { livePreviewPlugin } from '../engine/live-preview';
+import { blockPreviewExtension, livePreviewPlugin } from '../engine/live-preview';
 import { openAddPropertyPalette, propertiesExtension } from '../engine/properties-extension';
 import { listSharedTags, normalizeTagColor, normalizeTagName } from '../data/tag-registry';
 import { brainstormHighlightStyleExtension, brainstormTheme, tagAccentTheme } from '../engine/theme';
@@ -186,6 +186,7 @@ export class MarkdownController {
 			isMarkdown ? activeRegionField : [],
 			isMarkdown ? cursorAffinityExtension : [],
 			isMarkdown ? propertiesExtension : [],
+			isMarkdown ? blockPreviewExtension : [],
 			isMarkdown ? livePreviewPlugin : [],
 			isMarkdown ? advancedExtensionsPlugin : [],
 			EditorView.domEventHandlers({
