@@ -53,7 +53,7 @@
     {#if node.isDir}
       <Folder size={14} color="var(--colors-primary)" />
     {:else}
-      <svelte:component this={filesController.fileIcon(node.name)} size={14} color="var(--colors-textMuted)" />
+      <svelte:component this={filesController.fileIcon(node.name, node.path)} size={14} color="var(--colors-textMuted)" />
     {/if}
   </div>
   

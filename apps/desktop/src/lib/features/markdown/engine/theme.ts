@@ -71,6 +71,15 @@ export const brainstormTheme = EditorView.theme({
 		verticalAlign: 'sub',
 		fontSize: '0.8em'
 	},
+	'.cm-footnote-ref': {
+		color: 'var(--colors-primary)',
+		backgroundColor: 'color-mix(in srgb, var(--colors-primary) 14%, transparent)',
+		borderRadius: '999px',
+		padding: '0 5px',
+		fontSize: '0.78em',
+		fontWeight: '700',
+		verticalAlign: 'super'
+	},
 	'.cm-wikilink': {
 		color: 'var(--colors-primary)',
 		textDecoration: 'underline',
@@ -203,13 +212,16 @@ export const brainstormTheme = EditorView.theme({
 	'.cm-property-popover-host': {
 		position: 'relative'
 	},
-	'.cm-property-picker-button, .cm-property-add-button, .cm-property-calendar-button, .cm-property-menu-action, .cm-property-calendar-nav, .cm-property-calendar-day': {
-		border: '1px solid var(--colors-border)',
-		borderRadius: '6px',
-		backgroundColor: 'var(--colors-surface)',
+	'.cm-property-picker-button, .cm-property-add-button, .cm-property-calendar-button, .cm-property-menu-action, .cm-property-calendar-nav': {
+		border: '1px solid color-mix(in srgb, var(--colors-border) 70%, transparent)',
+		borderRadius: '8px',
+		backgroundColor: 'color-mix(in srgb, var(--colors-surface) 65%, transparent)',
 		color: 'var(--colors-text)',
 		font: 'inherit',
-		cursor: 'pointer'
+		cursor: 'pointer',
+		backdropFilter: 'blur(8px)',
+		WebkitBackdropFilter: 'blur(8px)',
+		transition: 'all 0.15s ease'
 	},
 	'.cm-property-picker-button, .cm-property-add-button': {
 		minHeight: '32px',
@@ -228,20 +240,52 @@ export const brainstormTheme = EditorView.theme({
 		fontSize: '11px',
 		fontFamily: 'var(--font-mono, monospace)'
 	},
-	'.cm-property-picker-button:hover, .cm-property-add-button:hover, .cm-property-calendar-button:hover, .cm-property-menu-action:hover, .cm-property-calendar-nav:hover, .cm-property-calendar-day:hover': {
-		borderColor: 'var(--colors-primary)'
+	'.cm-property-picker-button:hover, .cm-property-add-button:hover, .cm-property-calendar-button:hover, .cm-property-menu-action:hover, .cm-property-calendar-nav:hover': {
+		borderColor: 'var(--colors-primary)',
+		backgroundColor: 'color-mix(in srgb, var(--colors-primary) 12%, var(--colors-surface))'
+	},
+	'.cm-property-menu, .cm-property-calendar, .cm-property-spotlight': {
+		position: 'absolute',
+		zIndex: '40',
+		isolation: 'isolate',
+		boxSizing: 'border-box',
+		borderRadius: '16px',
+		overflow: 'hidden',
+		padding: '10px',
+		color: 'var(--colors-text)',
+		boxShadow: '0 20px 50px rgba(0, 0, 0, 0.35), inset 0 1px 1px color-mix(in srgb, var(--colors-text) 25%, transparent), inset 0 -1px 1px color-mix(in srgb, var(--colors-text) 8%, transparent)'
 	},
 	'.cm-property-menu, .cm-property-calendar': {
-		position: 'absolute',
 		top: 'calc(100% + 6px)',
 		left: '0',
-		zIndex: '40',
-		width: 'min(280px, 100%)',
-		boxSizing: 'border-box',
-		border: '1px solid var(--colors-border)',
-		borderRadius: '8px',
-		backgroundColor: 'var(--colors-surface)',
-		padding: '8px'
+		width: 'min(280px, 100%)'
+	},
+	'.cm-property-menu::before, .cm-property-calendar::before, .cm-property-spotlight::before': {
+		content: '""',
+		position: 'absolute',
+		inset: '0',
+		zIndex: '0',
+		background: 'color-mix(in srgb, var(--colors-surfaceVariant, var(--colors-surface, #1C1C1E)) 55%, transparent)',
+		backdropFilter: 'url(#liquid-glass-refract-dark) blur(8px) saturate(160%)',
+		WebkitBackdropFilter: 'blur(20px) saturate(160%)'
+	},
+	'.cm-property-menu::after, .cm-property-calendar::after, .cm-property-spotlight::after': {
+		content: '""',
+		position: 'absolute',
+		inset: '0',
+		zIndex: '1',
+		borderRadius: 'inherit',
+		padding: '1px',
+		background: 'linear-gradient(160deg, color-mix(in srgb, var(--colors-text) 50%, transparent) 0%, color-mix(in srgb, var(--colors-text) 15%, transparent) 18%, transparent 45%, color-mix(in srgb, var(--colors-text) 10%, transparent) 100%)',
+		mask: 'linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)',
+		WebkitMask: 'linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)',
+		WebkitMaskComposite: 'xor',
+		maskComposite: 'exclude',
+		pointerEvents: 'none'
+	},
+	'.cm-property-menu > *, .cm-property-calendar > *, .cm-property-spotlight > *': {
+		position: 'relative',
+		zIndex: '2'
 	},
 	'.cm-property-menu[hidden], .cm-property-calendar[hidden], .cm-property-custom-row[hidden]': {
 		display: 'none'
@@ -266,7 +310,8 @@ export const brainstormTheme = EditorView.theme({
 		textAlign: 'left',
 		cursor: 'pointer',
 		display: 'grid',
-		gap: '2px'
+		gap: '2px',
+		transition: 'all 0.12s ease'
 	},
 	'.cm-property-menu-item small': {
 		color: 'var(--colors-textMuted)',
@@ -274,7 +319,8 @@ export const brainstormTheme = EditorView.theme({
 		lineHeight: '1.2'
 	},
 	'.cm-property-menu-item:hover, .cm-property-menu-item.is-selected': {
-		backgroundColor: 'var(--colors-surfaceVariant)'
+		backgroundColor: 'color-mix(in srgb, var(--colors-primary) 18%, transparent)',
+		color: 'var(--colors-primary)'
 	},
 	'.cm-property-custom-row': {
 		display: 'grid',
@@ -282,7 +328,7 @@ export const brainstormTheme = EditorView.theme({
 		gap: '6px',
 		marginTop: '8px',
 		paddingTop: '8px',
-		borderTop: '1px solid var(--colors-border)'
+		borderTop: '1px solid color-mix(in srgb, var(--colors-border) 60%, transparent)'
 	},
 	'.cm-property-menu-action': {
 		minHeight: '32px',
@@ -296,19 +342,18 @@ export const brainstormTheme = EditorView.theme({
 		alignItems: 'center',
 		justifyContent: 'center',
 		padding: '24px',
-		backgroundColor: 'color-mix(in srgb, var(--colors-background) 64%, transparent)'
+		backdropFilter: 'blur(8px)',
+		WebkitBackdropFilter: 'blur(8px)',
+		backgroundColor: 'color-mix(in srgb, var(--colors-background) 65%, transparent)'
 	},
 	'.cm-property-spotlight-overlay[hidden]': {
 		display: 'none'
 	},
 	'.cm-property-spotlight': {
+		position: 'relative',
 		width: 'min(560px, calc(100vw - 32px))',
 		maxHeight: 'min(560px, calc(100vh - 96px))',
-		boxSizing: 'border-box',
-		border: '1px solid var(--colors-border)',
-		borderRadius: '8px',
-		backgroundColor: 'var(--colors-surface)',
-		padding: '10px',
+		padding: '12px',
 		display: 'grid',
 		gap: '10px'
 	},
@@ -316,9 +361,9 @@ export const brainstormTheme = EditorView.theme({
 		width: '100%',
 		minHeight: '44px',
 		boxSizing: 'border-box',
-		border: '1px solid var(--colors-border)',
+		border: '1px solid color-mix(in srgb, var(--colors-border) 60%, transparent)',
 		borderRadius: '8px',
-		backgroundColor: 'var(--colors-background)',
+		backgroundColor: 'color-mix(in srgb, var(--colors-background) 50%, transparent)',
 		color: 'var(--colors-text)',
 		padding: '9px 12px',
 		font: 'inherit',
@@ -376,7 +421,7 @@ export const brainstormTheme = EditorView.theme({
 		gridTemplateColumns: '32px minmax(0, 1fr) 32px',
 		alignItems: 'center',
 		gap: '6px',
-		marginBottom: '8px'
+		marginBottom: '10px'
 	},
 	'.cm-property-calendar-title': {
 		color: 'var(--colors-text)',
@@ -386,7 +431,21 @@ export const brainstormTheme = EditorView.theme({
 	},
 	'.cm-property-calendar-nav': {
 		width: '32px',
-		height: '30px'
+		height: '30px',
+		border: '1px solid color-mix(in srgb, var(--colors-border) 60%, transparent)',
+		borderRadius: '6px',
+		backgroundColor: 'color-mix(in srgb, var(--colors-background) 40%, transparent)',
+		color: 'var(--colors-text)',
+		cursor: 'pointer',
+		transition: 'all 0.15s ease',
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'center'
+	},
+	'.cm-property-calendar-nav:hover': {
+		backgroundColor: 'color-mix(in srgb, var(--colors-primary) 18%, transparent)',
+		borderColor: 'var(--colors-primary)',
+		color: 'var(--colors-primary)'
 	},
 	'.cm-property-calendar-grid': {
 		display: 'grid',
@@ -406,11 +465,27 @@ export const brainstormTheme = EditorView.theme({
 	'.cm-property-calendar-day': {
 		minWidth: '0',
 		minHeight: '30px',
-		padding: '0'
+		padding: '0',
+		border: '1px solid transparent',
+		borderRadius: '6px',
+		backgroundColor: 'transparent',
+		color: 'var(--colors-text)',
+		font: 'inherit',
+		fontSize: '12px',
+		cursor: 'pointer',
+		transition: 'all 0.15s ease'
+	},
+	'.cm-property-calendar-day:hover': {
+		backgroundColor: 'color-mix(in srgb, var(--colors-primary) 18%, transparent)',
+		color: 'var(--colors-primary)',
+		borderColor: 'color-mix(in srgb, var(--colors-primary) 40%, transparent)'
 	},
 	'.cm-property-calendar-day.is-selected': {
-		backgroundColor: 'var(--colors-primary)',
-		borderColor: 'var(--colors-primary)'
+		backgroundColor: 'color-mix(in srgb, var(--colors-primary) 85%, #2979ff)',
+		color: '#ffffff',
+		borderColor: 'var(--colors-primary)',
+		fontWeight: '600',
+		boxShadow: '0 2px 8px color-mix(in srgb, var(--colors-primary) 45%, transparent)'
 	},
 	'.cm-property-switch': {
 		width: '18px',
@@ -502,6 +577,50 @@ export const brainstormTheme = EditorView.theme({
 		gap: '4px',
 		padding: '0'
 	},
+	'.cm-property-icon-picker-menu': {
+		width: '260px',
+		maxHeight: '260px',
+		padding: '8px',
+		display: 'block',
+		backdropFilter: 'blur(16px)',
+		WebkitBackdropFilter: 'blur(16px)',
+		backgroundColor: 'color-mix(in srgb, var(--colors-surface, #1e1e2e) 72%, transparent)',
+		border: '1px solid color-mix(in srgb, var(--colors-primary) 32%, var(--colors-border))',
+		boxShadow: '0 12px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+		borderRadius: '10px'
+	},
+	'.cm-property-icon-grid': {
+		display: 'grid',
+		gridTemplateColumns: 'repeat(5, 1fr)',
+		gap: '6px',
+		maxHeight: '240px',
+		overflowY: 'auto',
+		paddingRight: '2px'
+	},
+	'.cm-property-icon-grid-item': {
+		display: 'flex',
+		flexDirection: 'column',
+		alignItems: 'center',
+		justifyContent: 'center',
+		height: '38px',
+		border: '1px solid transparent',
+		borderRadius: '6px',
+		backgroundColor: 'transparent',
+		color: 'var(--colors-textMuted)',
+		cursor: 'pointer',
+		transition: 'all 0.15s ease'
+	},
+	'.cm-property-icon-grid-item:hover': {
+		backgroundColor: 'color-mix(in srgb, var(--colors-primary) 16%, transparent)',
+		color: 'var(--colors-primary)',
+		borderColor: 'color-mix(in srgb, var(--colors-primary) 40%, transparent)'
+	},
+	'.cm-property-icon-grid-item.is-selected': {
+		backgroundColor: 'color-mix(in srgb, var(--colors-primary) 24%, transparent)',
+		color: 'var(--colors-primary)',
+		borderColor: 'var(--colors-primary)',
+		fontWeight: '600'
+	},
 	'.cm-property-link-chip.is-broken': {
 		borderColor: 'var(--colors-warning)'
 	},
@@ -589,6 +708,42 @@ export const brainstormTheme = EditorView.theme({
 	'.cm-callout-tip': { borderLeftColor: 'var(--colors-success)', backgroundColor: 'rgba(46, 204, 113, 0.1)' },
 	'.cm-callout-info': { borderLeftColor: 'var(--colors-primary)', backgroundColor: 'rgba(0, 122, 204, 0.1)' },
 
+	'.cm-blockquote-line': {
+		position: 'relative',
+		color: 'var(--colors-textMuted)',
+		fontStyle: 'italic',
+		paddingLeft: '16px',
+		borderLeft: '3px solid color-mix(in srgb, var(--colors-primary) 70%, var(--colors-border))'
+	},
+	'.cm-blockquote-depth-2': {
+		marginLeft: '16px',
+		borderLeftColor: 'color-mix(in srgb, var(--colors-secondary, #22c55e) 70%, var(--colors-border))'
+	},
+	'.cm-blockquote-depth-3': {
+		marginLeft: '32px',
+		borderLeftColor: 'color-mix(in srgb, var(--colors-warning, #f59e0b) 70%, var(--colors-border))'
+	},
+	'.cm-list-line': {
+		paddingLeft: '2px'
+	},
+	'.cm-list-marker-preview': {
+		display: 'inline-block',
+		minWidth: '1.25em',
+		color: 'var(--colors-primary)',
+		fontWeight: '600'
+	},
+	'.cm-definition-line, .cm-footnote-definition-line': {
+		color: 'var(--colors-textMuted)',
+		paddingLeft: '18px',
+		borderLeft: '2px solid var(--colors-border)'
+	},
+	'.cm-container-open-line, .cm-container-close-line': {
+		color: 'var(--colors-textMuted)',
+		backgroundColor: 'color-mix(in srgb, var(--colors-warning, #f59e0b) 10%, transparent)',
+		borderLeft: '3px solid var(--colors-warning, #f59e0b)',
+		paddingLeft: '12px'
+	},
+
 	'.cm-hr': {
 		border: 'none',
 		borderTop: '1px solid var(--colors-border)',
@@ -661,6 +816,41 @@ export const brainstormTheme = EditorView.theme({
 	'.cm-codeblock-line': {
 		backgroundColor: 'rgba(255, 255, 255, 0.04)',
 		padding: '0 16px'
+	},
+	'.cm-codeblock-widget': {
+		position: 'relative',
+		display: 'block',
+		boxSizing: 'border-box',
+		width: '100%',
+		margin: '12px 0',
+		padding: '36px 16px 16px',
+		border: '1px solid color-mix(in srgb, var(--colors-border) 80%, transparent)',
+		borderRadius: '8px',
+		backgroundColor: 'rgba(0, 0, 0, 0.24)',
+		overflow: 'hidden'
+	},
+	'.cm-codeblock-widget .cm-copy-code-btn': {
+		top: '8px',
+		right: '8px'
+	},
+	'.cm-codeblock-language': {
+		position: 'absolute',
+		top: '10px',
+		left: '16px',
+		color: 'var(--colors-textMuted)',
+		fontFamily: 'var(--font-mono, monospace)',
+		fontSize: '11px',
+		fontWeight: '700',
+		textTransform: 'uppercase'
+	},
+	'.cm-codeblock-pre': {
+		margin: '0',
+		overflowX: 'auto',
+		color: 'var(--colors-text)',
+		fontFamily: 'var(--font-mono, monospace)',
+		fontSize: '13px',
+		lineHeight: '1.55',
+		whiteSpace: 'pre'
 	},
 	'.cm-codeblock-top': {
 		borderTopLeftRadius: '8px',

@@ -121,12 +121,26 @@ export class MarkdownController {
 		}));
 
 		const frontmatter = isMarkdownPath(path) ? detectFrontmatter(content) : null;
-		if (frontmatter) {
-			this.view.dispatch({ selection: EditorSelection.cursor(frontmatter.bodyFrom) });
-		} else if (!isMarkdownPath(path)) {
+		const targetPos = frontmatter ? frontmatter.bodyFrom : 0;
+		this.view.dispatch({ selection: EditorSelection.cursor(targetPos) });
+
+		if (!isMarkdownPath(path)) {
 			this.setActiveTagColor('');
 		}
 		this.patchState({ view: this.view, isMarkdown: isMarkdownPath(path) });
+
+		const resetScroll = () => {
+			if (this.view?.scrollDOM) {
+				this.view.scrollDOM.scrollTop = 0;
+			}
+		};
+
+		resetScroll();
+		requestAnimationFrame(() => {
+			resetScroll();
+			setTimeout(resetScroll, 10);
+		});
+
 		this.view.focus();
 	}
 
@@ -150,9 +164,11 @@ export class MarkdownController {
 									const fm = detectFrontmatter(doc);
 									const startPos = fm ? fm.bodyFrom : 0;
 									view.dispatch({
-										selection: EditorSelection.single(startPos, view.state.doc.length),
-										scrollIntoView: true
+										selection: EditorSelection.single(view.state.doc.length, startPos)
 									});
+									if (view.scrollDOM) {
+										view.scrollDOM.scrollTop = 0;
+									}
 									return true;
 								}
 							}
@@ -306,9 +322,11 @@ export class MarkdownController {
 		const fm = isMarkdownPath(this.path) ? detectFrontmatter(doc) : null;
 		const startPos = fm ? fm.bodyFrom : 0;
 		this.view.dispatch({
-			selection: EditorSelection.single(startPos, this.view.state.doc.length),
-			scrollIntoView: true
+			selection: EditorSelection.single(this.view.state.doc.length, startPos)
 		});
+		if (this.view.scrollDOM) {
+			this.view.scrollDOM.scrollTop = 0;
+		}
 		this.closeContextMenu();
 		this.view.focus();
 	}
@@ -393,29 +411,10 @@ export class MarkdownController {
 		if (!update.docChanged || this.loadedPath !== this.path) return;
 		const content = update.state.doc.toString();
 
-		if (this.isApplyingLifecycleFrontmatter) {
-			this.triggerSave(content);
-			return;
-		}
-
-		if (!isMarkdown) {
-			this.triggerSave(content);
-			return;
-		}
-
-		const normalizedContent = ensureMarkdownFrontmatter(content, this.path, true);
-		if (normalizedContent !== content) {
-			this.isApplyingLifecycleFrontmatter = true;
-			update.view.dispatch({
-				changes: { from: 0, to: content.length, insert: normalizedContent },
-				userEvent: 'input.frontmatterLifecycle'
-			});
-			this.isApplyingLifecycleFrontmatter = false;
-			return;
-		}
-
 		this.triggerSave(content);
-		void this.updateTagAccentColor(content);
+		if (isMarkdown) {
+			void this.updateTagAccentColor(content);
+		}
 	}
 
 	private triggerSave(newContent: string): void {
@@ -516,7 +515,9 @@ export function createMarkdownController(): MarkdownController {
 }
 
 function isMarkdownPath(filePath: string): boolean {
-	return /\.md(?:x)?$/i.test(filePath);
+	if (!filePath) return true;
+	if (/\.(json|png|jpg|jpeg|gif|svg|wasm|zip)$/i.test(filePath)) return false;
+	return true;
 }
 
 function isJsonPath(filePath: string): boolean {

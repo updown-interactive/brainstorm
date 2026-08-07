@@ -1,6 +1,7 @@
 import { tick } from 'svelte';
 import { get, writable } from 'svelte/store';
-import { Columns2, File, FileArchive, FileCode, FileJson, FileText, FolderPlus, Image, Search, Settings } from 'lucide-svelte';
+import { Columns2, File, FileArchive, FileCode, FileJson, FileText, FolderPlus, Image, Search, Settings, Zap } from 'lucide-svelte';
+import { getCustomFileIcon, resolveIconComponent } from '../config/icon-registry';
 import { ConfigurationPanel } from '../../configuration';
 import MarkdownEditor from '../../markdown';
 import { editorState, type EditorPane, type EditorState } from '../state/editor';
@@ -300,7 +301,11 @@ class FilesController {
 		return node.isDir ? node.name : node.name.replace(/\.md$/, '');
 	}
 
-	fileIcon(filename: string) {
+	fileIcon(filename: string, path?: string) {
+		if (path) {
+			const custom = getCustomFileIcon(path);
+			if (custom) return resolveIconComponent(custom);
+		}
 		const ext = filename.split('.').pop()?.toLowerCase();
 		switch (ext) {
 			case 'js':
@@ -315,6 +320,7 @@ class FilesController {
 			case 'json':
 				return FileJson;
 			case 'md':
+				return Zap;
 			case 'txt':
 				return FileText;
 			case 'png':

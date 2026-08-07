@@ -5,6 +5,8 @@
   import JsonInspector from './JsonInspector.svelte';
   import LiquidGlassPanel from '$lib/shared/ui/LiquidGlassPanel.svelte';
   import type { PropertiesDisplayMode } from '../../markdown/config/editor-config';
+  import AgentPackageInspector from '../../agents/components/AgentPackageInspector.svelte';
+  import { agentRepository, type AgentDocumentKind } from '../../agents';
 
   export let onClose: () => void;
   export let onConfigChange: () => void = () => {};
@@ -562,137 +564,17 @@
           </div>
         </section>
       </div>
-    {:else if $configurationController.selectedKind === 'agent' && $configurationController.selectedAgent}
+    {:else if $configurationController.selectedKind === 'agent' && $configurationController.selectedAgentPackage}
       <div class="config-overview">
-        <section class="config-section">
-          <div class="agent-hero">
-            <div class="agent-avatar">
-              <Bot size={24} />
-            </div>
-            <div class="agent-heading">
-              <h2>{$configurationController.selectedAgent.name || $configurationController.selectedName}</h2>
-              <p>{$configurationController.selectedAgent.description || 'Project agent'}</p>
-            </div>
-            <div class="agent-badges">
-              <span class="count-pill">{$configurationController.selectedAgent.role || 'agent'}</span>
-              {#if $configurationController.selectedAgent.version}
-                <span class="count-pill">v{$configurationController.selectedAgent.version}</span>
-              {/if}
-            </div>
-          </div>
-
-          <div class="agent-stat-grid">
-            <article class="agent-stat">
-              <Network size={15} />
-              <div>
-                <span>ID</span>
-                <strong>{$configurationController.selectedAgent.id || 'unknown'}</strong>
-              </div>
-            </article>
-            <article class="agent-stat">
-              <GitBranch size={15} />
-              <div>
-                <span>Delegation</span>
-                <strong>{$configurationController.selectedAgent.canDelegate ? 'Can delegate' : 'No delegation'}</strong>
-              </div>
-            </article>
-            <article class="agent-stat">
-              <Database size={15} />
-              <div>
-                <span>Memory</span>
-                <strong>{$configurationController.selectedAgent.memoryType || 'unspecified'}</strong>
-              </div>
-            </article>
-            <article class="agent-stat">
-              <SlidersHorizontal size={15} />
-              <div>
-                <span>Priority</span>
-                <strong>{$configurationController.selectedAgent.priority || 'default'}</strong>
-              </div>
-            </article>
-          </div>
-
-          {#if $configurationController.selectedAgent.delegates.length > 0}
-            <div class="config-subsection">
-              <div class="subsection-heading">
-                <GitBranch size={15} />
-                <h3>Delegates</h3>
-              </div>
-              <div class="agent-chip-row">
-                {#each $configurationController.selectedAgent.delegates as delegate}
-                  <span class="agent-chip">{delegate}</span>
-                {/each}
-              </div>
-            </div>
-          {/if}
-
-          <div class="agent-grid">
-            <section class="agent-panel">
-              <div class="subsection-heading">
-                <Brain size={15} />
-                <h3>Skills</h3>
-              </div>
-              {#if $configurationController.selectedAgent.skills.length > 0}
-                <ul class="agent-list">
-                  {#each $configurationController.selectedAgent.skills as skill}
-                    <li>{skill}</li>
-                  {/each}
-                </ul>
-              {:else}
-                <div class="brainstorm-empty">No skills defined.</div>
-              {/if}
-            </section>
-
-            <section class="agent-panel">
-              <div class="subsection-heading">
-                <Database size={15} />
-                <h3>Memory</h3>
-              </div>
-              {#if $configurationController.selectedAgent.memoryItems.length > 0}
-                <ul class="agent-list">
-                  {#each $configurationController.selectedAgent.memoryItems as item}
-                    <li>{item}</li>
-                  {/each}
-                </ul>
-              {:else}
-                <div class="brainstorm-empty">No memory entries defined.</div>
-              {/if}
-            </section>
-          </div>
-
-          <section class="agent-panel">
-            <div class="subsection-heading">
-              <Wrench size={15} />
-              <h3>Tools</h3>
-            </div>
-            {#if $configurationController.selectedAgent.toolGroups.length > 0}
-              <div class="agent-tools-grid">
-                {#each $configurationController.selectedAgent.toolGroups as group}
-                  <article class="agent-tool-group">
-                    <h4>{group.name}</h4>
-                    <div class="agent-chip-row">
-                      {#each group.tools as tool}
-                        <span class="agent-chip">{tool}</span>
-                      {/each}
-                    </div>
-                  </article>
-                {/each}
-              </div>
-            {:else}
-              <div class="brainstorm-empty">No tools defined.</div>
-            {/if}
-          </section>
-
-          {#if $configurationController.selectedAgent.systemPrompt}
-            <section class="agent-panel">
-              <div class="subsection-heading">
-                <TerminalSquare size={15} />
-                <h3>System Prompt</h3>
-              </div>
-              <pre class="agent-prompt">{$configurationController.selectedAgent.systemPrompt}</pre>
-            </section>
-          {/if}
-        </section>
+        <AgentPackageInspector
+          agentPackage={$configurationController.selectedAgentPackage}
+          onSaveDocument={async (docKind, content) => {
+            if ($configurationController.selectedAgentPackage) {
+              await agentRepository.saveDocument($configurationController.selectedAgentPackage.packagePath, docKind, content);
+              $configurationController.selectedAgentPackage.documents[docKind] = content;
+            }
+          }}
+        />
       </div>
     {:else}
       <div class="brainstorm-empty large">No structured view for this file.</div>
@@ -1327,164 +1209,6 @@
   .tag-edit-btn:hover {
     background-color: var(--colors-hover);
     color: var(--colors-text);
-  }
-
-  .agent-hero {
-    min-width: 0;
-    display: grid;
-    grid-template-columns: 48px minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 12px;
-    border: 1px solid var(--colors-border);
-    border-radius: 8px;
-    background-color: var(--colors-surface);
-    padding: 12px;
-  }
-
-  .agent-avatar {
-    width: 44px;
-    height: 44px;
-    display: grid;
-    place-items: center;
-    border: 1px solid var(--colors-border);
-    border-radius: 8px;
-    background-color: var(--colors-background);
-    color: var(--colors-primary);
-  }
-
-  .agent-heading {
-    min-width: 0;
-  }
-
-  .agent-heading h2 {
-    margin: 0;
-    font-size: 17px;
-  }
-
-  .agent-heading p {
-    margin: 4px 0 0;
-    color: var(--colors-textMuted);
-    font-size: 12px;
-    line-height: 1.4;
-  }
-
-  .agent-badges,
-  .agent-chip-row {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .agent-stat-grid,
-  .agent-grid,
-  .agent-tools-grid {
-    display: grid;
-    gap: 10px;
-  }
-
-  .agent-stat-grid {
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  }
-
-  .agent-grid {
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  }
-
-  .agent-stat,
-  .agent-panel,
-  .agent-tool-group {
-    min-width: 0;
-    border: 1px solid var(--colors-border);
-    border-radius: 8px;
-    background-color: var(--colors-surface);
-  }
-
-  .agent-stat {
-    display: grid;
-    grid-template-columns: 20px minmax(0, 1fr);
-    align-items: center;
-    gap: 8px;
-    padding: 10px;
-    color: var(--colors-primary);
-  }
-
-  .agent-stat div {
-    min-width: 0;
-    display: grid;
-    gap: 2px;
-  }
-
-  .agent-stat span {
-    color: var(--colors-textMuted);
-    font-size: 11px;
-  }
-
-  .agent-stat strong {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: var(--colors-text);
-    font-size: 12px;
-  }
-
-  .agent-panel {
-    display: grid;
-    gap: 10px;
-    padding: 12px;
-  }
-
-  .agent-list {
-    margin: 0;
-    padding-left: 18px;
-    color: var(--colors-text);
-    font-size: 13px;
-    line-height: 1.6;
-  }
-
-  .agent-list li {
-    padding-left: 2px;
-  }
-
-  .agent-tool-group {
-    display: grid;
-    gap: 8px;
-    padding: 10px;
-  }
-
-  .agent-tool-group h4 {
-    margin: 0;
-    color: var(--colors-text);
-    font-size: 12px;
-  }
-
-  .agent-chip {
-    min-height: 24px;
-    display: inline-flex;
-    align-items: center;
-    border: 1px solid var(--colors-border);
-    border-radius: 999px;
-    background-color: var(--colors-background);
-    color: var(--colors-textMuted);
-    padding: 0 8px;
-    font-size: 11px;
-    font-weight: 700;
-  }
-
-  .agent-prompt {
-    max-height: 260px;
-    overflow: auto;
-    margin: 0;
-    border: 1px solid var(--colors-border);
-    border-radius: 6px;
-    background-color: var(--colors-background);
-    color: var(--colors-text);
-    padding: 10px;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    font-size: 12px;
-    line-height: 1.5;
-    white-space: pre-wrap;
   }
 
   .brainstorm-empty,

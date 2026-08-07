@@ -21,6 +21,30 @@ pub async fn create_project(
         .unwrap()
         .as_secs() as i64;
 
+    if let Some(mut existing) = db::get_project_by_path(pool, &payload.path).await? {
+        bootstrap::ensure_project_bootstrap(&existing.path)?;
+        db::update_project(
+            pool,
+            &super::model::UpdateProjectPayload {
+                id: existing.id.clone(),
+                name: payload.name.clone(),
+                description: payload.description.clone(),
+                icon: payload.icon.clone(),
+                color: payload.color,
+            },
+            now,
+        )
+        .await?;
+        db::touch_last_opened(pool, &existing.id, now).await?;
+        existing.name = payload.name;
+        existing.description = payload.description;
+        existing.icon = payload.icon;
+        existing.color = payload.color;
+        existing.last_opened_at = Some(now);
+        existing.updated_at = now;
+        return Ok(existing);
+    }
+
     let project = Project {
         id: uuid::Uuid::new_v4().to_string(),
         name: payload.name,
