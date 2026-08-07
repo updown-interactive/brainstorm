@@ -27,7 +27,7 @@ const hiddenMark = Decoration.mark({ class: 'cm-syntax-hidden' });
 const visibleSyntaxMark = Decoration.mark({ class: 'cm-syntax-visible' });
 
 // ---------------------------------------------------------------------------
-// Widget classes — each implements eq(), updateDOM(), ignoreEvent()
+// Widgets
 // ---------------------------------------------------------------------------
 
 class HrWidget extends WidgetType {
@@ -76,7 +76,6 @@ class CopyCodeWidget extends WidgetType {
 	}
 
 	updateDOM(): boolean {
-		// Icon stays the same — code reference is updated via eq() check
 		return true;
 	}
 
@@ -234,6 +233,7 @@ class TableWidget extends WidgetType {
 
 		const table = document.createElement('table');
 		table.className = 'cm-table-widget';
+		const aligns = parseTableAlignments(rows[1] ?? '');
 
 		const headerCells = rows[0]
 			.split('|')
@@ -244,6 +244,7 @@ class TableWidget extends WidgetType {
 		headerCells.forEach((c) => {
 			const th = document.createElement('th');
 			th.innerText = c;
+			applyTableAlignment(th, aligns[tr.children.length]);
 			tr.appendChild(th);
 		});
 		thead.appendChild(tr);
@@ -261,6 +262,7 @@ class TableWidget extends WidgetType {
 			cells.forEach((c) => {
 				const td = document.createElement('td');
 				td.innerText = c;
+				applyTableAlignment(td, aligns[r.children.length]);
 				r.appendChild(td);
 			});
 			tbody.appendChild(r);
@@ -271,7 +273,6 @@ class TableWidget extends WidgetType {
 }
 
 class MermaidWidget extends WidgetType {
-	/** Cache rendered SVG by code content to avoid expensive re-renders. */
 	private static svgCache = new Map<string, string>();
 
 	constructor(public code: string) {
@@ -286,14 +287,12 @@ class MermaidWidget extends WidgetType {
 		const wrap = document.createElement('div');
 		wrap.className = 'cm-mermaid-widget-wrap';
 
-		// Serve from cache when available
 		const cached = MermaidWidget.svgCache.get(this.code);
 		if (cached) {
 			wrap.innerHTML = cached;
 			return wrap;
 		}
 
-		// Stable ID from content hash instead of Math.random()
 		const id = `mermaid-${this.contentHash()}`;
 
 		queueMicrotask(() => {
@@ -320,7 +319,6 @@ class MermaidWidget extends WidgetType {
 			dom.innerHTML = cached;
 			return true;
 		}
-		// Code changed and no cache — must recreate
 		return false;
 	}
 
@@ -328,20 +326,60 @@ class MermaidWidget extends WidgetType {
 		return true;
 	}
 
-	/** Deterministic hash for stable mermaid render IDs. */
 	private contentHash(): string {
 		let hash = 0;
 		for (let i = 0; i < this.code.length; i++) {
-			const char = this.code.charCodeAt(i);
-			hash = ((hash << 5) - hash + char) | 0;
+			hash = (hash << 5) - hash + this.code.charCodeAt(i);
+			hash |= 0;
 		}
 		return Math.abs(hash).toString(36);
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Utilities
-// ---------------------------------------------------------------------------
+function parseTableAlignments(alignRow: string): string[] {
+	return alignRow
+		.split('|')
+		.map((c) => c.trim())
+		.filter((c, i, arr) => !(c === '' && (i === 0 || i === arr.length - 1)))
+		.map((cell) => {
+			const left = cell.startsWith(':');
+			const right = cell.endsWith(':');
+			if (left && right) return 'center';
+			if (right) return 'right';
+			if (left) return 'left';
+			return 'left';
+		});
+}
+
+function applyTableAlignment(el: HTMLElement, align: string | undefined): void {
+	if (align && align !== 'left') {
+		el.style.textAlign = align;
+	}
+}
+
+function parseMarkdownLink(text: string): { label: string; href: string } | null {
+	const match = text.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+	if (!match) return null;
+
+	const label = match[1].trim();
+	const rawHref = match[2].trim();
+	const href = normalizeHref(rawHref);
+
+	if (!label || !href) return null;
+	return { label, href };
+}
+
+function normalizeHref(href: string): string {
+	const value = href.replace(/^<(.+)>$/, '$1');
+	if (
+		/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(value) ||
+		value.startsWith('/') ||
+		value.startsWith('#')
+	) {
+		return value;
+	}
+	return `https://${value}`;
+}
 
 function isSelectionIntersecting(ranges: readonly { from: number; to: number }[], from: number, to: number): boolean {
 	for (const range of ranges) {
@@ -350,22 +388,6 @@ function isSelectionIntersecting(ranges: readonly { from: number; to: number }[]
 		}
 	}
 	return false;
-}
-
-function parseMarkdownLink(text: string): { label: string; href: string } | null {
-	const match = text.match(/^\[([^\]]+)\]\((\S+?)(?:\s+['"][\s\S]*?['"])?\)$/);
-	if (!match) return null;
-	return { label: match[1], href: normalizeHref(match[2]) };
-}
-
-function normalizeHref(value: string): string {
-	if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-		return `mailto:${value}`;
-	}
-	if (/^[a-z][a-z0-9+.-]*:/i.test(value)) {
-		return value;
-	}
-	return `https://${value}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -383,7 +405,6 @@ function buildPreviewDecorations(
 
 	const decos: { from: number; to: number; deco: Decoration }[] = [];
 
-	// Iterate only over visible ranges instead of the entire document
 	for (const { from: visFrom, to: visTo } of view.visibleRanges) {
 		syntaxTree(state).iterate({
 			from: visFrom,
@@ -392,7 +413,6 @@ function buildPreviewDecorations(
 				const startLine = state.doc.lineAt(node.from).number;
 				const endLine = state.doc.lineAt(node.to).number;
 
-				// Skip frontmatter region
 				if (
 					frontmatterRange &&
 					node.from < frontmatterRange.bodyFrom &&
@@ -409,7 +429,7 @@ function buildPreviewDecorations(
 					}
 				}
 
-				// --- Fenced code blocks (including mermaid) ---
+				// Fenced code blocks & Mermaid
 				if (node.name === 'FencedCode') {
 					const text = state.doc.sliceString(node.from, node.to);
 					const mermaidMatch = text.match(/```mermaid\s*\n([\s\S]*?)```/);
@@ -450,7 +470,6 @@ function buildPreviewDecorations(
 					return false;
 				}
 
-				// --- Inline code (always decorated regardless of active state) ---
 				if (node.name === 'InlineCode') {
 					decos.push({
 						from: node.from,
@@ -459,7 +478,6 @@ function buildPreviewDecorations(
 					});
 				}
 
-				// --- Non-active region: hide markers and render widgets ---
 				if (!isActive) {
 					if (node.name === 'HorizontalRule') {
 						decos.push({
@@ -531,7 +549,6 @@ function buildPreviewDecorations(
 		});
 	}
 
-	// Sort and deduplicate before building the RangeSet
 	decos.sort((a, b) => {
 		if (a.from !== b.from) return a.from - b.from;
 		return b.to - a.to;
@@ -549,7 +566,7 @@ function buildPreviewDecorations(
 }
 
 // ---------------------------------------------------------------------------
-// ViewPlugin — replaces the old StateField for debounced, viewport-scoped updates
+// ViewPlugin
 // ---------------------------------------------------------------------------
 
 class LivePreviewPluginImpl {
@@ -565,10 +582,8 @@ class LivePreviewPluginImpl {
 	}
 
 	update(update: ViewUpdate): void {
-		// Suppress all decoration updates during IME composition
 		if (update.view.composing) return;
 
-		// Handle scheduled rebuild (fired 300 ms after last doc change)
 		if (this.scheduler.consumeRebuild()) {
 			this.lastActiveRegion = getActiveRegion(update.state);
 			this.decorations = buildPreviewDecorations(
@@ -580,17 +595,13 @@ class LivePreviewPluginImpl {
 		}
 
 		if (update.docChanged) {
-			// Map existing decorations through changes (instant, keeps positions correct)
 			this.decorations = this.decorations.map(update.changes);
-			// Re-cache frontmatter on doc change
 			this.cachedFrontmatter = detectFrontmatter(update.state.doc.toString());
-			// Schedule a full rebuild after typing stops
 			this.scheduler.scheduleRebuild(update.view);
 			return;
 		}
 
 		if (update.selectionSet) {
-			// Only rebuild when the active region actually changes (reference equality)
 			const newRegion = getActiveRegion(update.state);
 			if (newRegion !== this.lastActiveRegion) {
 				this.lastActiveRegion = newRegion;

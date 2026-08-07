@@ -20,7 +20,7 @@
 <div class="pane-tab-bar">
   <div class="tabs-scroll-container">
     {#each pane.tabs as tab (tab.id)}
-      {@const Icon = filesController.fileIcon(tab.name)}
+      {@const Icon = filesController.fileIcon(tab.name, tab.path)}
       {@const isActive = tab.id === pane.activeTabId}
       {@const accentColor = filesController.getFileAccentColor(tab.name)}
       <div

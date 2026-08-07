@@ -112,7 +112,8 @@
                 {#if file.isDir}
                   <Folder size={14} class="folder-icon" />
                 {:else}
-                  <FileText size={14} class="file-icon" />
+                  {@const Icon = filesController.fileIcon(file.name)}
+                  <Icon size={14} class="file-icon" />
                 {/if}
               </div>
               <div class="quick-open-file">

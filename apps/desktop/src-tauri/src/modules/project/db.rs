@@ -44,6 +44,32 @@ pub async fn get_all_projects(pool: &SqlitePool) -> Result<Vec<Project>, AppErro
     Ok(projects)
 }
 
+pub async fn get_project_by_path(
+    pool: &SqlitePool,
+    path: &str,
+) -> Result<Option<Project>, AppError> {
+    let project = sqlx::query_as::<_, Project>("SELECT * FROM projects WHERE path = ?1")
+        .bind(path)
+        .fetch_optional(pool)
+        .await?;
+
+    Ok(project)
+}
+
+pub async fn touch_last_opened(
+    pool: &SqlitePool,
+    id: &str,
+    timestamp: i64,
+) -> Result<(), AppError> {
+    sqlx::query("UPDATE projects SET last_opened_at = ?1, updated_at = ?1 WHERE id = ?2")
+        .bind(timestamp)
+        .bind(id)
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+
 pub async fn create_project(pool: &SqlitePool, project: &Project) -> Result<(), AppError> {
     sqlx::query(
         r#"

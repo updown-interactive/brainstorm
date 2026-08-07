@@ -10,13 +10,14 @@ const hiddenMark = Decoration.mark({ class: 'cm-syntax-hidden' });
 const visibleSyntaxMark = Decoration.mark({ class: 'cm-syntax-visible' });
 
 const INLINE_SYNTAX = [
-	{ regex: /==(.*?)==/g, markClass: 'cm-highlight-mark', contentClass: 'cm-highlight', length: 2 },
-	{ regex: /\+\+(.*?)\+\+/g, markClass: 'cm-underline-mark', contentClass: 'cm-underline', length: 2 },
-	{ regex: /\^(.*?)\^/g, markClass: 'cm-superscript-mark', contentClass: 'cm-superscript', length: 1 },
-	{ regex: /~(.*?)~/g, markClass: 'cm-subscript-mark', contentClass: 'cm-subscript', length: 1 },
-	{ regex: /\[\[(.*?)\]\]/g, markClass: 'cm-wikilink-mark', contentClass: 'cm-wikilink', length: 2 },
+	{ regex: /==([^=\n]+?)==/g, markClass: 'cm-highlight-mark', contentClass: 'cm-highlight', length: 2 },
+	{ regex: /\+\+([^+\n]+?)\+\+/g, markClass: 'cm-underline-mark', contentClass: 'cm-underline', length: 2 },
+	{ regex: /(?<!\^)\^([^^\n]+?)\^(?!\^)/g, markClass: 'cm-superscript-mark', contentClass: 'cm-superscript', length: 1 },
+	{ regex: /(?<!~)~([^~\n]+?)~(?!~)/g, markClass: 'cm-subscript-mark', contentClass: 'cm-subscript', length: 1 },
+	{ regex: /\[\[([^\]\n]+?)\]\]/g, markClass: 'cm-wikilink-mark', contentClass: 'cm-wikilink', length: 2 },
+	{ regex: /\[\^[^\]\n]+?\]/g, markClass: '', contentClass: 'cm-footnote-ref', length: 0 },
 	{ regex: /(?<!\w)(#[A-Za-z0-9_/-]+)/g, markClass: '', contentClass: 'cm-tag', length: 0 },
-	{ regex: /\$(.*?)\$/g, markClass: 'cm-math-mark', contentClass: 'cm-math', length: 1 }
+	{ regex: /\$([^$\n]+?)\$/g, markClass: 'cm-math-mark', contentClass: 'cm-math', length: 1 }
 ];
 
 function isSelectionIntersecting(ranges: readonly { from: number; to: number }[], from: number, to: number): boolean {
@@ -72,7 +73,7 @@ function buildExtensionsDecorations(
 						const rightMarkStart = contentEnd;
 						const rightMarkEnd = matchEnd;
 
-						const markDeco = isTokenActive
+						const markDeco = isActive || isTokenActive
 							? Decoration.mark({ class: syntax.markClass || 'cm-syntax-visible' })
 							: hiddenMark;
 

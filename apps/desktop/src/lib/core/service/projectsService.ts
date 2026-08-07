@@ -60,7 +60,12 @@ class ProjectService {
   async createProject(payload: CreateProjectPayload): Promise<Project> {
     const project = await invoke<Project>('create_project', { payload });
     if (this.cache) {
-      this.cache.push(project);
+      const existingIndex = this.cache.findIndex(p => p.id === project.id);
+      if (existingIndex !== -1) {
+        this.cache[existingIndex] = project;
+      } else {
+        this.cache.push(project);
+      }
     }
     return project;
   }

@@ -4,9 +4,11 @@ import { Decoration, EditorView, WidgetType } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
 import { RangeSetBuilder } from '@codemirror/state';
 import { invoke } from '@tauri-apps/api/core';
+import { mount, unmount } from 'svelte';
 import { get } from 'svelte/store';
 import { fileTreeState } from '../../files/state';
 import { editorState as editorStore } from '../../files/state/editor';
+import { ICON_OPTIONS, resolveIconComponent, setCustomFileIcon } from '../../files/config/icon-registry';
 import type { FileTreeState } from '../../files/state';
 import YAML from 'yaml';
 import {
@@ -43,6 +45,9 @@ import {
 } from '../data/tag-registry';
 import { getCachedEditorConfig } from '../config/editor-config';
 
+const fileCollapseStateMap = new Map<string, boolean>();
+let globalFallbackCollapseState: boolean | null = null;
+
 class PropertiesWidget extends WidgetType {
 	private cleanups: Array<() => void> = [];
 
@@ -60,8 +65,21 @@ class PropertiesWidget extends WidgetType {
 		wrap.className = 'cm-properties-panel';
 		wrap.setAttribute('aria-label', 'Markdown properties');
 
+		const activePath = get(editorStore).activeTabId;
+		if (activePath) {
+			const iconVal = this.parsed.data.icon ?? this.parsed.data.icons;
+			setCustomFileIcon(activePath, iconVal != null ? String(iconVal) : null);
+		}
 		const displayMode = getCachedEditorConfig().propertiesDisplayMode;
-		let isCollapsed = displayMode === 'collapsed' || displayMode === 'hover';
+
+		let isCollapsed: boolean;
+		if (activePath && fileCollapseStateMap.has(activePath)) {
+			isCollapsed = fileCollapseStateMap.get(activePath)!;
+		} else if (globalFallbackCollapseState !== null) {
+			isCollapsed = globalFallbackCollapseState;
+		} else {
+			isCollapsed = displayMode === 'collapsed' || displayMode === 'hover';
+		}
 
 		if (isCollapsed) {
 			wrap.classList.add('is-collapsed');
@@ -100,6 +118,13 @@ class PropertiesWidget extends WidgetType {
 			e.preventDefault();
 			e.stopPropagation();
 			isCollapsed = !isCollapsed;
+
+			const currentPath = get(editorStore).activeTabId;
+			if (currentPath) {
+				fileCollapseStateMap.set(currentPath, isCollapsed);
+			}
+			globalFallbackCollapseState = isCollapsed;
+
 			body.style.display = isCollapsed ? 'none' : 'block';
 			toggleIcon.textContent = isCollapsed ? '▶' : '▼';
 			wrap.classList.toggle('is-collapsed', isCollapsed);
@@ -267,6 +292,13 @@ class PropertiesWidget extends WidgetType {
 			textarea.addEventListener('change', () => this.updateValue(view, property.key, textarea.value));
 			textarea.addEventListener('blur', () => this.updateValue(view, property.key, textarea.value));
 			return textarea;
+		}
+
+		if (property.key === 'icon' || property.key === 'icons') {
+			return this.createIconPicker(
+				valueToInputString(property.value),
+				(value) => this.updateValue(view, property.key, value)
+			);
 		}
 
 		if (property.key === 'links') {
@@ -767,6 +799,13 @@ class PropertiesWidget extends WidgetType {
 		const addKey = (key: string) => {
 			const normalizedKey = key.trim();
 			if (!normalizedKey || existing.has(normalizedKey)) return;
+
+			const currentPath = get(editorStore).activeTabId;
+			if (currentPath) {
+				fileCollapseStateMap.set(currentPath, false);
+			}
+			globalFallbackCollapseState = false;
+
 			this.replaceDoc(view, addFrontmatterProperty(view.state.doc.toString(), normalizedKey));
 		};
 
@@ -894,6 +933,82 @@ class PropertiesWidget extends WidgetType {
 		});
 		this.bindPopoverDismiss(wrap, menu, button);
 
+		wrap.append(button, menu);
+		return wrap;
+	}
+
+	private createIconPicker(value: string, onSelect: (value: string) => void) {
+		const wrap = document.createElement('div');
+		wrap.className = 'cm-property-popover-host';
+
+		const currentIconId = value || 'zap';
+		const currentOpt = ICON_OPTIONS.find((opt) => opt.id === currentIconId.toLowerCase()) || {
+			id: currentIconId,
+			label: formatLabel(currentIconId),
+			component: resolveIconComponent(currentIconId)
+		};
+
+		const button = document.createElement('button');
+		button.type = 'button';
+		button.className = 'cm-property-picker-button liquid-glass-button';
+		button.style.display = 'inline-flex';
+		button.style.alignItems = 'center';
+		button.style.gap = '6px';
+
+		const iconPreview = document.createElement('span');
+		iconPreview.className = 'cm-property-icon-preview';
+		iconPreview.style.display = 'inline-flex';
+		iconPreview.style.alignItems = 'center';
+		const mountedPreview = mount(currentOpt.component, { target: iconPreview, props: { size: 14 } });
+		this.cleanups.push(() => unmount(mountedPreview));
+
+		const labelSpan = document.createElement('span');
+		labelSpan.textContent = currentOpt.label;
+
+		const caret = document.createElement('span');
+		caret.textContent = '▼';
+		caret.style.fontSize = '9px';
+		caret.style.marginLeft = 'auto';
+		caret.style.opacity = '0.7';
+
+		button.append(iconPreview, labelSpan, caret);
+
+		const menu = document.createElement('div');
+		menu.className = 'cm-property-menu cm-property-icon-picker-menu';
+		menu.hidden = true;
+
+		const grid = document.createElement('div');
+		grid.className = 'cm-property-icon-grid';
+
+		for (const opt of ICON_OPTIONS) {
+			const item = document.createElement('button');
+			item.type = 'button';
+			item.className =
+				opt.id === currentIconId.toLowerCase()
+					? 'cm-property-icon-grid-item is-selected'
+					: 'cm-property-icon-grid-item';
+			item.title = opt.label;
+
+			const itemIconHost = document.createElement('span');
+			const mountedItemIcon = mount(opt.component, { target: itemIconHost, props: { size: 16 } });
+			this.cleanups.push(() => unmount(mountedItemIcon));
+
+			item.appendChild(itemIconHost);
+			item.addEventListener('click', () => {
+				onSelect(opt.id);
+				menu.hidden = true;
+			});
+
+			grid.appendChild(item);
+		}
+
+		menu.appendChild(grid);
+
+		button.addEventListener('click', () => {
+			menu.hidden = !menu.hidden;
+		});
+
+		this.bindPopoverDismiss(wrap, menu, button);
 		wrap.append(button, menu);
 		return wrap;
 	}
@@ -1109,6 +1224,18 @@ export function buildPropertiesDecorations(state: EditorState): DecorationSet {
 }
 
 export function openAddPropertyPalette(view: EditorView) {
+	const currentPath = get(editorStore).activeTabId;
+	if (currentPath) {
+		fileCollapseStateMap.set(currentPath, false);
+	}
+	globalFallbackCollapseState = false;
+
+	const panel = view.dom.querySelector<HTMLElement>('.cm-properties-panel');
+	if (panel && panel.classList.contains('is-collapsed')) {
+		const header = panel.querySelector<HTMLElement>('.cm-properties-header');
+		header?.click();
+	}
+
 	const trigger = view.dom.querySelector<HTMLButtonElement>('[data-property-add-trigger="true"]');
 	if (!trigger) return false;
 
