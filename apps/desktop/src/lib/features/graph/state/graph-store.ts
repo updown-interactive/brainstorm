@@ -15,17 +15,19 @@ export class GraphRuntimeStore {
 	visibleRenderEdges: RenderEdge[] = [];
 	nodeById = new Map<string, LayoutNode>();
 	degreeById = new Map<string, number>();
+	childDegreeById = new Map<string, number>();
 
 	private spatialIndex = new Map<string, LayoutNode[]>();
 	private searchQuery = '';
 
-	setGraph(fileNodes: KnowledgeNode[], fileEdges: KnowledgeEdge[], nodeSize: number): void {
+	setGraph(fileNodes: KnowledgeNode[], fileEdges: KnowledgeEdge[], nodeSize: number, minNodeSize = 8, maxNodeSize = 40): void {
 		const previousNodes = this.nodeById;
 		this.edges = fileEdges;
 		this.degreeById = buildDegreeMap(fileNodes, fileEdges);
+		this.childDegreeById = buildChildDegreeMap(fileNodes, fileEdges);
 		this.nodes = seedGraphNodes(fileNodes, previousNodes);
 		this.nodeById = new Map(this.nodes.map((node) => [node.id, node]));
-		this.applyNodeSize(nodeSize);
+		this.applyNodeSize(nodeSize, minNodeSize, maxNodeSize);
 		this.renderEdges = resolveRenderEdges(this.edges, this.nodeById);
 		this.updateSearch(this.searchQuery);
 	}
@@ -40,6 +42,7 @@ export class GraphRuntimeStore {
 		this.visibleRenderEdges = [];
 		this.nodeById = new Map();
 		this.degreeById = new Map();
+		this.childDegreeById = new Map();
 		this.spatialIndex = new Map();
 	}
 
@@ -52,10 +55,17 @@ export class GraphRuntimeStore {
 		this.visibleIds = new Set(this.visibleNodes.map((node) => node.id));
 	}
 
-	applyNodeSize(nodeSize: number): void {
+	applyNodeSize(nodeSize: number, minNodeSize = 8, maxNodeSize = 40): void {
+		const minRadius = Math.min(minNodeSize, maxNodeSize);
+		const maxRadius = Math.max(minNodeSize, maxNodeSize);
+		const radiusRange = maxRadius - minRadius;
+
 		for (const node of this.nodes) {
-			const degree = this.degreeById.get(node.id) ?? 0;
-			const radius = Math.min(17 * nodeSize, (baseNodeRadius + Math.sqrt(degree) * 2.4) * nodeSize);
+			const childConnections = this.childDegreeById.get(node.id) ?? node.outgoing?.length ?? 0;
+			const totalConnections = this.degreeById.get(node.id) ?? 0;
+			const connectionScore = childConnections * 1.5 + (totalConnections - childConnections) * 0.5;
+			const t = Math.min(1, Math.sqrt(connectionScore) / 4.5);
+			const radius = (minRadius + radiusRange * t) * nodeSize;
 			node.radius = radius;
 			node.radiusSquared = radius * radius;
 		}
@@ -165,6 +175,15 @@ function buildDegreeMap(fileNodes: KnowledgeNode[], fileEdges: KnowledgeEdge[]):
 		degrees.set(edge.target, (degrees.get(edge.target) ?? 0) + 1);
 	}
 	return degrees;
+}
+
+function buildChildDegreeMap(fileNodes: KnowledgeNode[], fileEdges: KnowledgeEdge[]): Map<string, number> {
+	const childDegrees = new Map(fileNodes.map((node) => [node.id, 0]));
+	for (const edge of fileEdges) {
+		const current = childDegrees.get(edge.source) ?? 0;
+		childDegrees.set(edge.source, current + 1);
+	}
+	return childDegrees;
 }
 
 function resolveRenderEdges(sourceEdges: KnowledgeEdge[], nodeById: Map<string, LayoutNode>): RenderEdge[] {

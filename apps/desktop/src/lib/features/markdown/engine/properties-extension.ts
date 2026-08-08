@@ -2,7 +2,6 @@ import { EditorSelection, StateField } from '@codemirror/state';
 import type { EditorState } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
-import { RangeSetBuilder } from '@codemirror/state';
 import { invoke } from '@tauri-apps/api/core';
 import { mount, unmount } from 'svelte';
 import { get } from 'svelte/store';
@@ -44,9 +43,42 @@ import {
 	type SharedTag
 } from '../data/tag-registry';
 import { getCachedEditorConfig } from '../config/editor-config';
+import { RenderSafeWidget, superviseDecorations } from './render-supervisor';
 
 const fileCollapseStateMap = new Map<string, boolean>();
 let globalFallbackCollapseState: boolean | null = null;
+
+function getPropertyIconSvg(key: string, type: FrontmatterProperty['type']): string {
+	const k = key.toLowerCase();
+	if (k === 'tags') {
+		return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2H2v10l11 11 10-10L12 2z"/><circle cx="7" cy="7" r="1.5"/></svg>`;
+	}
+	if (k === 'links') {
+		return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
+	}
+	if (k === 'created' || k === 'updated' || k === 'published' || k === 'date' || type === 'date') {
+		return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+	}
+	if (type === 'boolean' || k === 'favorite' || k === 'reviewed' || k === 'draft') {
+		return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><polyline points="9 11 12 14 22 4"/></svg>`;
+	}
+	if (type === 'number' || k === 'priority' || k === 'estimated_hours') {
+		return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>`;
+	}
+	if (type === 'multiline' || k === 'summary' || k === 'description') {
+		return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg>`;
+	}
+	if (k === 'icon' || k === 'icons') {
+		return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3z"/></svg>`;
+	}
+	if (type === 'enum' || k === 'status' || k === 'stage') {
+		return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>`;
+	}
+	if (type === 'list') {
+		return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`;
+	}
+	return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
+}
 
 class PropertiesWidget extends WidgetType {
 	private cleanups: Array<() => void> = [];
@@ -98,14 +130,24 @@ class PropertiesWidget extends WidgetType {
 
 		const toggleIcon = document.createElement('span');
 		toggleIcon.className = 'cm-properties-toggle-icon';
-		toggleIcon.textContent = isCollapsed ? '▶' : '▼';
+		toggleIcon.innerHTML = `<svg class="cm-properties-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>`;
+
+		const titleGroup = document.createElement('div');
+		titleGroup.className = 'cm-properties-title-group';
 
 		const title = document.createElement('span');
 		title.className = 'cm-properties-title';
-		title.textContent = `Properties (${this.parsed.properties.length})`;
+		title.textContent = 'Properties';
+
+		const countBadge = document.createElement('span');
+		countBadge.className = 'cm-properties-count-badge';
+		countBadge.textContent = String(this.parsed.properties.length);
+
+		titleGroup.appendChild(title);
+		titleGroup.appendChild(countBadge);
 
 		header.appendChild(toggleIcon);
-		header.appendChild(title);
+		header.appendChild(titleGroup);
 		wrap.appendChild(header);
 
 		const body = document.createElement('div');
@@ -126,7 +168,6 @@ class PropertiesWidget extends WidgetType {
 			globalFallbackCollapseState = isCollapsed;
 
 			body.style.display = isCollapsed ? 'none' : 'block';
-			toggleIcon.textContent = isCollapsed ? '▶' : '▼';
 			wrap.classList.toggle('is-collapsed', isCollapsed);
 			wrap.classList.toggle('is-expanded', !isCollapsed);
 		});
@@ -134,7 +175,6 @@ class PropertiesWidget extends WidgetType {
 		if (displayMode === 'hover') {
 			wrap.addEventListener('mouseenter', () => {
 				body.style.display = 'block';
-				toggleIcon.textContent = '▼';
 				wrap.classList.remove('is-collapsed');
 				wrap.classList.add('is-expanded');
 			});
@@ -142,7 +182,6 @@ class PropertiesWidget extends WidgetType {
 			wrap.addEventListener('mouseleave', () => {
 				if (isCollapsed) {
 					body.style.display = 'none';
-					toggleIcon.textContent = '▶';
 					wrap.classList.add('is-collapsed');
 					wrap.classList.remove('is-expanded');
 				}
@@ -194,8 +233,8 @@ class PropertiesWidget extends WidgetType {
 
 		const label = document.createElement('label');
 		label.className = 'cm-property-label';
-		label.textContent = formatLabel(property.key);
 		label.title = property.key;
+		label.innerHTML = `<span class="cm-property-label-icon">${getPropertyIconSvg(property.key, property.type)}</span><span class="cm-property-label-text">${formatLabel(property.key)}</span>`;
 		row.appendChild(label);
 
 		const controlWrap = document.createElement('div');
@@ -208,7 +247,7 @@ class PropertiesWidget extends WidgetType {
 			remove.type = 'button';
 			remove.className = 'cm-property-icon-button';
 			remove.title = `Remove ${property.key}`;
-			remove.textContent = 'x';
+			remove.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
 			remove.addEventListener('click', () => {
 				this.replaceDoc(view, removeFrontmatterProperty(view.state.doc.toString(), property.key));
 			});
@@ -243,7 +282,8 @@ class PropertiesWidget extends WidgetType {
 
 			const label = document.createElement('label');
 			label.className = 'cm-property-label';
-			label.textContent = formatLabel(property.key);
+			label.title = property.key;
+			label.innerHTML = `<span class="cm-property-label-icon">${getPropertyIconSvg(property.key, property.type)}</span><span class="cm-property-label-text">${formatLabel(property.key)}</span>`;
 			row.appendChild(label);
 
 			const controlWrap = document.createElement('div');
@@ -277,6 +317,7 @@ class PropertiesWidget extends WidgetType {
 
 		if (property.type === 'enum') {
 			return this.createOptionPicker(
+				view,
 				valueToInputString(property.value),
 				enumOptionsForKey(property.key),
 				'Select value',
@@ -296,6 +337,7 @@ class PropertiesWidget extends WidgetType {
 
 		if (property.key === 'icon' || property.key === 'icons') {
 			return this.createIconPicker(
+				view,
 				valueToInputString(property.value),
 				(value) => this.updateValue(view, property.key, value)
 			);
@@ -314,7 +356,7 @@ class PropertiesWidget extends WidgetType {
 		}
 
 		if (property.type === 'date') {
-			return this.createDatePicker(valueToInputString(property.value), (value) => {
+			return this.createDatePicker(view, valueToInputString(property.value), (value) => {
 				this.updateValue(view, property.key, value);
 			});
 		}
@@ -375,7 +417,7 @@ class PropertiesWidget extends WidgetType {
 			remove.type = 'button';
 			remove.className = 'cm-property-list-chip-remove';
 			remove.title = `Remove ${displayListValueForKey(property.key, value)}`;
-			remove.textContent = 'x';
+			remove.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
 			remove.addEventListener('click', () => {
 				this.updateValue(view, property.key, values.filter((item) => item !== value));
 			});
@@ -447,12 +489,53 @@ class PropertiesWidget extends WidgetType {
 		let selectedIndex = 0;
 		let visibleMatches: SharedTag[] = [];
 
+		const renderChips = () => {
+			chips.replaceChildren();
+
+			for (const value of values) {
+				const chip = document.createElement('span');
+				chip.className = 'cm-property-chip cm-property-list-chip cm-property-tag-chip';
+
+				const label = document.createElement('span');
+				label.className = 'cm-property-list-chip-label';
+				label.textContent = normalizeTagName(value);
+
+				const remove = document.createElement('button');
+				remove.type = 'button';
+				remove.className = 'cm-property-list-chip-remove';
+				remove.title = `Remove ${normalizeTagName(value)}`;
+				remove.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+				remove.addEventListener('click', () => {
+					this.updateValue(view, property.key, values.filter((item) => item !== value));
+				});
+
+				chip.append(label, remove);
+				chips.appendChild(chip);
+			}
+
+			const addButton = document.createElement('button');
+			addButton.type = 'button';
+			addButton.className = 'cm-property-chip cm-property-list-add';
+			addButton.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Tag';
+			addButton.title = 'Add tag';
+			addButton.addEventListener('click', () => {
+				inputRow.hidden = false;
+				input.value = '';
+				void renderMenu();
+				input.focus();
+			});
+			chips.appendChild(addButton);
+		};
+
 		const addTag = async (rawValue: string) => {
 			const tagName = normalizeTagName(rawValue);
 			const existingTags = new Set(values.map((item) => item.toLocaleLowerCase()));
 			if (!tagName || existingTags.has(tagName.toLocaleLowerCase())) return;
 
 			const nextValues = [...values, tagName];
+			inputRow.hidden = true;
+			menu.hidden = true;
+			input.value = '';
 			this.updateValue(view, property.key, nextValues);
 			await ensureSharedTags([tagName]);
 		};
@@ -505,42 +588,6 @@ class PropertiesWidget extends WidgetType {
 			menu.hidden = input.value.trim().length === 0 && visibleMatches.length === 0;
 		};
 
-		for (const value of values) {
-			const chip = document.createElement('span');
-			chip.className = 'cm-property-chip cm-property-list-chip cm-property-tag-chip';
-
-			const label = document.createElement('span');
-			label.className = 'cm-property-list-chip-label';
-			label.textContent = normalizeTagName(value);
-
-			const remove = document.createElement('button');
-			remove.type = 'button';
-			remove.className = 'cm-property-list-chip-remove';
-			remove.title = `Remove ${normalizeTagName(value)}`;
-			remove.textContent = 'x';
-			remove.addEventListener('click', () => {
-				this.updateValue(view, property.key, values.filter((item) => item !== value));
-			});
-
-			chip.append(label, remove);
-			chips.appendChild(chip);
-		}
-
-		if (values.length > 0) {
-			const addButton = document.createElement('button');
-			addButton.type = 'button';
-			addButton.className = 'cm-property-chip cm-property-list-add';
-			addButton.textContent = '+';
-			addButton.title = 'Add tag';
-			addButton.addEventListener('click', () => {
-				inputRow.hidden = false;
-				input.value = '';
-				void renderMenu();
-				input.focus();
-			});
-			chips.appendChild(addButton);
-		}
-
 		input.addEventListener('focus', () => {
 			void renderMenu();
 			menu.hidden = false;
@@ -553,7 +600,7 @@ class PropertiesWidget extends WidgetType {
 			if (event.key === 'Escape') {
 				menu.hidden = true;
 				input.value = '';
-				inputRow.hidden = values.length > 0;
+				inputRow.hidden = true;
 				return;
 			}
 			if (event.key === 'ArrowDown') {
@@ -584,8 +631,9 @@ class PropertiesWidget extends WidgetType {
 		document.addEventListener('pointerdown', onOutsidePointerDown, true);
 		this.cleanups.push(() => document.removeEventListener('pointerdown', onOutsidePointerDown, true));
 
-		this.bindPopoverDismiss(wrap, menu, input);
-		inputRow.append(input, menu);
+		this.bindPopoverDismiss(view, input, menu, input);
+		renderChips();
+		inputRow.append(input);
 		wrap.append(chips, inputRow);
 		return wrap;
 	}
@@ -621,7 +669,7 @@ class PropertiesWidget extends WidgetType {
 				const remove = document.createElement('button');
 				remove.type = 'button';
 				remove.className = 'cm-property-link-remove';
-				remove.textContent = 'x';
+				remove.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
 				remove.title = `Remove ${wikiLink}`;
 				remove.addEventListener('click', () => {
 					this.updateValue(view, property.key, values.filter((item) => item !== value));
@@ -691,7 +739,7 @@ class PropertiesWidget extends WidgetType {
 				const item = document.createElement('button');
 				item.type = 'button';
 				item.className = index === selectedIndex ? 'cm-property-menu-item is-selected' : 'cm-property-menu-item';
-				item.innerHTML = `<span>${formatWikiLink(file.linkValue)}</span><small>${file.relativePath}</small>`;
+				item.innerHTML = `<span class="cm-property-menu-item-title">${file.label}</span><small class="cm-property-menu-item-subtitle">${file.relativePath}</small>`;
 				item.addEventListener('click', () => addLink(file.linkValue));
 				menu.appendChild(item);
 			}
@@ -700,7 +748,7 @@ class PropertiesWidget extends WidgetType {
 				const create = document.createElement('button');
 				create.type = 'button';
 				create.className = visibleMatches.length === 0 ? 'cm-property-menu-item is-selected' : 'cm-property-menu-item';
-				create.innerHTML = `<span>Create ${formatWikiLink(normalizeLinkValue(query))}</span><small>New markdown file</small>`;
+				create.innerHTML = `<span class="cm-property-menu-item-title">Create ${normalizeLinkValue(query)}</span><small class="cm-property-menu-item-subtitle">New markdown file</small>`;
 				create.addEventListener('click', () => addLink(query));
 				menu.appendChild(create);
 			}
@@ -750,9 +798,9 @@ class PropertiesWidget extends WidgetType {
 		document.addEventListener('pointerdown', onOutsidePointerDown, true);
 		this.cleanups.push(() => document.removeEventListener('pointerdown', onOutsidePointerDown, true));
 
-		this.bindPopoverDismiss(wrap, menu, input);
+		this.bindPopoverDismiss(view, input, menu, input);
 		renderChips();
-		inputRow.append(input, menu);
+		inputRow.append(input);
 		wrap.append(chips, inputRow);
 		return wrap;
 	}
@@ -760,45 +808,83 @@ class PropertiesWidget extends WidgetType {
 	private createAddProperty(view: EditorView) {
 		const wrap = document.createElement('div');
 		wrap.className = 'cm-property-add';
-		const existing = new Set(this.parsed.properties.map((property) => property.key));
-		const options = ADD_PROPERTY_OPTIONS.filter((option) => !existing.has(option));
+
+		const existing = new Set<string>();
+		for (const key of Object.keys(this.parsed.data || {})) {
+			existing.add(key.trim().toLocaleLowerCase());
+		}
+		for (const prop of this.parsed.properties) {
+			existing.add(prop.key.trim().toLocaleLowerCase());
+		}
+
+		const options = ADD_PROPERTY_OPTIONS.filter((option) => !existing.has(option.trim().toLocaleLowerCase()));
 
 		const button = document.createElement('button');
 		button.type = 'button';
 		button.className = 'cm-property-add-button';
-		button.innerHTML = '<span>+ Add Property</span><kbd>Cmd+P</kbd>';
+		button.innerHTML = '<span class="cm-property-add-label"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add property</span><kbd>⌘K</kbd>';
 
 		const overlay = document.createElement('div');
 		overlay.className = 'cm-property-spotlight-overlay';
 		overlay.hidden = true;
+		overlay.style.position = 'fixed';
+		overlay.style.inset = '0';
+		overlay.style.zIndex = '999999';
+		overlay.style.display = 'flex';
+		overlay.style.alignItems = 'flex-start';
+		overlay.style.justifyContent = 'center';
+		overlay.style.padding = '48px 16px 16px';
+		overlay.style.backgroundColor = 'color-mix(in srgb, var(--colors-background) 62%, transparent)';
+		overlay.style.backdropFilter = 'none';
+		overlay.style.setProperty('-webkit-backdrop-filter', 'none');
 
 		const palette = document.createElement('div');
-		palette.className = 'cm-property-spotlight';
+		palette.className = 'liquid-glass-panel cm-property-spotlight';
+		palette.style.position = 'relative';
+		palette.style.width = 'min(540px, calc(100vw - 32px))';
+		palette.style.maxHeight = 'min(460px, calc(100vh - 80px))';
+		palette.style.borderRadius = '14px';
+		palette.style.padding = '0';
+		palette.style.overflow = 'hidden';
+		palette.style.display = 'grid';
+		palette.style.gridTemplateRows = 'auto minmax(0, 1fr) auto';
+		palette.style.color = 'var(--colors-text)';
+		palette.style.backgroundColor = 'color-mix(in srgb, var(--colors-surface, #1C1C1E) 88%, rgba(20, 20, 24, 0.92))';
+		palette.style.backdropFilter = 'blur(24px) saturate(180%)';
+		palette.style.setProperty('-webkit-backdrop-filter', 'blur(24px) saturate(180%)');
+		palette.style.border = '1px solid color-mix(in srgb, var(--colors-text) 14%, rgba(255, 255, 255, 0.12))';
+		palette.style.boxShadow = '0 24px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.15)';
+		palette.style.boxSizing = 'border-box';
+
+		const header = document.createElement('div');
+		header.className = 'cm-property-spotlight-header';
+
+		const searchRow = document.createElement('div');
+		searchRow.className = 'cm-property-spotlight-search-row liquid-glass-input';
+		searchRow.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="search-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
 
 		const search = document.createElement('input');
 		search.className = 'cm-property-spotlight-search';
-		search.placeholder = 'Search or create a property';
-		palette.appendChild(search);
+		search.placeholder = 'Search or create a property...';
 
-		const customWrap = document.createElement('div');
-		customWrap.className = 'cm-property-custom-row';
-		const customInput = document.createElement('input');
-		customInput.className = 'cm-property-input';
-		customInput.placeholder = 'custom_property';
-		const customButton = document.createElement('button');
-		customButton.type = 'button';
-		customButton.className = 'cm-property-menu-action';
-		customButton.textContent = 'Add';
-		customWrap.append(customInput, customButton);
+		const closeBtn = document.createElement('button');
+		closeBtn.type = 'button';
+		closeBtn.className = 'cm-property-spotlight-close';
+		closeBtn.title = 'Close (Esc)';
+		closeBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+
+		searchRow.append(search, closeBtn);
+		header.appendChild(searchRow);
+		palette.appendChild(header);
 
 		const list = document.createElement('div');
 		list.className = 'cm-property-spotlight-list';
-		palette.append(list, customWrap);
+		palette.appendChild(list);
 		overlay.appendChild(palette);
 
 		const addKey = (key: string) => {
 			const normalizedKey = key.trim();
-			if (!normalizedKey || existing.has(normalizedKey)) return;
+			if (!normalizedKey || existing.has(normalizedKey.toLocaleLowerCase())) return;
 
 			const currentPath = get(editorStore).activeTabId;
 			if (currentPath) {
@@ -807,19 +893,28 @@ class PropertiesWidget extends WidgetType {
 			globalFallbackCollapseState = false;
 
 			this.replaceDoc(view, addFrontmatterProperty(view.state.doc.toString(), normalizedKey));
+			closePalette();
 		};
 
 		let selectedIndex = 0;
 
 		const render = () => {
-			const query = search.value.trim().toLocaleLowerCase();
+			const query = search.value.trim();
+			const queryKey = query.replace(/\s+/g, '_').toLocaleLowerCase();
 			list.replaceChildren();
+
 			const visibleOptions = options.filter((option) => {
 				if (option === 'custom') return false;
-				return !query || formatLabel(option).toLocaleLowerCase().includes(query) || option.includes(query);
+				if (existing.has(option.trim().toLocaleLowerCase())) return false;
+				return !query || formatLabel(option).toLocaleLowerCase().includes(queryKey) || option.includes(queryKey);
 			});
 
-			selectedIndex = Math.min(selectedIndex, Math.max(visibleOptions.length - 1, 0));
+			const hasExactMatch = visibleOptions.some((opt) => opt.trim().toLocaleLowerCase() === queryKey) || existing.has(queryKey);
+			const showCustomPrompt = Boolean(queryKey && !hasExactMatch);
+			const totalCount = visibleOptions.length + (showCustomPrompt ? 1 : 0);
+
+			selectedIndex = Math.min(selectedIndex, Math.max(totalCount - 1, 0));
+
 			for (const [index, option] of visibleOptions.entries()) {
 				const item = document.createElement('button');
 				item.type = 'button';
@@ -834,15 +929,26 @@ class PropertiesWidget extends WidgetType {
 				list.appendChild(item);
 			}
 
-			if (visibleOptions.length === 0 && query.length === 0) {
+			if (showCustomPrompt) {
+				const customIndex = visibleOptions.length;
+				const customItem = document.createElement('button');
+				customItem.type = 'button';
+				customItem.className = customIndex === selectedIndex ? 'cm-property-menu-item is-selected' : 'cm-property-menu-item';
+				const name = document.createElement('span');
+				name.textContent = `Create "${queryKey}"`;
+				const detail = document.createElement('small');
+				detail.textContent = 'New custom property';
+				customItem.append(name, detail);
+				customItem.addEventListener('click', () => addKey(queryKey));
+				list.appendChild(customItem);
+			}
+
+			if (totalCount === 0 && query.length === 0) {
 				const empty = document.createElement('div');
 				empty.className = 'cm-property-spotlight-empty';
 				empty.textContent = 'All built-in properties are already added';
 				list.appendChild(empty);
 			}
-
-			customWrap.hidden = query.length === 0;
-			customInput.value = query.replace(/\s+/g, '_');
 		};
 
 		const openPalette = () => {
@@ -868,6 +974,8 @@ class PropertiesWidget extends WidgetType {
 		});
 		const onOverlayKeyDown = (event: KeyboardEvent) => {
 			if (overlay.hidden || event.key !== 'Escape') return;
+			event.preventDefault();
+			event.stopPropagation();
 			closePalette();
 		};
 		document.addEventListener('keydown', onOverlayKeyDown, true);
@@ -879,6 +987,8 @@ class PropertiesWidget extends WidgetType {
 		});
 		search.addEventListener('keydown', (event) => {
 			if (event.key === 'Escape') {
+				event.preventDefault();
+				event.stopPropagation();
 				closePalette();
 			}
 			if (event.key === 'ArrowDown') {
@@ -892,21 +1002,22 @@ class PropertiesWidget extends WidgetType {
 				render();
 			}
 			if (event.key === 'Enter') {
+				event.preventDefault();
 				const selectedItem = list.querySelector<HTMLButtonElement>('.cm-property-menu-item.is-selected');
-				if (selectedItem) selectedItem.click();
-				else addKey(customInput.value);
+				if (selectedItem) {
+					selectedItem.click();
+				} else {
+					const queryKey = search.value.trim().replace(/\s+/g, '_').toLocaleLowerCase();
+					if (queryKey) addKey(queryKey);
+				}
 			}
 		});
-		customInput.addEventListener('keydown', (event) => {
-			if (event.key === 'Enter') addKey(customInput.value);
-		});
-		customButton.addEventListener('click', () => addKey(customInput.value));
 
 		wrap.appendChild(button);
 		return wrap;
 	}
 
-	private createOptionPicker(value: string, options: string[], placeholder: string, onSelect: (value: string) => void) {
+	private createOptionPicker(view: EditorView, value: string, options: string[], placeholder: string, onSelect: (value: string) => void) {
 		const wrap = document.createElement('div');
 		wrap.className = 'cm-property-popover-host';
 
@@ -924,20 +1035,23 @@ class PropertiesWidget extends WidgetType {
 			item.type = 'button';
 			item.className = option === value ? 'cm-property-menu-item is-selected' : 'cm-property-menu-item';
 			item.textContent = formatLabel(option);
-			item.addEventListener('click', () => onSelect(option));
+			item.addEventListener('click', () => {
+				onSelect(option);
+				menu.hidden = true;
+			});
 			menu.appendChild(item);
 		}
 
 		button.addEventListener('click', () => {
 			menu.hidden = !menu.hidden;
 		});
-		this.bindPopoverDismiss(wrap, menu, button);
+		this.bindPopoverDismiss(view, button, menu, button);
 
-		wrap.append(button, menu);
+		wrap.append(button);
 		return wrap;
 	}
 
-	private createIconPicker(value: string, onSelect: (value: string) => void) {
+	private createIconPicker(view: EditorView, value: string, onSelect: (value: string) => void) {
 		const wrap = document.createElement('div');
 		wrap.className = 'cm-property-popover-host';
 
@@ -1008,12 +1122,12 @@ class PropertiesWidget extends WidgetType {
 			menu.hidden = !menu.hidden;
 		});
 
-		this.bindPopoverDismiss(wrap, menu, button);
-		wrap.append(button, menu);
+		this.bindPopoverDismiss(view, button, menu, button);
+		wrap.append(button);
 		return wrap;
 	}
 
-	private createDatePicker(value: string, onSelect: (value: string) => void) {
+	private createDatePicker(view: EditorView, value: string, onSelect: (value: string) => void) {
 		const wrap = document.createElement('div');
 		wrap.className = 'cm-property-date-picker cm-property-popover-host';
 
@@ -1111,23 +1225,71 @@ class PropertiesWidget extends WidgetType {
 			renderCalendar();
 			popover.hidden = !popover.hidden;
 		});
-		this.bindPopoverDismiss(wrap, popover, button);
+		this.bindPopoverDismiss(view, button, popover, button);
 
 		renderCalendar();
-		wrap.append(input, button, popover);
+		wrap.append(input, button);
 		return wrap;
 	}
 
-	private bindPopoverDismiss(host: HTMLElement, popover: HTMLElement, returnFocus: HTMLElement) {
+	private bindPopoverDismiss(view: EditorView, anchorEl: HTMLElement, popover: HTMLElement, returnFocus: HTMLElement) {
+		const overlayHost = view.dom.closest<HTMLElement>('.shell-container') || document.body;
+		overlayHost.appendChild(popover);
+		this.cleanups.push(() => popover.remove());
+
+		const updatePosition = () => {
+			if (popover.hidden) return;
+			const rect = anchorEl.getBoundingClientRect();
+			popover.style.position = 'fixed';
+			popover.style.top = `${rect.bottom + 4}px`;
+			popover.style.left = `${rect.left}px`;
+			if (popover.classList.contains('cm-property-option-menu') || popover.classList.contains('cm-property-tag-menu') || popover.classList.contains('cm-property-link-menu')) {
+				popover.style.width = `${Math.max(rect.width, 280)}px`;
+			}
+			popover.style.zIndex = '999999';
+			popover.style.boxSizing = 'border-box';
+			popover.style.borderRadius = '16px';
+			popover.style.padding = '6px';
+			popover.style.color = 'var(--colors-text)';
+			popover.style.backgroundColor = 'color-mix(in srgb, var(--colors-surface, #1C1C1E) 85%, rgba(20, 20, 24, 0.88))';
+			popover.style.backdropFilter = 'blur(24px) saturate(180%)';
+			popover.style.setProperty('-webkit-backdrop-filter', 'blur(24px) saturate(180%)');
+			popover.style.border = '1px solid color-mix(in srgb, var(--colors-text) 16%, rgba(255, 255, 255, 0.15))';
+			popover.style.boxShadow = '0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.15)';
+		};
+
+		const observer = new MutationObserver(() => {
+			if (!popover.hidden) {
+				updatePosition();
+			}
+		});
+		observer.observe(popover, { attributes: true, attributeFilter: ['hidden'] });
+		this.cleanups.push(() => observer.disconnect());
+
+		const onScrollOrResize = () => {
+			if (!popover.hidden) {
+				updatePosition();
+			}
+		};
+
+		window.addEventListener('scroll', onScrollOrResize, true);
+		window.addEventListener('resize', onScrollOrResize, true);
+		this.cleanups.push(() => {
+			window.removeEventListener('scroll', onScrollOrResize, true);
+			window.removeEventListener('resize', onScrollOrResize, true);
+		});
+
 		const onPointerDown = (event: PointerEvent) => {
 			if (popover.hidden) return;
 			const target = event.target;
-			if (target instanceof Node && (host.contains(target) || popover.contains(target))) return;
+			if (target instanceof Node && (anchorEl.contains(target) || popover.contains(target))) return;
 			popover.hidden = true;
 		};
 
 		const onKeyDown = (event: KeyboardEvent) => {
 			if (popover.hidden || event.key !== 'Escape') return;
+			event.preventDefault();
+			event.stopPropagation();
 			popover.hidden = true;
 			returnFocus.focus();
 		};
@@ -1211,16 +1373,28 @@ export function buildPropertiesDecorations(state: EditorState): DecorationSet {
 	const parsed = parseFrontmatter(state.doc.toString());
 	if (!parsed.range) return Decoration.none;
 
-	const builder = new RangeSetBuilder<Decoration>();
-	builder.add(
-		parsed.range.from,
-		parsed.range.to,
-		Decoration.replace({
-			widget: new PropertiesWidget(parsed),
-			block: true
-		})
-	);
-	return builder.finish();
+	return superviseDecorations({
+		docLength: state.doc.length,
+		source: 'properties-extension',
+		getText: (from, to) => state.doc.sliceString(from, to),
+		allowLineBreakReplacement: true,
+		decorations: [
+			{
+				from: parsed.range.from,
+				to: parsed.range.to,
+				kind: 'replace',
+				source: 'properties-extension:frontmatter',
+				deco: Decoration.replace({
+					widget: new RenderSafeWidget(new PropertiesWidget(parsed), {
+						label: 'Properties',
+						block: true,
+						minHeight: 48
+					}),
+					block: true
+				})
+			}
+		]
+	});
 }
 
 export function openAddPropertyPalette(view: EditorView) {
@@ -1230,16 +1404,47 @@ export function openAddPropertyPalette(view: EditorView) {
 	}
 	globalFallbackCollapseState = false;
 
-	const panel = view.dom.querySelector<HTMLElement>('.cm-properties-panel');
-	if (panel && panel.classList.contains('is-collapsed')) {
-		const header = panel.querySelector<HTMLElement>('.cm-properties-header');
-		header?.click();
+	const doc = view.state.doc.toString();
+	if (!doc.startsWith('---')) {
+		view.dispatch({
+			changes: { from: 0, to: 0, insert: '---\n---\n' }
+		});
+	} else {
+		view.dispatch({
+			scrollIntoView: false
+		});
 	}
 
-	const trigger = view.dom.querySelector<HTMLButtonElement>('[data-property-add-trigger="true"]');
-	if (!trigger) return false;
+	const expandAndTrigger = () => {
+		const panel = view.dom.querySelector<HTMLElement>('.cm-properties-panel');
+		if (panel) {
+			panel.classList.remove('is-collapsed');
+			panel.classList.add('is-expanded');
+			const chevron = panel.querySelector<HTMLElement>('.cm-properties-chevron');
+			if (chevron) chevron.style.transform = 'rotate(90deg)';
+			const body = panel.querySelector<HTMLElement>('.cm-properties-body');
+			if (body) {
+				body.hidden = false;
+				body.style.display = 'block';
+			}
+		}
 
-	trigger.click();
+		const trigger = view.dom.querySelector<HTMLButtonElement>('[data-property-add-trigger="true"]');
+		if (trigger) {
+			trigger.click();
+			return true;
+		}
+		return false;
+	};
+
+	if (!expandAndTrigger()) {
+		requestAnimationFrame(() => {
+			if (!expandAndTrigger()) {
+				setTimeout(expandAndTrigger, 50);
+			}
+		});
+	}
+
 	return true;
 }
 

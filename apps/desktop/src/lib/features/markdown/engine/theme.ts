@@ -89,10 +89,15 @@ export const brainstormTheme = EditorView.theme({
 		color: 'var(--colors-primary)',
 		textDecoration: 'underline',
 		textUnderlineOffset: '2px',
-		cursor: 'pointer'
+		cursor: 'pointer',
+		display: 'inline',
+		fontSize: 'inherit',
+		fontFamily: 'inherit',
+		lineHeight: 'inherit',
+		verticalAlign: 'baseline'
 	},
 	'.cm-link-preview:hover': {
-		filter: 'brightness(1.12)'
+		filter: 'brightness(1.15)'
 	},
 	'.cm-tag': {
 		color: 'var(--colors-primary)',
@@ -109,165 +114,317 @@ export const brainstormTheme = EditorView.theme({
 		padding: '2px 4px',
 		borderRadius: '4px'
 	},
+	'.cm-render-widget-boundary': {
+		display: 'inline-block',
+		contain: 'layout style paint',
+		maxWidth: '100%',
+		verticalAlign: 'baseline'
+	},
+	'.cm-render-widget-boundary[data-render-widget="Link"], .cm-render-widget-boundary[data-render-widget="URL"]': {
+		display: 'inline !important',
+		contain: 'none !important',
+		verticalAlign: 'baseline',
+		fontSize: 'inherit',
+		fontFamily: 'inherit',
+		lineHeight: 'inherit'
+	},
+	'.cm-render-widget-boundary[data-render-widget="Mermaid"], .cm-render-widget-boundary[data-render-widget="Table"], .cm-render-widget-boundary[data-render-widget="Properties"], .cm-render-widget-boundary[data-render-widget="Horizontal Rule"]': {
+		display: 'block',
+		width: '100%'
+	},
+	'.cm-render-error': {
+		boxSizing: 'border-box',
+		margin: '8px 0',
+		padding: '8px 10px',
+		border: '1px solid var(--colors-error, #ff3b30)',
+		borderRadius: '6px',
+		color: 'var(--colors-error, #ff3b30)',
+		backgroundColor: 'color-mix(in srgb, var(--colors-error, #ff3b30) 10%, transparent)',
+		fontFamily: 'var(--font-mono, monospace)',
+		fontSize: '12px',
+		whiteSpace: 'pre-wrap',
+		overflowWrap: 'anywhere'
+	},
 	'.cm-frontmatter': {
 		color: 'var(--colors-textMuted)',
 		fontFamily: 'var(--font-mono, monospace)',
 		fontSize: '0.9em'
 	},
 
+	'.cm-line:has(.cm-properties-panel), .cm-embedWidget:has(.cm-properties-panel)': {
+		overflow: 'visible !important',
+		zIndex: '20'
+	},
 	'.cm-properties-panel': {
 		display: 'block',
-		margin: '0',
-		padding: '8px 0 24px 0',
-		borderTop: '1px solid var(--colors-border)',
-		borderBottom: '1px solid var(--colors-border)',
+		position: 'relative',
+		zIndex: '20',
+		overflow: 'visible !important',
+		margin: '12px 0 20px 0',
+		padding: '12px 14px',
+		borderRadius: '14px',
+		border: '1px solid color-mix(in srgb, var(--colors-border) 60%, transparent)',
+		backgroundColor: 'color-mix(in srgb, var(--colors-surface, #1C1C1E) 55%, transparent)',
+		backdropFilter: 'blur(20px) saturate(180%)',
+		WebkitBackdropFilter: 'blur(20px) saturate(180%)',
 		color: 'var(--colors-text)',
-		fontFamily: '"Inter", var(--font-sans, sans-serif)'
+		fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", var(--font-sans, sans-serif)',
+		boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), inset 0 1px 0 color-mix(in srgb, var(--colors-text) 10%, transparent)',
+		transition: 'all 0.2s ease'
 	},
 	'.cm-properties-header': {
 		display: 'flex',
 		alignItems: 'center',
-		gap: '6px',
-		padding: '4px 0',
+		gap: '8px',
+		padding: '2px 4px',
 		cursor: 'pointer',
 		userSelect: 'none',
 		color: 'var(--colors-textMuted)',
-		fontSize: '12px',
+		fontSize: '11px',
 		fontWeight: '600',
-		letterSpacing: '0.03em',
+		letterSpacing: '0.04em',
+		textTransform: 'uppercase',
 		transition: 'color 0.15s ease'
 	},
 	'.cm-properties-header:hover': {
 		color: 'var(--colors-text)'
 	},
 	'.cm-properties-toggle-icon': {
-		fontSize: '9px',
-		width: '12px',
-		display: 'inline-block',
-		textAlign: 'center',
-		opacity: '0.8'
+		width: '16px',
+		height: '16px',
+		display: 'inline-flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		color: 'var(--colors-textMuted)',
+		transition: 'color 0.15s ease'
+	},
+	'.cm-properties-chevron': {
+		transition: 'transform 0.2s cubic-bezier(0.25, 1, 0.5, 1)'
+	},
+	'.cm-properties-panel.is-expanded .cm-properties-chevron': {
+		transform: 'rotate(90deg)'
+	},
+	'.cm-properties-panel.is-collapsed .cm-properties-chevron': {
+		transform: 'rotate(0deg)'
+	},
+	'.cm-properties-title-group': {
+		display: 'flex',
+		alignItems: 'center',
+		gap: '8px'
+	},
+	'.cm-properties-title': {
+		fontSize: '11px',
+		fontWeight: '700',
+		letterSpacing: '0.05em',
+		textTransform: 'uppercase'
+	},
+	'.cm-properties-count-badge': {
+		display: 'inline-flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		minWidth: '18px',
+		height: '18px',
+		padding: '0 6px',
+		borderRadius: '9px',
+		fontSize: '10px',
+		fontWeight: '600',
+		backgroundColor: 'color-mix(in srgb, var(--colors-text) 10%, transparent)',
+		color: 'var(--colors-textMuted)'
 	},
 	'.cm-properties-body': {
-		marginTop: '10px'
+		marginTop: '10px',
+		position: 'relative',
+		overflow: 'visible !important'
 	},
 	'.cm-properties-panel input, .cm-properties-panel textarea, .cm-properties-panel button, .cm-properties-panel select': {
-		fontFamily: '"Inter", var(--font-sans, sans-serif)'
+		fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", var(--font-sans, sans-serif)'
 	},
 	'.cm-properties-rows': {
-		display: 'grid',
-		gap: '8px'
+		display: 'flex',
+		flexDirection: 'column',
+		gap: '2px',
+		padding: '4px',
+		borderRadius: '10px',
+		backgroundColor: 'color-mix(in srgb, var(--colors-background) 40%, transparent)',
+		border: '1px solid color-mix(in srgb, var(--colors-border) 45%, transparent)',
+		position: 'relative',
+		overflow: 'visible !important'
 	},
 	'.cm-property-row': {
 		display: 'grid',
-		gridTemplateColumns: '128px minmax(0, 1fr)',
+		gridTemplateColumns: '136px minmax(0, 1fr)',
 		alignItems: 'center',
 		gap: '12px',
-		minHeight: '32px'
+		minHeight: '34px',
+		padding: '3px 8px',
+		borderRadius: '7px',
+		position: 'relative',
+		overflow: 'visible !important',
+		transition: 'background-color 0.15s ease'
+	},
+	'.cm-property-row:hover': {
+		backgroundColor: 'color-mix(in srgb, var(--colors-text) 4%, transparent)'
+	},
+	'.cm-property-row:has(.cm-property-menu:not([hidden])), .cm-property-row:has(.cm-property-calendar:not([hidden]))': {
+		zIndex: '100',
+		position: 'relative'
 	},
 	'.cm-property-label': {
+		display: 'flex',
+		alignItems: 'center',
+		gap: '7px',
 		color: 'var(--colors-textMuted)',
 		fontSize: '12px',
-		fontWeight: '600',
-		lineHeight: '32px',
+		fontWeight: '500',
+		lineHeight: '1.4',
+		overflow: 'hidden',
+		textOverflow: 'ellipsis',
+		whiteSpace: 'nowrap',
+		userSelect: 'none'
+	},
+	'.cm-property-label-icon': {
+		display: 'inline-flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		flexShrink: '0',
+		color: 'var(--colors-textMuted)',
+		opacity: '0.75'
+	},
+	'.cm-property-label-text': {
 		overflow: 'hidden',
 		textOverflow: 'ellipsis',
 		whiteSpace: 'nowrap'
 	},
 	'.cm-property-control': {
 		minWidth: '0',
+		position: 'relative',
+		overflow: 'visible !important'
+	},
+	'.cm-property-control:has(.cm-property-menu:not([hidden])), .cm-property-control:has(.cm-property-calendar:not([hidden]))': {
+		zIndex: '100',
 		position: 'relative'
 	},
 	'.cm-property-control.has-property-remove .cm-property-input, .cm-property-control.has-property-remove .cm-property-picker-button': {
-		paddingRight: '42px'
+		paddingRight: '36px'
 	},
 	'.cm-property-control.has-property-remove .cm-property-list-input-row .cm-property-input, .cm-property-control.has-property-remove .cm-property-link-input-row .cm-property-input': {
-		paddingRight: '42px'
+		paddingRight: '36px'
 	},
 	'.cm-property-row:has(.cm-property-textarea), .cm-property-row:has(.cm-property-validation)': {
 		alignItems: 'start'
 	},
 	'.cm-property-dates-stack': {
-		display: 'grid',
-		gap: '8px'
+		display: 'flex',
+		flexDirection: 'column',
+		gap: '2px'
 	},
 	'.cm-property-input': {
 		width: '100%',
-		minHeight: '32px',
+		minHeight: '30px',
 		boxSizing: 'border-box',
-		border: '1px solid var(--colors-border)',
-		borderRadius: '6px',
-		backgroundColor: 'var(--colors-surface)',
+		border: '1px solid color-mix(in srgb, var(--colors-border) 60%, transparent)',
+		borderRadius: '7px',
+		backgroundColor: 'color-mix(in srgb, var(--colors-surface) 75%, transparent)',
 		color: 'var(--colors-text)',
-		padding: '6px 9px',
+		padding: '5px 9px',
 		font: 'inherit',
-		outline: 'none'
+		fontSize: '12.5px',
+		outline: 'none',
+		transition: 'border-color 0.15s ease, box-shadow 0.15s ease'
 	},
 	'.cm-property-input:focus': {
-		borderColor: 'var(--colors-primary)'
+		borderColor: '#007AFF',
+		boxShadow: '0 0 0 3px color-mix(in srgb, #007AFF 25%, transparent)'
 	},
 	'.cm-property-textarea': {
 		resize: 'vertical',
-		lineHeight: '1.5'
+		lineHeight: '1.5',
+		minHeight: '60px'
 	},
 	'.cm-property-popover-host': {
+		position: 'relative',
+		overflow: 'visible !important'
+	},
+	'.cm-property-popover-host:has(.cm-property-menu:not([hidden])), .cm-property-popover-host:has(.cm-property-calendar:not([hidden]))': {
+		zIndex: '100',
 		position: 'relative'
 	},
 	'.cm-property-picker-button, .cm-property-add-button, .cm-property-calendar-button, .cm-property-menu-action, .cm-property-calendar-nav': {
-		border: '1px solid color-mix(in srgb, var(--colors-border) 70%, transparent)',
-		borderRadius: '8px',
-		backgroundColor: 'color-mix(in srgb, var(--colors-surface) 65%, transparent)',
+		border: '1px solid color-mix(in srgb, var(--colors-border) 60%, transparent)',
+		borderRadius: '7px',
+		backgroundColor: 'color-mix(in srgb, var(--colors-surface) 70%, transparent)',
 		color: 'var(--colors-text)',
 		font: 'inherit',
+		fontSize: '12.5px',
 		cursor: 'pointer',
 		backdropFilter: 'blur(8px)',
 		WebkitBackdropFilter: 'blur(8px)',
 		transition: 'all 0.15s ease'
 	},
 	'.cm-property-picker-button, .cm-property-add-button': {
-		minHeight: '32px',
+		minHeight: '30px',
 		width: '100%',
-		padding: '6px 9px',
+		padding: '5px 9px',
 		textAlign: 'left'
 	},
 	'.cm-property-add-button': {
 		display: 'flex',
 		alignItems: 'center',
 		justifyContent: 'space-between',
-		gap: '12px'
+		gap: '12px',
+		borderRadius: '8px',
+		border: '1px dashed color-mix(in srgb, var(--colors-border) 70%, transparent)'
+	},
+	'.cm-property-add-label': {
+		display: 'inline-flex',
+		alignItems: 'center',
+		gap: '6px',
+		fontWeight: '500',
+		fontSize: '12px',
+		color: 'var(--colors-textMuted)'
 	},
 	'.cm-property-add-button kbd': {
 		color: 'var(--colors-textMuted)',
-		fontSize: '11px',
-		fontFamily: 'var(--font-mono, monospace)'
+		fontSize: '10px',
+		fontWeight: '600',
+		fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif',
+		padding: '2px 5px',
+		borderRadius: '4px',
+		backgroundColor: 'color-mix(in srgb, var(--colors-text) 8%, transparent)'
 	},
 	'.cm-property-picker-button:hover, .cm-property-add-button:hover, .cm-property-calendar-button:hover, .cm-property-menu-action:hover, .cm-property-calendar-nav:hover': {
-		borderColor: 'var(--colors-primary)',
-		backgroundColor: 'color-mix(in srgb, var(--colors-primary) 12%, var(--colors-surface))'
+		borderColor: '#007AFF',
+		backgroundColor: 'color-mix(in srgb, #007AFF 10%, var(--colors-surface))',
+		color: 'var(--colors-text)'
 	},
 	'.cm-property-menu, .cm-property-calendar, .cm-property-spotlight': {
-		position: 'absolute',
-		zIndex: '40',
+		position: 'fixed',
+		zIndex: '999999 !important',
 		isolation: 'isolate',
 		boxSizing: 'border-box',
 		borderRadius: '16px',
-		overflow: 'hidden',
-		padding: '10px',
+		display: 'flex !important',
+		flexDirection: 'column !important',
+		gap: '3px',
+		maxHeight: '260px',
+		overflowY: 'auto',
+		padding: '6px',
 		color: 'var(--colors-text)',
-		boxShadow: '0 20px 50px rgba(0, 0, 0, 0.35), inset 0 1px 1px color-mix(in srgb, var(--colors-text) 25%, transparent), inset 0 -1px 1px color-mix(in srgb, var(--colors-text) 8%, transparent)'
-	},
-	'.cm-property-menu, .cm-property-calendar': {
-		top: 'calc(100% + 6px)',
-		left: '0',
-		width: 'min(280px, 100%)'
+		backgroundColor: 'color-mix(in srgb, var(--colors-surface, #1C1C1E) 85%, rgba(20, 20, 24, 0.85)) !important',
+		backdropFilter: 'blur(24px) saturate(180%) !important',
+		WebkitBackdropFilter: 'blur(24px) saturate(180%) !important',
+		border: '1px solid color-mix(in srgb, var(--colors-text) 16%, rgba(255, 255, 255, 0.12)) !important',
+		boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 0 color-mix(in srgb, var(--colors-text) 20%, transparent) !important'
 	},
 	'.cm-property-menu::before, .cm-property-calendar::before, .cm-property-spotlight::before': {
 		content: '""',
 		position: 'absolute',
 		inset: '0',
 		zIndex: '0',
-		background: 'color-mix(in srgb, var(--colors-surfaceVariant, var(--colors-surface, #1C1C1E)) 55%, transparent)',
-		backdropFilter: 'url(#liquid-glass-refract-dark) blur(8px) saturate(160%)',
-		WebkitBackdropFilter: 'blur(20px) saturate(160%)'
+		background: 'color-mix(in srgb, var(--colors-surfaceVariant, var(--colors-surface, #1C1C1E)) 70%, transparent)',
+		backdropFilter: 'url(#liquid-glass-refract-dark) blur(12px) saturate(160%)',
+		WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+		pointerEvents: 'none'
 	},
 	'.cm-property-menu::after, .cm-property-calendar::after, .cm-property-spotlight::after': {
 		content: '""',
@@ -288,39 +445,76 @@ export const brainstormTheme = EditorView.theme({
 		zIndex: '2'
 	},
 	'.cm-property-menu[hidden], .cm-property-calendar[hidden], .cm-property-custom-row[hidden]': {
-		display: 'none'
+		display: 'none !important'
 	},
 	'.cm-property-menu-search': {
 		marginBottom: '8px'
 	},
 	'.cm-property-menu-list': {
-		display: 'grid',
-		gap: '4px',
+		display: 'flex',
+		flexDirection: 'column',
+		gap: '2px',
 		maxHeight: '220px',
 		overflowY: 'auto'
 	},
 	'.cm-property-menu-item': {
-		minHeight: '30px',
+		minHeight: '38px',
+		width: '100% !important',
+		boxSizing: 'border-box !important',
 		border: '0',
-		borderRadius: '6px',
+		borderRadius: '8px',
 		backgroundColor: 'transparent',
 		color: 'var(--colors-text)',
-		padding: '5px 8px',
+		padding: '6px 10px',
 		font: 'inherit',
-		textAlign: 'left',
+		fontSize: '12.5px',
+		textAlign: 'left !important',
 		cursor: 'pointer',
-		display: 'grid',
-		gap: '2px',
-		transition: 'all 0.12s ease'
+		display: 'flex !important',
+		flexDirection: 'column !important',
+		alignItems: 'flex-start !important',
+		justifyContent: 'center !important',
+		gap: '2px !important',
+		margin: '0 !important',
+		transition: 'background 0.12s ease, color 0.12s ease'
 	},
-	'.cm-property-menu-item small': {
-		color: 'var(--colors-textMuted)',
+	'.cm-property-menu-item-title': {
+		fontSize: '13px',
+		fontWeight: '600',
+		lineHeight: '1.3',
+		color: 'var(--colors-text)',
+		display: 'block !important',
+		width: '100% !important',
+		textAlign: 'left !important',
+		overflow: 'hidden',
+		textOverflow: 'ellipsis',
+		whiteSpace: 'nowrap'
+	},
+	'.cm-property-menu-item-subtitle': {
 		fontSize: '11px',
-		lineHeight: '1.2'
+		fontWeight: '400',
+		lineHeight: '1.3',
+		color: 'var(--colors-textMuted)',
+		display: 'block !important',
+		width: '100% !important',
+		textAlign: 'left !important',
+		overflow: 'hidden',
+		textOverflow: 'ellipsis',
+		whiteSpace: 'nowrap'
 	},
-	'.cm-property-menu-item:hover, .cm-property-menu-item.is-selected': {
-		backgroundColor: 'color-mix(in srgb, var(--colors-primary) 18%, transparent)',
-		color: 'var(--colors-primary)'
+	'.cm-property-menu-item:hover': {
+		backgroundColor: 'color-mix(in srgb, var(--colors-hover, #2C2C2E) 75%, transparent)',
+		color: 'var(--colors-text)'
+	},
+	'.cm-property-menu-item.is-selected': {
+		backgroundColor: 'var(--colors-primary, #0A84FF)',
+		color: '#ffffff'
+	},
+	'.cm-property-menu-item.is-selected .cm-property-menu-item-title': {
+		color: '#ffffff'
+	},
+	'.cm-property-menu-item.is-selected .cm-property-menu-item-subtitle': {
+		color: 'rgba(255, 255, 255, 0.75)'
 	},
 	'.cm-property-custom-row': {
 		display: 'grid',
@@ -331,8 +525,8 @@ export const brainstormTheme = EditorView.theme({
 		borderTop: '1px solid color-mix(in srgb, var(--colors-border) 60%, transparent)'
 	},
 	'.cm-property-menu-action': {
-		minHeight: '32px',
-		padding: '0 10px'
+		minHeight: '30px',
+		padding: '0 12px'
 	},
 	'.cm-property-spotlight-overlay': {
 		position: 'fixed',
@@ -342,51 +536,54 @@ export const brainstormTheme = EditorView.theme({
 		alignItems: 'center',
 		justifyContent: 'center',
 		padding: '24px',
-		backdropFilter: 'blur(8px)',
-		WebkitBackdropFilter: 'blur(8px)',
-		backgroundColor: 'color-mix(in srgb, var(--colors-background) 65%, transparent)'
+		backdropFilter: 'blur(16px)',
+		WebkitBackdropFilter: 'blur(16px)',
+		backgroundColor: 'rgba(0, 0, 0, 0.4)'
 	},
 	'.cm-property-spotlight-overlay[hidden]': {
 		display: 'none'
 	},
 	'.cm-property-spotlight': {
 		position: 'relative',
-		width: 'min(560px, calc(100vw - 32px))',
-		maxHeight: 'min(560px, calc(100vh - 96px))',
-		padding: '12px',
-		display: 'grid',
-		gap: '10px'
+		width: 'min(500px, calc(100vw - 32px))',
+		maxHeight: 'min(520px, calc(100vh - 96px))',
+		padding: '10px',
+		display: 'flex',
+		flexDirection: 'column',
+		gap: '8px'
 	},
 	'.cm-property-spotlight-search': {
 		width: '100%',
-		minHeight: '44px',
+		minHeight: '40px',
 		boxSizing: 'border-box',
 		border: '1px solid color-mix(in srgb, var(--colors-border) 60%, transparent)',
-		borderRadius: '8px',
-		backgroundColor: 'color-mix(in srgb, var(--colors-background) 50%, transparent)',
+		borderRadius: '9px',
+		backgroundColor: 'color-mix(in srgb, var(--colors-background) 60%, transparent)',
 		color: 'var(--colors-text)',
-		padding: '9px 12px',
+		padding: '8px 12px',
 		font: 'inherit',
-		fontSize: '15px',
+		fontSize: '14px',
 		outline: 'none'
 	},
 	'.cm-property-spotlight-search:focus': {
-		borderColor: 'var(--colors-primary)'
+		borderColor: '#007AFF',
+		boxShadow: '0 0 0 3px color-mix(in srgb, #007AFF 25%, transparent)'
 	},
 	'.cm-property-spotlight-list': {
-		display: 'grid',
-		gap: '4px',
-		maxHeight: '320px',
+		display: 'flex',
+		flexDirection: 'column',
+		gap: '2px',
+		maxHeight: '300px',
 		overflowY: 'auto'
 	},
 	'.cm-property-spotlight .cm-property-menu-item': {
-		minHeight: '44px',
-		padding: '7px 10px'
+		minHeight: '38px',
+		padding: '8px 10px'
 	},
 	'.cm-property-spotlight-empty': {
 		color: 'var(--colors-textMuted)',
-		fontSize: '13px',
-		padding: '12px',
+		fontSize: '12.5px',
+		padding: '16px',
 		textAlign: 'center'
 	},
 	'.cm-property-date-picker': {
@@ -397,14 +594,15 @@ export const brainstormTheme = EditorView.theme({
 	},
 	'.cm-property-calendar-button': {
 		position: 'absolute',
-		top: '4px',
-		right: '4px',
+		top: '3px',
+		right: '3px',
 		width: '24px',
 		height: '24px',
 		display: 'flex',
 		alignItems: 'center',
 		justifyContent: 'center',
-		padding: '0'
+		padding: '0',
+		borderRadius: '5px'
 	},
 	'.cm-property-calendar-button svg': {
 		fill: 'none',
@@ -414,24 +612,24 @@ export const brainstormTheme = EditorView.theme({
 		strokeLinejoin: 'round'
 	},
 	'.cm-property-calendar': {
-		width: '276px'
+		width: '260px'
 	},
 	'.cm-property-calendar-header': {
 		display: 'grid',
-		gridTemplateColumns: '32px minmax(0, 1fr) 32px',
+		gridTemplateColumns: '28px minmax(0, 1fr) 28px',
 		alignItems: 'center',
 		gap: '6px',
-		marginBottom: '10px'
+		marginBottom: '8px'
 	},
 	'.cm-property-calendar-title': {
 		color: 'var(--colors-text)',
-		fontSize: '13px',
+		fontSize: '12.5px',
 		fontWeight: '600',
 		textAlign: 'center'
 	},
 	'.cm-property-calendar-nav': {
-		width: '32px',
-		height: '30px',
+		width: '28px',
+		height: '26px',
 		border: '1px solid color-mix(in srgb, var(--colors-border) 60%, transparent)',
 		borderRadius: '6px',
 		backgroundColor: 'color-mix(in srgb, var(--colors-background) 40%, transparent)',
@@ -443,30 +641,30 @@ export const brainstormTheme = EditorView.theme({
 		justifyContent: 'center'
 	},
 	'.cm-property-calendar-nav:hover': {
-		backgroundColor: 'color-mix(in srgb, var(--colors-primary) 18%, transparent)',
-		borderColor: 'var(--colors-primary)',
-		color: 'var(--colors-primary)'
+		backgroundColor: '#007AFF',
+		borderColor: '#007AFF',
+		color: '#ffffff'
 	},
 	'.cm-property-calendar-grid': {
 		display: 'grid',
 		gridTemplateColumns: 'repeat(7, 1fr)',
-		gap: '4px'
+		gap: '3px'
 	},
 	'.cm-property-calendar-weekday': {
 		color: 'var(--colors-textMuted)',
-		fontSize: '11px',
+		fontSize: '10.5px',
 		fontWeight: '600',
-		lineHeight: '24px',
+		lineHeight: '22px',
 		textAlign: 'center'
 	},
 	'.cm-property-calendar-empty': {
-		minHeight: '30px'
+		minHeight: '28px'
 	},
 	'.cm-property-calendar-day': {
 		minWidth: '0',
-		minHeight: '30px',
+		minHeight: '28px',
 		padding: '0',
-		border: '1px solid transparent',
+		border: '0',
 		borderRadius: '6px',
 		backgroundColor: 'transparent',
 		color: 'var(--colors-text)',
@@ -476,25 +674,55 @@ export const brainstormTheme = EditorView.theme({
 		transition: 'all 0.15s ease'
 	},
 	'.cm-property-calendar-day:hover': {
-		backgroundColor: 'color-mix(in srgb, var(--colors-primary) 18%, transparent)',
-		color: 'var(--colors-primary)',
-		borderColor: 'color-mix(in srgb, var(--colors-primary) 40%, transparent)'
+		backgroundColor: 'color-mix(in srgb, #007AFF 18%, transparent)',
+		color: '#007AFF'
 	},
 	'.cm-property-calendar-day.is-selected': {
-		backgroundColor: 'color-mix(in srgb, var(--colors-primary) 85%, #2979ff)',
+		backgroundColor: '#007AFF',
 		color: '#ffffff',
-		borderColor: 'var(--colors-primary)',
 		fontWeight: '600',
-		boxShadow: '0 2px 8px color-mix(in srgb, var(--colors-primary) 45%, transparent)'
+		boxShadow: '0 2px 6px color-mix(in srgb, #007AFF 40%, transparent)'
 	},
+
+	/* Custom Apple iOS/macOS Toggle Switch */
 	'.cm-property-switch': {
-		width: '18px',
+		appearance: 'none',
+		WebkitAppearance: 'none',
+		width: '32px',
 		height: '18px',
-		marginTop: '7px',
-		accentColor: 'var(--colors-primary)'
+		borderRadius: '9px',
+		backgroundColor: 'color-mix(in srgb, var(--colors-text) 18%, transparent)',
+		position: 'relative',
+		cursor: 'pointer',
+		outline: 'none',
+		margin: '0',
+		transition: 'background-color 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)'
 	},
+	'.cm-property-switch::before': {
+		content: '""',
+		position: 'absolute',
+		top: '2px',
+		left: '2px',
+		width: '14px',
+		height: '14px',
+		borderRadius: '50%',
+		backgroundColor: '#ffffff',
+		boxShadow: '0 1px 3px rgba(0, 0, 0, 0.3)',
+		transition: 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)'
+	},
+	'.cm-property-switch:checked': {
+		backgroundColor: '#34C759'
+	},
+	'.cm-property-switch:checked::before': {
+		transform: 'translateX(14px)'
+	},
+	'.cm-property-switch:focus-visible': {
+		boxShadow: '0 0 0 3px color-mix(in srgb, #34C759 30%, transparent)'
+	},
+
 	'.cm-property-list-editor': {
-		display: 'grid',
+		display: 'flex',
+		flexDirection: 'column',
 		gap: '6px'
 	},
 	'.cm-property-list-input-row[hidden]': {
@@ -503,56 +731,65 @@ export const brainstormTheme = EditorView.theme({
 	'.cm-property-chips': {
 		display: 'flex',
 		flexWrap: 'wrap',
-		gap: '6px'
+		gap: '5px'
 	},
 	'.cm-property-chip': {
-		minHeight: '26px',
-		border: '1px solid var(--colors-border)',
-		borderRadius: '6px',
-		backgroundColor: 'var(--colors-surfaceVariant)',
+		minHeight: '24px',
+		border: '1px solid color-mix(in srgb, var(--colors-border) 60%, transparent)',
+		borderRadius: '12px',
+		backgroundColor: 'color-mix(in srgb, var(--colors-surfaceVariant, var(--colors-surface)) 70%, transparent)',
 		color: 'var(--colors-text)',
-		padding: '3px 8px',
+		padding: '2px 8px',
 		font: 'inherit',
-		cursor: 'pointer'
+		fontSize: '12px',
+		cursor: 'pointer',
+		transition: 'all 0.15s ease'
 	},
 	'.cm-property-chip:hover': {
-		borderColor: 'var(--colors-primary)'
+		borderColor: '#007AFF',
+		backgroundColor: 'color-mix(in srgb, #007AFF 10%, var(--colors-surfaceVariant))'
 	},
 	'.cm-property-list-chip': {
-		display: 'inline-grid',
-		gridTemplateColumns: 'minmax(0, auto) 20px',
+		display: 'inline-flex',
 		alignItems: 'center',
-		gap: '4px',
+		gap: '3px',
 		padding: '0'
 	},
 	'.cm-property-list-chip-label': {
 		minWidth: '0',
-		padding: '3px 2px 3px 8px',
+		padding: '2px 2px 2px 8px',
 		overflow: 'hidden',
 		textOverflow: 'ellipsis',
 		whiteSpace: 'nowrap'
 	},
 	'.cm-property-list-chip-remove': {
-		width: '20px',
-		height: '24px',
+		width: '18px',
+		height: '18px',
 		padding: '0',
 		border: '0',
+		borderRadius: '50%',
 		backgroundColor: 'transparent',
 		color: 'var(--colors-textMuted)',
-		font: 'inherit',
-		cursor: 'pointer'
+		display: 'inline-flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		cursor: 'pointer',
+		marginRight: '3px',
+		transition: 'all 0.15s ease'
 	},
 	'.cm-property-list-chip-remove:hover': {
+		backgroundColor: 'color-mix(in srgb, var(--colors-text) 15%, transparent)',
 		color: 'var(--colors-text)'
 	},
 	'.cm-property-list-add': {
-		minWidth: '28px',
+		minWidth: '24px',
 		justifyContent: 'center',
 		fontWeight: '600'
 	},
 	'.cm-property-link-editor': {
-		display: 'grid',
-		gap: '8px'
+		display: 'flex',
+		flexDirection: 'column',
+		gap: '6px'
 	},
 	'.cm-property-link-input-row': {
 		position: 'relative'
@@ -560,40 +797,17 @@ export const brainstormTheme = EditorView.theme({
 	'.cm-property-link-input-row[hidden]': {
 		display: 'none'
 	},
-	'.cm-property-link-menu': {
-		width: '100%',
-		maxHeight: '240px',
-		overflowY: 'auto'
-	},
-	'.cm-property-tag-menu': {
-		width: '100%',
-		maxHeight: '240px',
-		overflowY: 'auto'
-	},
 	'.cm-property-link-chip': {
-		display: 'inline-grid',
-		gridTemplateColumns: 'minmax(0, auto) 20px',
+		display: 'inline-flex',
 		alignItems: 'center',
-		gap: '4px',
+		gap: '3px',
 		padding: '0'
-	},
-	'.cm-property-icon-picker-menu': {
-		width: '260px',
-		maxHeight: '260px',
-		padding: '8px',
-		display: 'block',
-		backdropFilter: 'blur(16px)',
-		WebkitBackdropFilter: 'blur(16px)',
-		backgroundColor: 'color-mix(in srgb, var(--colors-surface, #1e1e2e) 72%, transparent)',
-		border: '1px solid color-mix(in srgb, var(--colors-primary) 32%, var(--colors-border))',
-		boxShadow: '0 12px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
-		borderRadius: '10px'
 	},
 	'.cm-property-icon-grid': {
 		display: 'grid',
 		gridTemplateColumns: 'repeat(5, 1fr)',
-		gap: '6px',
-		maxHeight: '240px',
+		gap: '4px',
+		maxHeight: '230px',
 		overflowY: 'auto',
 		paddingRight: '2px'
 	},
@@ -602,24 +816,23 @@ export const brainstormTheme = EditorView.theme({
 		flexDirection: 'column',
 		alignItems: 'center',
 		justifyContent: 'center',
-		height: '38px',
+		height: '36px',
 		border: '1px solid transparent',
-		borderRadius: '6px',
+		borderRadius: '7px',
 		backgroundColor: 'transparent',
 		color: 'var(--colors-textMuted)',
 		cursor: 'pointer',
 		transition: 'all 0.15s ease'
 	},
 	'.cm-property-icon-grid-item:hover': {
-		backgroundColor: 'color-mix(in srgb, var(--colors-primary) 16%, transparent)',
-		color: 'var(--colors-primary)',
-		borderColor: 'color-mix(in srgb, var(--colors-primary) 40%, transparent)'
+		backgroundColor: 'color-mix(in srgb, #007AFF 14%, transparent)',
+		color: '#007AFF',
+		borderColor: 'color-mix(in srgb, #007AFF 30%, transparent)'
 	},
 	'.cm-property-icon-grid-item.is-selected': {
-		backgroundColor: 'color-mix(in srgb, var(--colors-primary) 24%, transparent)',
-		color: 'var(--colors-primary)',
-		borderColor: 'var(--colors-primary)',
-		fontWeight: '600'
+		backgroundColor: '#007AFF',
+		color: '#ffffff',
+		borderColor: '#007AFF'
 	},
 	'.cm-property-link-chip.is-broken': {
 		borderColor: 'var(--colors-warning)'
@@ -633,80 +846,130 @@ export const brainstormTheme = EditorView.theme({
 	},
 	'.cm-property-link-open': {
 		minWidth: '0',
-		padding: '3px 2px 3px 8px',
+		padding: '2px 2px 2px 8px',
 		overflow: 'hidden',
 		textOverflow: 'ellipsis',
 		whiteSpace: 'nowrap',
-		color: 'var(--colors-primary)'
+		color: '#007AFF',
+		fontWeight: '500'
 	},
 	'.cm-property-link-remove': {
-		width: '20px',
-		height: '24px',
+		width: '18px',
+		height: '18px',
 		padding: '0',
-		color: 'var(--colors-textMuted)'
+		borderRadius: '50%',
+		display: 'inline-flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		color: 'var(--colors-textMuted)',
+		marginRight: '3px'
 	},
 	'.cm-property-link-remove:hover': {
+		backgroundColor: 'color-mix(in srgb, var(--colors-text) 15%, transparent)',
 		color: 'var(--colors-text)'
 	},
 	'.cm-property-link-add': {
-		minWidth: '28px',
+		minWidth: '24px',
 		justifyContent: 'center',
 		fontWeight: '600'
 	},
 	'.cm-property-icon-button': {
 		position: 'absolute',
 		top: '50%',
-		right: '8px',
+		right: '6px',
 		transform: 'translateY(-50%)',
-		width: '24px',
-		height: '24px',
+		width: '20px',
+		height: '20px',
 		border: '0',
-		borderRadius: '6px',
+		borderRadius: '50%',
 		backgroundColor: 'transparent',
 		color: 'var(--colors-textMuted)',
 		cursor: 'pointer',
-		lineHeight: '1',
 		display: 'flex',
 		alignItems: 'center',
 		justifyContent: 'center',
-		zIndex: '2'
+		zIndex: '2',
+		opacity: '0',
+		transition: 'all 0.15s ease'
+	},
+	'.cm-property-row:hover .cm-property-icon-button': {
+		opacity: '0.6'
 	},
 	'.cm-property-icon-button:hover': {
+		opacity: '1 !important',
 		color: 'var(--colors-text)',
-		backgroundColor: 'var(--colors-surfaceVariant)'
+		backgroundColor: 'color-mix(in srgb, var(--colors-text) 12%, transparent)'
 	},
 	'.cm-property-add': {
-		marginTop: '12px',
-		marginLeft: '140px',
-		maxWidth: '260px'
+		marginTop: '8px'
 	},
 	'.cm-properties-error, .cm-property-validation': {
 		color: 'var(--colors-error)',
-		fontSize: '12px',
+		fontSize: '11.5px',
 		lineHeight: '1.4'
 	},
 	'.cm-properties-error': {
-		marginBottom: '10px'
+		marginBottom: '8px'
 	},
 	'.cm-property-validation': {
 		marginTop: '4px'
 	},
 	
-	'.cm-callout': {
-		display: 'block',
-		padding: '12px 16px',
-		margin: '0',
-		backgroundColor: 'rgba(255, 255, 255, 0.05)',
-		borderLeft: '4px solid var(--colors-primary)',
-		borderRadius: '4px',
-		color: 'var(--colors-text)'
+	'.cm-callout-line': {
+		padding: '0 20px',
+		lineHeight: '1.6',
+		position: 'relative'
 	},
-	'.cm-callout-note': { borderLeftColor: 'var(--colors-primary)', backgroundColor: 'rgba(0, 122, 204, 0.1)' },
-	'.cm-callout-warning': { borderLeftColor: 'var(--colors-warning)', backgroundColor: 'rgba(255, 170, 0, 0.1)' },
-	'.cm-callout-danger': { borderLeftColor: 'var(--colors-error)', backgroundColor: 'rgba(255, 51, 51, 0.1)' },
-	'.cm-callout-success': { borderLeftColor: 'var(--colors-success)', backgroundColor: 'rgba(46, 204, 113, 0.1)' },
-	'.cm-callout-tip': { borderLeftColor: 'var(--colors-success)', backgroundColor: 'rgba(46, 204, 113, 0.1)' },
-	'.cm-callout-info': { borderLeftColor: 'var(--colors-primary)', backgroundColor: 'rgba(0, 122, 204, 0.1)' },
+	'.cm-callout-top': {
+		borderTopLeftRadius: '8px',
+		borderTopRightRadius: '8px',
+		paddingTop: '16px',
+		marginTop: '12px'
+	},
+	'.cm-callout-bottom': {
+		borderBottomLeftRadius: '8px',
+		borderBottomRightRadius: '8px',
+		paddingBottom: '16px',
+		marginBottom: '12px'
+	},
+
+	'.cm-callout-note': { backgroundColor: 'rgba(59, 130, 246, 0.12)' },
+	'.cm-callout-tip': { backgroundColor: 'rgba(45, 212, 191, 0.10)' },
+	'.cm-callout-warning': { backgroundColor: 'rgba(245, 158, 11, 0.10)' },
+	'.cm-callout-important': { backgroundColor: 'rgba(45, 212, 191, 0.10)' },
+	'.cm-callout-caution': { backgroundColor: 'rgba(245, 158, 11, 0.10)' },
+	'.cm-callout-success': { backgroundColor: 'rgba(34, 197, 94, 0.10)' },
+	'.cm-callout-bug': { backgroundColor: 'rgba(239, 68, 68, 0.12)' },
+	'.cm-callout-question': { backgroundColor: 'rgba(245, 158, 11, 0.10)' },
+	'.cm-callout-quote': { backgroundColor: 'rgba(255, 255, 255, 0.05)' },
+	'.cm-callout-danger': { backgroundColor: 'rgba(239, 68, 68, 0.12)' },
+	'.cm-callout-info': { backgroundColor: 'rgba(59, 130, 246, 0.12)' },
+
+	'.cm-callout-header': {
+		display: 'flex',
+		alignItems: 'center',
+		gap: '8px',
+		paddingBottom: '4px',
+		userSelect: 'none'
+	},
+	'.cm-callout-icon': {
+		display: 'inline-flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		flexShrink: '0'
+	},
+	'.cm-callout-title': {
+		fontFamily: '"Inter", var(--font-sans, sans-serif)',
+		fontSize: '14px',
+		fontWeight: '600'
+	},
+
+	'.cm-callout-header-note, .cm-callout-header-info': { color: '#3b82f6' },
+	'.cm-callout-header-tip, .cm-callout-header-important': { color: '#2dd4bf' },
+	'.cm-callout-header-warning, .cm-callout-header-caution, .cm-callout-header-question': { color: '#f59e0b' },
+	'.cm-callout-header-success': { color: '#22c55e' },
+	'.cm-callout-header-bug, .cm-callout-header-danger': { color: '#ef4444' },
+	'.cm-callout-header-quote': { color: '#94a3b8' },
 
 	'.cm-blockquote-line': {
 		position: 'relative',
@@ -728,9 +991,37 @@ export const brainstormTheme = EditorView.theme({
 	},
 	'.cm-list-marker-preview': {
 		display: 'inline-block',
-		minWidth: '1.25em',
-		color: 'var(--colors-primary)',
-		fontWeight: '600'
+		color: 'var(--colors-textMuted, #8e8e93)',
+		fontWeight: '500',
+		userSelect: 'none',
+		verticalAlign: 'baseline'
+	},
+	'.cm-list-marker-preview.is-unordered': {
+		minWidth: '1.2em',
+		marginRight: '0.4em',
+		textAlign: 'center',
+		fontSize: '1em',
+		lineHeight: '1'
+	},
+	'.cm-list-marker-preview.is-unordered.depth-1': {
+		fontSize: '1.1em'
+	},
+	'.cm-list-marker-preview.is-unordered.depth-2': {
+		fontSize: '1em'
+	},
+	'.cm-list-marker-preview.is-unordered.depth-3': {
+		fontSize: '0.85em'
+	},
+	'.cm-list-marker-preview.is-ordered': {
+		minWidth: '1.5em',
+		marginRight: '0.4em',
+		textAlign: 'right',
+		fontVariantNumeric: 'tabular-nums'
+	},
+	'.cm-render-widget-boundary[data-render-widget="List Marker"]': {
+		display: 'inline-block',
+		contain: 'none !important',
+		verticalAlign: 'baseline'
 	},
 	'.cm-definition-line, .cm-footnote-definition-line': {
 		color: 'var(--colors-textMuted)',
@@ -751,10 +1042,27 @@ export const brainstormTheme = EditorView.theme({
 		padding: '12px 0',
 		width: '100%'
 	},
-	'.cm-task-checkbox': {
+	'.cm-render-widget-boundary[data-render-widget="Task Checkbox"]': {
+		display: 'inline-block !important',
+		contain: 'none !important',
+		verticalAlign: 'middle'
+	},
+	'.cm-task-checkbox-wrap': {
+		display: 'inline-flex',
+		alignItems: 'center',
+		justifyContent: 'center',
 		marginRight: '8px',
-		cursor: 'not-allowed',
-		accentColor: 'var(--colors-primary)'
+		verticalAlign: 'middle',
+		pointerEvents: 'auto'
+	},
+	'.cm-task-checkbox': {
+		margin: '0',
+		cursor: 'pointer',
+		accentColor: 'var(--colors-primary, #007acc)',
+		width: '16px',
+		height: '16px',
+		pointerEvents: 'auto',
+		verticalAlign: 'middle'
 	},
 	'.cm-image-preview-wrap': {
 		display: 'block',
@@ -815,7 +1123,11 @@ export const brainstormTheme = EditorView.theme({
 
 	'.cm-codeblock-line': {
 		backgroundColor: 'rgba(255, 255, 255, 0.04)',
-		padding: '0 16px'
+		padding: '0 20px',
+		position: 'relative',
+		fontFamily: 'var(--font-mono, "JetBrains Mono", "Fira Code", monospace)',
+		fontSize: '13.5px',
+		lineHeight: '1.6'
 	},
 	'.cm-codeblock-widget': {
 		position: 'relative',
@@ -825,8 +1137,8 @@ export const brainstormTheme = EditorView.theme({
 		margin: '12px 0',
 		padding: '36px 16px 16px',
 		border: '1px solid color-mix(in srgb, var(--colors-border) 80%, transparent)',
-		borderRadius: '8px',
-		backgroundColor: 'rgba(0, 0, 0, 0.24)',
+		borderRadius: '10px',
+		backgroundColor: 'rgba(255, 255, 255, 0.04)',
 		overflow: 'hidden'
 	},
 	'.cm-codeblock-widget .cm-copy-code-btn': {
@@ -838,39 +1150,71 @@ export const brainstormTheme = EditorView.theme({
 		top: '10px',
 		left: '16px',
 		color: 'var(--colors-textMuted)',
-		fontFamily: 'var(--font-mono, monospace)',
-		fontSize: '11px',
-		fontWeight: '700',
-		textTransform: 'uppercase'
+		fontFamily: '"Inter", var(--font-sans, sans-serif)',
+		fontSize: '13px',
+		fontWeight: '500'
 	},
 	'.cm-codeblock-pre': {
 		margin: '0',
 		overflowX: 'auto',
 		color: 'var(--colors-text)',
 		fontFamily: 'var(--font-mono, monospace)',
-		fontSize: '13px',
-		lineHeight: '1.55',
+		fontSize: '13.5px',
+		lineHeight: '1.6',
 		whiteSpace: 'pre'
 	},
 	'.cm-codeblock-top': {
-		borderTopLeftRadius: '8px',
-		borderTopRightRadius: '8px',
-		paddingTop: '12px',
+		borderTopLeftRadius: '10px',
+		borderTopRightRadius: '10px',
+		paddingTop: '16px',
+		marginTop: '8px',
 		position: 'relative'
 	},
 	'.cm-codeblock-bottom': {
-		borderBottomLeftRadius: '8px',
-		borderBottomRightRadius: '8px',
-		paddingBottom: '24px',
-		marginBottom: '0'
+		borderBottomLeftRadius: '10px',
+		borderBottomRightRadius: '10px',
+		paddingBottom: '16px',
+		marginBottom: '8px'
+	},
+	'.cm-codeblock-fence-hidden': {
+		display: 'none !important',
+		height: '0 !important',
+		lineHeight: '0 !important',
+		padding: '0 !important',
+		margin: '0 !important',
+		overflow: 'hidden !important'
+	},
+	'.cm-render-widget-boundary[data-render-widget="Copy Code"]': {
+		display: 'inline',
+		position: 'static',
+		contain: 'none !important'
+	},
+	'.cm-codeblock-action-wrap': {
+		position: 'absolute',
+		right: '20px',
+		top: '14px',
+		display: 'flex',
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: '10px',
+		whiteSpace: 'nowrap',
+		pointerEvents: 'auto',
+		zIndex: '20'
+	},
+	'.cm-codeblock-lang-tag': {
+		color: 'var(--colors-textMuted, rgba(255, 255, 255, 0.45))',
+		fontFamily: '"Inter", var(--font-sans, sans-serif)',
+		fontSize: '13px',
+		fontWeight: '500',
+		letterSpacing: '0.01em',
+		userSelect: 'none',
+		whiteSpace: 'nowrap'
 	},
 	'.cm-copy-code-btn': {
-		position: 'absolute',
-		right: '8px',
-		top: '8px',
-		background: 'rgba(255, 255, 255, 0.05)',
-		border: '1px solid rgba(255, 255, 255, 0.1)',
-		color: 'var(--colors-textMuted, #888)',
+		position: 'relative',
+		background: 'rgba(255, 255, 255, 0.06)',
+		border: '1px solid rgba(255, 255, 255, 0.12)',
+		color: 'var(--colors-textMuted, rgba(255, 255, 255, 0.6))',
 		borderRadius: '6px',
 		width: '28px',
 		height: '28px',
@@ -878,12 +1222,14 @@ export const brainstormTheme = EditorView.theme({
 		alignItems: 'center',
 		justifyContent: 'center',
 		cursor: 'pointer',
-		transition: 'all 0.2s ease',
-		zIndex: '10'
+		transition: 'all 0.15s ease',
+		flexShrink: '0',
+		opacity: '0.6'
 	},
 	'.cm-copy-code-btn:hover': {
 		background: 'rgba(255, 255, 255, 0.15)',
-		color: 'var(--colors-text, #fff)'
+		color: '#ffffff',
+		opacity: '1'
 	},
 	'.cm-inline-code': {
 		backgroundColor: 'rgba(0, 0, 0, 0.25)',
@@ -928,7 +1274,17 @@ export const brainstormHighlightStyle = HighlightStyle.define([
 	{ tag: t.link, color: 'var(--colors-primary)', textDecoration: 'underline' },
 	{ tag: t.quote, color: 'var(--colors-textMuted)', fontStyle: 'italic', borderLeft: '3px solid var(--colors-primary)', paddingLeft: '12px' },
 	{ tag: t.monospace, fontFamily: 'var(--font-mono, monospace)', fontSize: '0.9em', color: 'var(--colors-primary)' },
-	{ tag: t.list, color: 'var(--colors-primary)', fontWeight: '600' }
+	{ tag: t.keyword, color: '#ff79c6' },
+	{ tag: [t.variableName, t.definition(t.variableName)], color: '#f8f8f2' },
+	{ tag: [t.function(t.variableName), t.function(t.propertyName)], color: '#66d9ef' },
+	{ tag: t.propertyName, color: '#66d9ef' },
+	{ tag: t.string, color: '#f1fa8c' },
+	{ tag: t.number, color: '#bd93f9' },
+	{ tag: t.operator, color: '#ff79c6' },
+	{ tag: t.bool, color: '#bd93f9' },
+	{ tag: t.null, color: '#bd93f9' },
+	{ tag: t.comment, color: '#6272a4', fontStyle: 'italic' },
+	{ tag: t.typeName, color: '#8be9fd' }
 ]);
 
 export const brainstormHighlightStyleExtension = syntaxHighlighting(brainstormHighlightStyle);
@@ -983,8 +1339,7 @@ export function tagAccentTheme(color: string) {
 			{ tag: t.heading6, color, fontSize: '1.2em', fontWeight: '600' },
 			{ tag: t.link, color, textDecoration: 'underline' },
 			{ tag: t.quote, color: 'var(--colors-textMuted)', fontStyle: 'italic', borderLeft: `3px solid ${color}`, paddingLeft: '12px' },
-			{ tag: t.monospace, fontFamily: 'var(--font-mono, monospace)', fontSize: '0.9em', color },
-			{ tag: t.list, color, fontWeight: '600' }
+			{ tag: t.monospace, fontFamily: 'var(--font-mono, monospace)', fontSize: '0.9em', color }
 		]))
 	];
 }

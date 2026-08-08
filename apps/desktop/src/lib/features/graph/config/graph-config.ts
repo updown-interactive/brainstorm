@@ -80,13 +80,15 @@ export function normalizeGraphConfig(value: unknown): GraphConfig {
 			arrows: booleanValue(input.display?.arrows, defaultGraphConfig.display.arrows),
 			textFadeThreshold: clampNumber(input.display?.textFadeThreshold, 0.2, 1.2, defaultGraphConfig.display.textFadeThreshold),
 			nodeSize: clampNumber(input.display?.nodeSize, 0.6, 2.2, defaultGraphConfig.display.nodeSize),
+			minNodeSize: clampNumber(input.display?.minNodeSize, 8, 20, defaultGraphConfig.display.minNodeSize),
+			maxNodeSize: clampNumber(input.display?.maxNodeSize, 20, 80, defaultGraphConfig.display.maxNodeSize),
 			linkThickness: clampNumber(input.display?.linkThickness, 0.4, 3, defaultGraphConfig.display.linkThickness)
 		},
 		forces: {
-			center: normalizeForcePercent(input.forces?.center, defaultGraphConfig.forces.center, usesPercentForceModel, { legacyMin: 0, legacyMax: 2.5 }),
-			repel: normalizeForcePercent(input.forces?.repel, defaultGraphConfig.forces.repel, usesPercentForceModel, { legacyMin: 0.2, legacyMax: 3 }),
-			link: normalizeForcePercent(input.forces?.link, defaultGraphConfig.forces.link, usesPercentForceModel, { legacyMin: 0, legacyMax: 2.5 }),
-			linkDistance: normalizeForcePercent(input.forces?.linkDistance, defaultGraphConfig.forces.linkDistance, usesPercentForceModel, { legacyMin: 0.4, legacyMax: 2.5 })
+			center: normalizeForceSigned(input.forces?.center, defaultGraphConfig.forces.center),
+			repel: normalizeForceSigned(input.forces?.repel, defaultGraphConfig.forces.repel),
+			link: normalizeForceSigned(input.forces?.link, defaultGraphConfig.forces.link),
+			linkDistance: normalizeForceSigned(input.forces?.linkDistance, defaultGraphConfig.forces.linkDistance)
 		},
 		panel: {
 			open: booleanValue(input.panel?.open, defaultGraphConfig.panel.open),
@@ -106,19 +108,11 @@ function clampNumber(value: unknown, min: number, max: number, fallback: number)
 	return Math.min(max, Math.max(min, numberValue));
 }
 
-function normalizeForcePercent(
-	value: unknown,
-	fallback: number,
-	usesPercentForceModel: boolean,
-	legacyRange: { legacyMin: number; legacyMax: number }
-): number {
+function normalizeForceSigned(value: unknown, fallback: number): number {
 	const numberValue = Number(value);
 	if (!Number.isFinite(numberValue)) return fallback;
-	if (usesPercentForceModel || numberValue > 3) return clampNumber(numberValue, 0, 100, fallback);
-
-	const legacySpan = legacyRange.legacyMax - legacyRange.legacyMin;
-	if (legacySpan <= 0) return fallback;
-	return clampNumber(((numberValue - legacyRange.legacyMin) / legacySpan) * 100, 0, 100, fallback);
+	if (numberValue > 50) return clampNumber(Math.round((numberValue - 100) * 0.5), -50, 50, fallback);
+	return clampNumber(numberValue, -50, 50, fallback);
 }
 
 function writeRawGraphConfig(path: string, config: GraphConfig): Promise<void> {

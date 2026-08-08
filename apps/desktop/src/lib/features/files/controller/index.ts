@@ -496,6 +496,7 @@ class FilesController {
 		const filteredFiles = this.filterQuickOpenFiles(state.files, state.query);
 		if (event.key === 'Escape') {
 			event.preventDefault();
+			event.stopPropagation();
 			quickOpenController.close();
 			return;
 		}

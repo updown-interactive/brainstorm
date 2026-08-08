@@ -5,7 +5,7 @@ export const configurationFolderName = 'configuration';
 export const graphConfigFileName = 'graph-config.json';
 export const legacyGraphStateFileName = 'graph-state.json';
 
-export const minZoom = 0.15;
+export const minZoom = 0.02;
 export const maxZoom = 8;
 
 export const collisionPadding = 20;
@@ -26,13 +26,15 @@ export const defaultGraphConfig: GraphConfig = {
 		arrows: false,
 		textFadeThreshold: 0.5,
 		nodeSize: 1,
+		minNodeSize: 8,
+		maxNodeSize: 40,
 		linkThickness: 1
 	},
 	forces: {
-		center: 50,
-		repel: 50,
-		link: 50,
-		linkDistance: 50
+		center: 0,
+		repel: 0,
+		link: 0,
+		linkDistance: 0
 	},
 	panel: {
 		open: true,

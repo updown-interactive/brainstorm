@@ -1,6 +1,6 @@
 import type { GraphBounds, GraphPoint, LayoutNode } from '../types';
 
-export const minZoom = 0.15;
+export const minZoom = 0.02;
 export const maxZoom = 8;
 
 export class GraphCamera {
@@ -25,14 +25,17 @@ export class GraphCamera {
 		let minY = Infinity;
 		let maxY = -Infinity;
 		let validNodeCount = 0;
+
 		for (const node of nodes) {
 			if (!Number.isFinite(node.x) || !Number.isFinite(node.y)) continue;
 			validNodeCount += 1;
-			minX = Math.min(minX, node.x);
-			maxX = Math.max(maxX, node.x);
-			minY = Math.min(minY, node.y);
-			maxY = Math.max(maxY, node.y);
+			const radius = Number.isFinite(node.radius) && node.radius > 0 ? node.radius : 12;
+			minX = Math.min(minX, node.x - radius);
+			maxX = Math.max(maxX, node.x + radius);
+			minY = Math.min(minY, node.y - radius);
+			maxY = Math.max(maxY, node.y + radius);
 		}
+
 		if (validNodeCount === 0) {
 			this.zoom = 1;
 			this.panX = width / 2;
@@ -40,17 +43,32 @@ export class GraphCamera {
 			return;
 		}
 
-		const boundsWidth = Math.max(maxX - minX, 1);
-		const boundsHeight = Math.max(maxY - minY, 1);
-		this.zoom = clampZoom(Math.min(Math.max(width, 1) / boundsWidth, Math.max(height, 1) / boundsHeight) * 0.78);
-		this.panX = width / 2 - (minX + boundsWidth / 2) * this.zoom;
-		this.panY = height / 2 - (minY + boundsHeight / 2) * this.zoom;
+		const margin = 48;
+		const boundsWidth = Math.max(maxX - minX + margin * 2, 1);
+		const boundsHeight = Math.max(maxY - minY + margin * 2, 1);
+		const fitZoom = Math.min(Math.max(width, 1) / boundsWidth, Math.max(height, 1) / boundsHeight) * 0.90;
+		this.zoom = clampZoom(fitZoom);
+		const centerX = minX + (maxX - minX) / 2;
+		const centerY = minY + (maxY - minY) / 2;
+		this.panX = width / 2 - centerX * this.zoom;
+		this.panY = height / 2 - centerY * this.zoom;
 	}
 
 	focus(node: LayoutNode, width: number, height: number, zoom = 1.4): void {
 		this.zoom = clampZoom(zoom);
 		this.panX = width / 2 - node.x * this.zoom;
 		this.panY = height / 2 - node.y * this.zoom;
+	}
+
+	zoomStep(factor: number, width: number, height: number): void {
+		const nextZoom = clampZoom(this.zoom * factor);
+		const centerX = width / 2;
+		const centerY = height / 2;
+		const graphX = (centerX - this.panX) / this.zoom;
+		const graphY = (centerY - this.panY) / this.zoom;
+		this.panX = centerX - graphX * nextZoom;
+		this.panY = centerY - graphY * nextZoom;
+		this.zoom = nextZoom;
 	}
 
 	zoomAt(point: GraphPoint, deltaY: number): void {
