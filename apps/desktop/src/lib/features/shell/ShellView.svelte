@@ -80,7 +80,7 @@
   <!-- Main Workspace Area -->
   <div class="shell-body">
     <!-- Compact Sidebar -->
-    <aside class="shell-sidebar">
+    <LiquidGlassPanel class="shell-sidebar">
       <button 
         class="sidebar-btn {$shellState.activeTab === 'chat' ? 'active' : ''}" 
         onclick={() => shellController.switchTab('chat')}
@@ -112,7 +112,7 @@
       >
         <Settings size={18} />
       </button>
-    </aside>
+    </LiquidGlassPanel>
 
     <!-- Content Area -->
     <main class="shell-content">

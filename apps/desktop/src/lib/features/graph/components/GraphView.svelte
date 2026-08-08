@@ -22,6 +22,8 @@
 			config={$graphController.graphConfig}
 			searchQuery={$graphController.searchQuery}
 			onFitGraph={graphController.fitGraph}
+			onZoomIn={graphController.zoomIn}
+			onZoomOut={graphController.zoomOut}
 			onSearchQueryChange={graphController.setSearchQuery}
 			onUpdateDisplayConfig={graphController.updateDisplayConfig}
 			onUpdateForceConfig={graphController.updateForceConfig}

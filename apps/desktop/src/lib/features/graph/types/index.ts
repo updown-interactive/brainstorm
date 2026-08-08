@@ -97,6 +97,7 @@ export interface GraphRenderFrame {
 	linkThickness: number;
 	textFadeThreshold: number;
 	degreeById: Map<string, number>;
+	childDegreeById?: Map<string, number>;
 	nodeById: Map<string, LayoutNode>;
 }
 
@@ -106,6 +107,8 @@ export interface GraphConfig {
 		arrows: boolean;
 		textFadeThreshold: number;
 		nodeSize: number;
+		minNodeSize: number;
+		maxNodeSize: number;
 		linkThickness: number;
 	};
 	forces: {
@@ -127,5 +130,5 @@ export interface GraphPhysicsState {
 	active: boolean;
 }
 
-export type DisplayRangeKey = 'textFadeThreshold' | 'nodeSize' | 'linkThickness';
+export type DisplayRangeKey = 'textFadeThreshold' | 'nodeSize' | 'minNodeSize' | 'maxNodeSize' | 'linkThickness';
 export type ForceRangeKey = 'center' | 'repel' | 'link' | 'linkDistance';

@@ -12,6 +12,7 @@ interface GraphState {
 	visibleRenderEdges: RenderEdge[];
 	nodeById: Map<string, LayoutNode>;
 	degreeById: Map<string, number>;
+	childDegreeById: Map<string, number>;
 	searchQuery: string;
 	isLoading: boolean;
 	error: string;
@@ -32,6 +33,7 @@ function createGraphStore() {
 		visibleRenderEdges: [],
 		nodeById: new Map(),
 		degreeById: new Map(),
+		childDegreeById: new Map(),
 		searchQuery: '',
 		isLoading: false,
 		error: '',
@@ -51,14 +53,15 @@ function createGraphStore() {
 	return {
 		subscribe,
 		
-		setGraph: (fileNodes: KnowledgeNode[], fileEdges: KnowledgeEdge[], nodeSize: number) =>
+		setGraph: (fileNodes: KnowledgeNode[], fileEdges: KnowledgeEdge[], nodeSize: number, minNodeSize = 8, maxNodeSize = 40) =>
 			update(state => {
 				const previousNodes = state.nodeById;
 				state.edges = fileEdges;
 				state.degreeById = buildDegreeMap(fileNodes, fileEdges);
+				state.childDegreeById = buildChildDegreeMap(fileNodes, fileEdges);
 				state.nodes = seedGraphNodes(fileNodes, previousNodes);
 				state.nodeById = new Map(state.nodes.map(node => [node.id, node]));
-				applyNodeSize(state, nodeSize);
+				applyNodeSize(state, nodeSize, minNodeSize, maxNodeSize);
 				state.renderEdges = resolveRenderEdges(state.edges, state.nodeById);
 				updateSearchInternal(state, state.searchQuery);
 				return state;
@@ -75,6 +78,7 @@ function createGraphStore() {
 				state.visibleRenderEdges = [];
 				state.nodeById = new Map();
 				state.degreeById = new Map();
+				state.childDegreeById = new Map();
 				state.spatialIndex = new Map();
 				return state;
 			}),
@@ -85,14 +89,9 @@ function createGraphStore() {
 				return state;
 			}),
 
-		applyNodeSize: (nodeSize: number) =>
+		applyNodeSize: (nodeSize: number, minNodeSize = 8, maxNodeSize = 40) =>
 			update(state => {
-				for (const node of state.nodes) {
-					const degree = state.degreeById.get(node.id) ?? 0;
-					const radius = Math.min(17 * nodeSize, (8 + Math.sqrt(degree) * 2.4) * nodeSize);
-					node.radius = radius;
-					node.radiusSquared = radius * radius;
-				}
+				applyNodeSize(state, nodeSize, minNodeSize, maxNodeSize);
 				return state;
 			}),
 
@@ -147,6 +146,15 @@ function buildDegreeMap(fileNodes: KnowledgeNode[], fileEdges: KnowledgeEdge[]):
 		degrees.set(edge.target, (degrees.get(edge.target) ?? 0) + 1);
 	}
 	return degrees;
+}
+
+function buildChildDegreeMap(fileNodes: KnowledgeNode[], fileEdges: KnowledgeEdge[]): Map<string, number> {
+	const childDegrees = new Map(fileNodes.map(node => [node.id, 0]));
+	for (const edge of fileEdges) {
+		const current = childDegrees.get(edge.source) ?? 0;
+		childDegrees.set(edge.source, current + 1);
+	}
+	return childDegrees;
 }
 
 function updateSearchInternal(state: GraphState, query: string): void {
@@ -212,10 +220,22 @@ function resolveRenderEdges(sourceEdges: KnowledgeEdge[], nodeById: Map<string, 
 	return resolved;
 }
 
-function applyNodeSize(state: { nodes: LayoutNode[]; degreeById: Map<string, number> }, nodeSize: number): void {
+function applyNodeSize(
+	state: { nodes: LayoutNode[]; degreeById: Map<string, number>; childDegreeById?: Map<string, number> },
+	nodeSize: number,
+	minNodeSize = 8,
+	maxNodeSize = 40
+): void {
+	const minRadius = Math.min(minNodeSize, maxNodeSize);
+	const maxRadius = Math.max(minNodeSize, maxNodeSize);
+	const radiusRange = maxRadius - minRadius;
+
 	for (const node of state.nodes) {
-		const degree = state.degreeById.get(node.id) ?? 0;
-		const radius = Math.min(17 * nodeSize, (8 + Math.sqrt(degree) * 2.4) * nodeSize);
+		const childConnections = state.childDegreeById?.get(node.id) ?? node.outgoing?.length ?? 0;
+		const totalConnections = state.degreeById.get(node.id) ?? 0;
+		const connectionScore = childConnections * 1.5 + (totalConnections - childConnections) * 0.5;
+		const t = Math.min(1, Math.sqrt(connectionScore) / 4.5);
+		const radius = (minRadius + radiusRange * t) * nodeSize;
 		node.radius = radius;
 		node.radiusSquared = radius * radius;
 	}

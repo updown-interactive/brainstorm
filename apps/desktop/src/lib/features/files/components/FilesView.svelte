@@ -146,7 +146,11 @@
       tabindex="-1"
       onclick={filesController.closeBrainstormSettings}
       onkeydown={(e) => {
-        if (e.key === 'Escape') filesController.closeBrainstormSettings();
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          e.stopPropagation();
+          filesController.closeBrainstormSettings();
+        }
       }}
     >
       <!-- svelte-ignore a11y_no_static_element_interactions -->

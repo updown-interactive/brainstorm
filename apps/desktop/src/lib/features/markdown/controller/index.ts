@@ -156,6 +156,7 @@ export class MarkdownController {
 			keymap.of([
 				...(isMarkdown
 					? [
+							{ key: 'Mod-i', run: openAddPropertyPalette },
 							{ key: 'Mod-p', run: openAddPropertyPalette },
 							{
 								key: 'Mod-a',
@@ -190,6 +191,15 @@ export class MarkdownController {
 			isMarkdown ? livePreviewPlugin : [],
 			isMarkdown ? advancedExtensionsPlugin : [],
 			EditorView.domEventHandlers({
+				keydown: (event, view) => {
+					if (isMarkdown && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'i') {
+						event.preventDefault();
+						event.stopPropagation();
+						openAddPropertyPalette(view);
+						return true;
+					}
+					return false;
+				},
 				paste: (event, view) => this.handlePaste(event, view, isMarkdown),
 				contextmenu: (event, view) => this.handleContextMenu(event, view),
 				mousedown: (event, view) => this.handleMouseDown(event, view)

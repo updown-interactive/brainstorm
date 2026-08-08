@@ -148,22 +148,54 @@ class CopyCodeWidget extends WidgetType {
 }
 
 class CheckboxWidget extends WidgetType {
-	constructor(public checked: boolean) {
+	constructor(
+		public checked: boolean,
+		public pos: number
+	) {
 		super();
 	}
 
 	eq(other: CheckboxWidget): boolean {
-		return other.checked === this.checked;
+		return other.checked === this.checked && other.pos === this.pos;
 	}
 
-	toDOM(): HTMLElement {
+	toDOM(view: EditorView): HTMLElement {
 		const wrap = document.createElement('span');
-		wrap.className = 'cm-task-checkbox-wrap';
+		wrap.className = `cm-task-checkbox-wrap ${this.checked ? 'is-checked' : ''}`;
+		
 		const input = document.createElement('input');
 		input.type = 'checkbox';
 		input.checked = this.checked;
 		input.className = 'cm-task-checkbox';
-		input.disabled = true;
+
+		input.onclick = (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+
+			const doc = view.state.doc;
+			if (this.pos >= doc.length) return;
+
+			const line = doc.lineAt(this.pos);
+			const taskMatch = line.text.match(/^(\s*(?:[-+*]|\d+[\.\)])\s*)\[([ xX])\]/);
+
+			let targetFrom = this.pos;
+			let targetTo = Math.min(doc.length, this.pos + 3);
+			let isCurrentlyChecked = this.checked;
+
+			if (taskMatch) {
+				const prefixLen = taskMatch[1].length;
+				targetFrom = line.from + prefixLen;
+				targetTo = Math.min(doc.length, targetFrom + 3);
+				isCurrentlyChecked = taskMatch[2].toLowerCase() === 'x';
+			}
+
+			const nextText = isCurrentlyChecked ? '[ ]' : '[x]';
+
+			view.dispatch({
+				changes: { from: targetFrom, to: targetTo, insert: nextText }
+			});
+		};
+
 		wrap.appendChild(input);
 		return wrap;
 	}
@@ -172,13 +204,14 @@ class CheckboxWidget extends WidgetType {
 		const input = dom.querySelector('input') as HTMLInputElement | null;
 		if (input) {
 			input.checked = this.checked;
+			dom.className = `cm-task-checkbox-wrap ${this.checked ? 'is-checked' : ''}`;
 			return true;
 		}
 		return false;
 	}
 
-	ignoreEvent(event: Event): boolean {
-		return event.type !== 'mousedown';
+	ignoreEvent(): boolean {
+		return false;
 	}
 }
 
@@ -809,78 +842,97 @@ function extractInnerCodeAndLang(text: string): { innerCode: string; lang: strin
 							? node.to + 1
 							: node.to;
 
-						const cleanMarker = rawMarker.trim();
-						const isOrdered = /^\d+[\.\)]/.test(cleanMarker) || /^[ivx]+[\.\)]/i.test(cleanMarker) || /^[a-z][\.\)]/i.test(cleanMarker);
-
-						let bulletDepth = 0;
-						let orderedDepth = 0;
-						let curr = node.node.parent;
-						while (curr) {
-							if (curr.name === 'BulletList') {
-								bulletDepth++;
-							} else if (curr.name === 'OrderedList') {
-								orderedDepth++;
-							}
-							curr = curr.parent;
-						}
-
+						const parentNode = node.node.parent;
+						const hasTaskChild = parentNode && Boolean(parentNode.getChild('TaskMarker'));
 						const lineText = state.doc.lineAt(node.from).text;
-						const leadingSpaces = lineText.match(/^\s*/)?.[0].length ?? 0;
-						const indentDepth = Math.floor(leadingSpaces / 2) + 1;
+						const textAfterMark = lineText.slice(node.to - state.doc.lineAt(node.from).from).trim();
+						const isTaskItem = hasTaskChild || /^\[[ xX]\]/.test(textAfterMark);
 
-						const effectiveBulletDepth = bulletDepth > 0 ? bulletDepth : indentDepth;
-						const effectiveOrderedDepth = orderedDepth > 0 ? orderedDepth : indentDepth;
-
-						let displaySymbol = cleanMarker;
-
-						if (!isOrdered) {
-							const depth = Math.max(1, effectiveBulletDepth);
-							if (depth === 1) {
-								displaySymbol = '•';
-							} else if (depth === 2) {
-								displaySymbol = '◦';
-							} else {
-								displaySymbol = '▪';
-							}
+						if (isTaskItem) {
+							decos.push({
+								from: node.from,
+								to: markerTo,
+								kind: 'mark',
+								source: 'live-preview:list-marker-task-hidden',
+								deco: hiddenMark
+							});
 						} else {
-							const depth = Math.max(1, effectiveOrderedDepth);
-							const num = parseMarkerNumber(cleanMarker);
-							const punctuation = cleanMarker.endsWith(')') ? ')' : '.';
-							if (depth === 1) {
-								displaySymbol = `${num}${punctuation}`;
-							} else if (depth === 2) {
-								displaySymbol = `${toLowerRoman(num)}${punctuation}`;
-							} else {
-								displaySymbol = `${toLowerAlpha(num)}${punctuation}`;
+							const cleanMarker = rawMarker.trim();
+							const isOrdered = /^\d+[\.\)]/.test(cleanMarker) || /^[ivx]+[\.\)]/i.test(cleanMarker) || /^[a-z][\.\)]/i.test(cleanMarker);
+
+							let bulletDepth = 0;
+							let orderedDepth = 0;
+							let curr = node.node.parent;
+							while (curr) {
+								if (curr.name === 'BulletList') {
+									bulletDepth++;
+								} else if (curr.name === 'OrderedList') {
+									orderedDepth++;
+								}
+								curr = curr.parent;
 							}
+
+							const leadingSpaces = lineText.match(/^\s*/)?.[0].length ?? 0;
+							const indentDepth = Math.floor(leadingSpaces / 2) + 1;
+
+							const effectiveBulletDepth = bulletDepth > 0 ? bulletDepth : indentDepth;
+							const effectiveOrderedDepth = orderedDepth > 0 ? orderedDepth : indentDepth;
+
+							let displaySymbol = cleanMarker;
+
+							if (!isOrdered) {
+								const depth = Math.max(1, effectiveBulletDepth);
+								if (depth === 1) {
+									displaySymbol = '•';
+								} else if (depth === 2) {
+									displaySymbol = '◦';
+								} else {
+									displaySymbol = '▪';
+								}
+							} else {
+								const depth = Math.max(1, effectiveOrderedDepth);
+								const num = parseMarkerNumber(cleanMarker);
+								const punctuation = cleanMarker.endsWith(')') ? ')' : '.';
+								if (depth === 1) {
+									displaySymbol = `${num}${punctuation}`;
+								} else if (depth === 2) {
+									displaySymbol = `${toLowerRoman(num)}${punctuation}`;
+								} else {
+									displaySymbol = `${toLowerAlpha(num)}${punctuation}`;
+								}
+							}
+
+							decos.push({
+								from: node.from,
+								to: markerTo,
+								kind: 'replace',
+								source: 'live-preview:list-marker-widget',
+								deco: Decoration.replace({
+									widget: new RenderSafeWidget(
+										new ListMarkerWidget(
+											displaySymbol,
+											!isOrdered,
+											isOrdered ? effectiveOrderedDepth : effectiveBulletDepth
+										),
+										{ label: 'List Marker' }
+									)
+								})
+							});
 						}
+					} else if (node.name === 'TaskMarker') {
+						const text = state.doc.sliceString(node.from, node.to);
+						const isChecked = text.includes('x') || text.includes('X');
+						const markerTo = node.to < state.doc.length && state.doc.sliceString(node.to, node.to + 1) === ' '
+							? node.to + 1
+							: node.to;
 
 						decos.push({
 							from: node.from,
 							to: markerTo,
 							kind: 'replace',
-							source: 'live-preview:list-marker-widget',
-							deco: Decoration.replace({
-								widget: new RenderSafeWidget(
-									new ListMarkerWidget(
-										displaySymbol,
-										!isOrdered,
-										isOrdered ? effectiveOrderedDepth : effectiveBulletDepth
-									),
-									{ label: 'List Marker' }
-								)
-							})
-						});
-					} else if (node.name === 'TaskMarker') {
-						const text = state.doc.sliceString(node.from, node.to);
-						const isChecked = text.includes('x') || text.includes('X');
-						decos.push({
-							from: node.from,
-							to: node.to,
-							kind: 'replace',
 							source: 'live-preview:task-marker',
 							deco: Decoration.replace({
-								widget: new RenderSafeWidget(new CheckboxWidget(isChecked), {
+								widget: new RenderSafeWidget(new CheckboxWidget(isChecked, node.from), {
 									label: 'Task Checkbox'
 								})
 							})

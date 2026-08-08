@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ChevronDown, ChevronRight, Play, RotateCcw, Search, SlidersHorizontal, X } from 'lucide-svelte';
+	import { ChevronDown, ChevronRight, Minus, Play, Plus, RotateCcw, Search, SlidersHorizontal, X } from 'lucide-svelte';
 	import type { GraphConfig, DisplayRangeKey, ForceRangeKey } from '../types';
 	import LiquidGlassPanel from '$lib/shared/ui/LiquidGlassPanel.svelte';
 
@@ -7,6 +7,8 @@
 	export let searchQuery = '';
 
 	export let onFitGraph: () => void = () => {};
+	export let onZoomIn: () => void = () => {};
+	export let onZoomOut: () => void = () => {};
 	export let onSearchQueryChange: (query: string) => void = () => {};
 	export let onSearchKeydown: (event: KeyboardEvent) => void = () => {};
 	export let onUpdateDisplayConfig: (display: Partial<GraphConfig['display']>, restart?: boolean) => void = () => {};
@@ -37,6 +39,11 @@
 	function handleSearchInput(event: Event): void {
 		onSearchQueryChange((event.currentTarget as HTMLInputElement).value);
 	}
+
+	function formatSignedValue(value: number): string {
+		if (value > 0) return `+${value}`;
+		return `${value}`;
+	}
 </script>
 
 <LiquidGlassPanel class="graph-control-center" aria-label="Graph controls">
@@ -44,7 +51,13 @@
 		<SlidersHorizontal size={18} />
 		<strong>Graph</strong>
 		<div class="control-header-actions">
-			<button type="button" class="icon-only" title="Reset graph view" on:click={() => onFitGraph()}>
+			<button type="button" class="icon-only" title="Zoom in" on:click={() => onZoomIn()}>
+				<Plus size={19} />
+			</button>
+			<button type="button" class="icon-only" title="Zoom out" on:click={() => onZoomOut()}>
+				<Minus size={19} />
+			</button>
+			<button type="button" class="icon-only" title="Fit graph to view" on:click={() => onFitGraph()}>
 				<RotateCcw size={19} />
 			</button>
 			<button type="button" class="icon-only" title="Close controls" on:click={() => onUpdatePanelConfig({ open: false })}>
@@ -106,7 +119,7 @@
 					/>
 				</label>
 				<label class="control-slider">
-					<span>Node size</span>
+					<span>Node size scale</span>
 					<input
 						type="range"
 						min="0.6"
@@ -116,6 +129,32 @@
 						on:input={(event) => handleDisplayRangeInput('nodeSize', event)}
 						on:change={(event) => handleDisplayRangeInput('nodeSize', event)}
 						on:pointermove={(event) => handleDisplayRangePointerMove('nodeSize', event)}
+					/>
+				</label>
+				<label class="control-slider">
+					<span>Min node size ({config.display.minNodeSize ?? 8}px)</span>
+					<input
+						type="range"
+						min="8"
+						max="20"
+						step="1"
+						value={config.display.minNodeSize ?? 8}
+						on:input={(event) => handleDisplayRangeInput('minNodeSize', event)}
+						on:change={(event) => handleDisplayRangeInput('minNodeSize', event)}
+						on:pointermove={(event) => handleDisplayRangePointerMove('minNodeSize', event)}
+					/>
+				</label>
+				<label class="control-slider">
+					<span>Max node size ({config.display.maxNodeSize ?? 40}px)</span>
+					<input
+						type="range"
+						min="20"
+						max="80"
+						step="1"
+						value={config.display.maxNodeSize ?? 40}
+						on:input={(event) => handleDisplayRangeInput('maxNodeSize', event)}
+						on:change={(event) => handleDisplayRangeInput('maxNodeSize', event)}
+						on:pointermove={(event) => handleDisplayRangePointerMove('maxNodeSize', event)}
 					/>
 				</label>
 				<label class="control-slider">
@@ -155,11 +194,11 @@
 		{#if config.panel.forcesOpen}
 			<div class="control-section-body">
 				<label class="control-slider">
-					<span>Center force</span>
+					<span>Center force ({formatSignedValue(config.forces.center)})</span>
 					<input
 						type="range"
-						min="0"
-						max="100"
+						min="-50"
+						max="50"
 						step="1"
 						value={config.forces.center}
 						on:input={(event) => handleForceRangeInput('center', event)}
@@ -168,11 +207,11 @@
 					/>
 				</label>
 				<label class="control-slider">
-					<span>Repel force</span>
+					<span>Repel force ({formatSignedValue(config.forces.repel)})</span>
 					<input
 						type="range"
-						min="0"
-						max="100"
+						min="-50"
+						max="50"
 						step="1"
 						value={config.forces.repel}
 						on:input={(event) => handleForceRangeInput('repel', event)}
@@ -181,11 +220,11 @@
 					/>
 				</label>
 				<label class="control-slider">
-					<span>Link force</span>
+					<span>Link force ({formatSignedValue(config.forces.link)})</span>
 					<input
 						type="range"
-						min="0"
-						max="100"
+						min="-50"
+						max="50"
 						step="1"
 						value={config.forces.link}
 						on:input={(event) => handleForceRangeInput('link', event)}
@@ -194,11 +233,11 @@
 					/>
 				</label>
 				<label class="control-slider">
-					<span>Link distance</span>
+					<span>Link distance ({formatSignedValue(config.forces.linkDistance)})</span>
 					<input
 						type="range"
-						min="0"
-						max="100"
+						min="-50"
+						max="50"
 						step="1"
 						value={config.forces.linkDistance}
 						on:input={(event) => handleForceRangeInput('linkDistance', event)}

@@ -225,7 +225,7 @@ export class GraphPhysicsEngine {
 	}
 
 	private applyGridCollisionForce(nodes: LayoutNode[]): void {
-		const cellSize = 70;
+		const cellSize = 110;
 		const grid = new Map<string, LayoutNode[]>();
 
 		for (const node of nodes) {
@@ -311,19 +311,47 @@ function seededCoordinate(id: string, axis: string): number {
 }
 
 function perceptualForceSettings(config: GraphConfig): PerceptualForceSettings {
-	const center = percent(config.forces.center);
-	const repel = percent(config.forces.repel);
-	const link = percent(config.forces.link);
-	const linkDistance = percent(config.forces.linkDistance);
+	const uCenter = clamp(config.forces.center / 50, -1, 1);
+	const uRepel = clamp(config.forces.repel / 50, -1, 1);
+	const uLink = clamp(config.forces.link / 50, -1, 1);
+	const uLinkDistance = clamp(config.forces.linkDistance / 50, -1, 1);
+
+	const centerFactor = Math.max(0, 1 + uCenter);
+	const centerStrength = uCenter <= 0
+		? lerp(0.0005, 0.018, expCurve(centerFactor, 3.2))
+		: 0.018 * (1 + uCenter * 0.8);
+	const centerRadiusPressure = uCenter <= 0
+		? lerp(0, 0.9, expCurve(centerFactor, 2.4))
+		: 0.9 + uCenter * 0.3;
+
+	const repelFactor = Math.max(0, 1 + uRepel);
+	const repelStrength = uRepel <= 0
+		? lerp(120, 9000, expCurve(repelFactor, 3))
+		: lerp(9000, 18000, uRepel);
+	const repelRadius = uRepel <= 0
+		? lerp(120, 900, expCurve(repelFactor, 2.2))
+		: lerp(900, 1400, uRepel);
+
+	const linkStrength = uLink <= 0
+		? 0.005
+		: lerp(0.005, 0.25, expCurve(uLink, 2.5));
+
+	const linkDistFactor = Math.max(0, 1 + uLinkDistance);
+	const linkDistance = uLinkDistance <= 0
+		? lerp(35, 520, expCurve(linkDistFactor, 2.4))
+		: lerp(520, 950, uLinkDistance);
+	const degreeBonus = uLinkDistance <= 0
+		? lerp(0, 120, linkDistFactor)
+		: lerp(120, 200, uLinkDistance);
 
 	return {
-		centerStrength: lerp(0.0005, 0.018, expCurve(center, 3.2)),
-		centerRadiusPressure: lerp(0, 0.9, expCurve(center, 2.4)),
-		repelStrength: lerp(120, 9000, expCurve(repel, 3)),
-		repelRadius: lerp(120, 900, expCurve(repel, 2.2)),
-		linkStrength: lerp(0.005, 0.22, expCurve(link, 3)),
-		linkDistance: lerp(35, 520, expCurve(linkDistance, 2.4)),
-		degreeBonus: lerp(0, 120, linkDistance)
+		centerStrength,
+		centerRadiusPressure,
+		repelStrength,
+		repelRadius,
+		linkStrength,
+		linkDistance,
+		degreeBonus
 	};
 }
 

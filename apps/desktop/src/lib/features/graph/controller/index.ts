@@ -153,7 +153,7 @@ class GraphController {
 	updateDisplayConfig = (display: Partial<GraphConfig['display']>, restart = false): void => {
 		this.updateGraphConfig(
 			{ ...this.graphConfig, display: { ...this.graphConfig.display, ...display } },
-			{ restart, renderMetadata: 'nodeSize' in display }
+			{ restart, renderMetadata: 'nodeSize' in display || 'minNodeSize' in display || 'maxNodeSize' in display }
 		);
 	};
 
@@ -172,6 +172,22 @@ class GraphController {
 			return;
 		}
 		this.camera.fit(targetNodes, this.canvas.clientWidth, this.canvas.clientHeight);
+		this.scheduler.request(GraphDirtyFlag.Camera);
+	};
+
+	zoomIn = (): void => {
+		const canvas = this.canvas;
+		if (!canvas) return;
+		this.shouldAutoFit = false;
+		this.camera.zoomStep(1.3, canvas.clientWidth, canvas.clientHeight);
+		this.scheduler.request(GraphDirtyFlag.Camera);
+	};
+
+	zoomOut = (): void => {
+		const canvas = this.canvas;
+		if (!canvas) return;
+		this.shouldAutoFit = false;
+		this.camera.zoomStep(0.75, canvas.clientWidth, canvas.clientHeight);
 		this.scheduler.request(GraphDirtyFlag.Camera);
 	};
 
@@ -319,7 +335,11 @@ class GraphController {
 	private async loadGraphConfig(): Promise<void> {
 		this.graphConfig = await readGraphConfig(this.activeRootPath);
 		this.setSearchQuery('');
-		this.store.applyNodeSize(this.graphConfig.display.nodeSize);
+		this.store.applyNodeSize(
+			this.graphConfig.display.nodeSize,
+			this.graphConfig.display.minNodeSize,
+			this.graphConfig.display.maxNodeSize
+		);
 		this.renderer.rebuildLabelCache(this.store.nodes, this.graphTheme);
 		this.patchState({ graphConfig: this.graphConfig, showControls: this.graphConfig.panel.open });
 		this.syncSnapshots();
@@ -332,7 +352,11 @@ class GraphController {
 	): void {
 		this.graphConfig = config;
 		if (options.renderMetadata) {
-			this.store.applyNodeSize(this.graphConfig.display.nodeSize);
+			this.store.applyNodeSize(
+				this.graphConfig.display.nodeSize,
+				this.graphConfig.display.minNodeSize,
+				this.graphConfig.display.maxNodeSize
+			);
 		}
 		if (options.relabel) {
 			this.renderer.rebuildLabelCache(this.store.nodes, this.graphTheme);
@@ -396,7 +420,13 @@ class GraphController {
 				.filter((edge) => graphIds.has(edge.source) && graphIds.has(edge.target))
 				.sort((left, right) => left.id.localeCompare(right.id));
 
-			this.store.setGraph(graphNodes, graphEdges, this.graphConfig.display.nodeSize);
+			this.store.setGraph(
+				graphNodes,
+				graphEdges,
+				this.graphConfig.display.nodeSize,
+				this.graphConfig.display.minNodeSize,
+				this.graphConfig.display.maxNodeSize
+			);
 			this.renderer.rebuildLabelCache(this.store.nodes, this.graphTheme);
 			this.selectedNodeId = this.selectedNodeId && this.store.nodeById.has(this.selectedNodeId) ? this.selectedNodeId : '';
 			this.hoverHighlightNodeId = this.hoverHighlightNodeId && this.store.nodeById.has(this.hoverHighlightNodeId) ? this.hoverHighlightNodeId : '';

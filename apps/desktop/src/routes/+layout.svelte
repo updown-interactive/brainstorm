@@ -5,9 +5,66 @@
 
   let initialized = false;
 
-  onMount(async () => {
-    await themeManager.init();
-    initialized = true;
+  onMount(() => {
+    void themeManager.init().then(() => {
+      initialized = true;
+    });
+
+    const handleGlobalEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+
+      // 1. Quick Open search files modal overlay
+      const quickOpenOverlay = document.querySelector<HTMLElement>('.quick-open-overlay');
+      if (quickOpenOverlay) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        const input = quickOpenOverlay.querySelector<HTMLInputElement>('input');
+        if (input) {
+          const escEvt = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+          input.dispatchEvent(escEvt);
+        }
+        quickOpenOverlay.click();
+        return;
+      }
+
+      // 2. Settings window backdrop
+      const configBackdrop = document.querySelector<HTMLElement>('.config-window-backdrop');
+      if (configBackdrop) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        configBackdrop.click();
+        return;
+      }
+
+      // 3. Property Spotlight popup (⌘I / + Add property)
+      const spotlightOverlay = document.querySelector<HTMLElement>('.cm-property-spotlight-overlay:not([hidden])');
+      if (spotlightOverlay) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        spotlightOverlay.hidden = true;
+        return;
+      }
+
+      // 4. Property popovers / autocompletes / calendars
+      const openPopovers = document.querySelectorAll<HTMLElement>('.cm-property-menu:not([hidden]), .cm-property-calendar:not([hidden])');
+      if (openPopovers.length > 0) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        openPopovers.forEach((popover) => {
+          popover.hidden = true;
+        });
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalEscape, true);
+    return () => {
+      window.removeEventListener('keydown', handleGlobalEscape, true);
+    };
   });
 </script>
 
@@ -319,5 +376,285 @@
   :global(.liquid-glass-input > *) {
     position: relative;
     z-index: 2;
+  }
+
+  /* Global CodeMirror Property Popover Glass Styles */
+  :global(.cm-property-menu),
+  :global(.cm-property-calendar) {
+    position: fixed !important;
+    z-index: 999999 !important;
+    box-sizing: border-box !important;
+    border-radius: 16px !important;
+    padding: 6px !important;
+    color: var(--colors-text) !important;
+    background-color: color-mix(in srgb, var(--colors-surface, #1C1C1E) 85%, rgba(20, 20, 24, 0.88)) !important;
+    backdrop-filter: blur(24px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+    border: 1px solid color-mix(in srgb, var(--colors-text) 16%, rgba(255, 255, 255, 0.15)) !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 3px !important;
+    max-height: 260px !important;
+    overflow-y: auto !important;
+  }
+
+  :global(.cm-property-menu[hidden]),
+  :global(.cm-property-calendar[hidden]) {
+    display: none !important;
+  }
+
+  :global(.cm-property-menu .cm-property-menu-item) {
+    min-height: 38px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    border: 0 !important;
+    border-radius: 8px !important;
+    background-color: transparent !important;
+    color: var(--colors-text) !important;
+    padding: 6px 10px !important;
+    font-family: inherit !important;
+    font-size: 12.5px !important;
+    text-align: left !important;
+    cursor: pointer !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    justify-content: center !important;
+    gap: 2px !important;
+    margin: 0 !important;
+    transition: background 0.12s ease, color 0.12s ease !important;
+  }
+
+  :global(.cm-property-menu .cm-property-menu-item-title) {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    line-height: 1.3 !important;
+    color: var(--colors-text) !important;
+    display: block !important;
+    width: 100% !important;
+    text-align: left !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  :global(.cm-property-menu .cm-property-menu-item-subtitle) {
+    font-size: 11px !important;
+    font-weight: 400 !important;
+    line-height: 1.3 !important;
+    color: var(--colors-textMuted) !important;
+    display: block !important;
+    width: 100% !important;
+    text-align: left !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  :global(.cm-property-menu .cm-property-menu-item:hover) {
+    background-color: color-mix(in srgb, var(--colors-hover, #2C2C2E) 75%, transparent) !important;
+    color: var(--colors-text) !important;
+  }
+
+  :global(.cm-property-menu .cm-property-menu-item.is-selected) {
+    background-color: var(--colors-primary, #0A84FF) !important;
+    color: #ffffff !important;
+  }
+
+  :global(.cm-property-menu .cm-property-menu-item.is-selected .cm-property-menu-item-title) {
+    color: #ffffff !important;
+  }
+
+  :global(.cm-property-menu .cm-property-menu-item.is-selected .cm-property-menu-item-subtitle) {
+    color: rgba(255, 255, 255, 0.75) !important;
+  }
+
+  /* Global Spotlight Modal Styles - 100% Identical LiquidGlassPanel to Search Files Popup */
+  :global(.cm-property-spotlight-overlay) {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 999999 !important;
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: center !important;
+    padding: 48px 16px 16px !important;
+    background-color: color-mix(in srgb, var(--colors-background) 62%, transparent) !important;
+  }
+
+  :global(.cm-property-spotlight-overlay[hidden]) {
+    display: none !important;
+  }
+
+  :global(.cm-property-spotlight) {
+    position: relative !important;
+    isolation: isolate !important;
+    width: min(540px, calc(100vw - 32px)) !important;
+    max-height: min(460px, calc(100vh - 80px)) !important;
+    border-radius: 20px !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) auto !important;
+    color: var(--colors-text) !important;
+    box-shadow:
+      0 20px 50px rgba(0, 0, 0, 0.35),
+      inset 0 1px 1px color-mix(in srgb, var(--colors-text) 25%, transparent),
+      inset 0 -1px 1px color-mix(in srgb, var(--colors-text) 8%, transparent) !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Liquid glass refraction + blur layer (matching LiquidGlassPanel::before) */
+  :global(.cm-property-spotlight::before) {
+    content: "" !important;
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 0 !important;
+    background: color-mix(in srgb, var(--colors-surfaceVariant, var(--colors-surface, #1C1C1E)) 55%, transparent) !important;
+    backdrop-filter: url(#liquid-glass-refract-dark) blur(8px) saturate(160%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
+  }
+
+  /* Liquid glass rim highlight (matching LiquidGlassPanel::after) */
+  :global(.cm-property-spotlight::after) {
+    content: "" !important;
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 1 !important;
+    border-radius: inherit !important;
+    padding: 1px !important;
+    background: linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--colors-text) 50%, transparent) 0%,
+      color-mix(in srgb, var(--colors-text) 15%, transparent) 18%,
+      transparent 45%,
+      color-mix(in srgb, var(--colors-text) 10%, transparent) 100%
+    ) !important;
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0) !important;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0) !important;
+    -webkit-mask-composite: xor !important;
+    mask-composite: exclude !important;
+    pointer-events: none !important;
+  }
+
+  @supports not (backdrop-filter: url(#x)) {
+    :global(.cm-property-spotlight::before) {
+      backdrop-filter: blur(20px) saturate(160%) !important;
+      -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
+    }
+  }
+
+  :global(.cm-property-spotlight > *) {
+    position: relative !important;
+    z-index: 2 !important;
+  }
+
+  :global(.cm-property-spotlight-header) {
+    border-bottom: 1px solid color-mix(in srgb, var(--colors-border) 40%, transparent) !important;
+    background-color: transparent !important;
+    padding: 8px 8px 6px !important;
+  }
+
+  :global(.cm-property-spotlight-search-row) {
+    display: grid !important;
+    grid-template-columns: 20px minmax(0, 1fr) 24px !important;
+    align-items: center !important;
+    gap: 8px !important;
+    min-height: 38px !important;
+    padding: 4px 8px 4px 10px !important;
+    color: var(--colors-textMuted) !important;
+  }
+
+  :global(.cm-property-spotlight-search) {
+    width: 100% !important;
+    min-width: 0 !important;
+    border: 0 !important;
+    outline: none !important;
+    background-color: transparent !important;
+    color: var(--colors-text) !important;
+    font: inherit !important;
+    font-size: 13px !important;
+  }
+
+  :global(.cm-property-spotlight-search::placeholder) {
+    color: var(--colors-textMuted) !important;
+  }
+
+  :global(.cm-property-spotlight-close) {
+    width: 24px !important;
+    height: 24px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 0 !important;
+    border-radius: 4px !important;
+    background-color: transparent !important;
+    color: var(--colors-textMuted) !important;
+    cursor: pointer !important;
+  }
+
+  :global(.cm-property-spotlight-close:hover) {
+    background-color: var(--colors-surfaceVariant, #2C2C2E) !important;
+    color: var(--colors-text) !important;
+  }
+
+  :global(.cm-property-spotlight-list) {
+    min-height: 80px !important;
+    max-height: 360px !important;
+    overflow-y: auto !important;
+    padding: 4px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+  }
+
+  :global(.cm-property-spotlight .cm-property-menu-item) {
+    width: 100% !important;
+    min-height: 32px !important;
+    box-sizing: border-box !important;
+    border: 0 !important;
+    border-radius: 5px !important;
+    background-color: transparent !important;
+    color: var(--colors-text) !important;
+    padding: 6px 10px !important;
+    font-family: inherit !important;
+    font-size: 12.5px !important;
+    text-align: left !important;
+    cursor: pointer !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+    transition: background 0.12s ease, color 0.12s ease !important;
+  }
+
+  :global(.cm-property-spotlight .cm-property-menu-item:hover),
+  :global(.cm-property-spotlight .cm-property-menu-item.is-selected) {
+    background-color: var(--colors-surfaceVariant, #2C2C2E) !important;
+    color: var(--colors-primary, #0A84FF) !important;
+  }
+
+  :global(.cm-property-spotlight .cm-property-menu-item small) {
+    color: var(--colors-textMuted) !important;
+    font-size: 11px !important;
+  }
+
+  :global(.cm-property-spotlight .cm-property-menu-item.is-selected small) {
+    color: var(--colors-primary, #0A84FF) !important;
+    opacity: 0.85 !important;
+  }
+
+  :global(.cm-property-custom-row) {
+    border-top: 1px solid color-mix(in srgb, var(--colors-border) 40%, transparent) !important;
+    padding: 8px 10px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  :global(.cm-property-spotlight-empty) {
+    padding: 20px 12px !important;
+    text-align: center !important;
+    color: var(--colors-textMuted) !important;
+    font-size: 12px !important;
   }
 </style>
