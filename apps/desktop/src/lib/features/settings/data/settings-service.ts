@@ -18,8 +18,48 @@ class SettingsFeatureService {
 		return settings.theme || 'dark';
 	}
 
+	async getAppearanceSettings(): Promise<{
+		theme: string;
+		sidepanelMode: import('../types').LayoutMode;
+		toolbarMode: import('../types').LayoutMode;
+		sidepanelPosition: import('../types').SidepanelPosition;
+		toolbarPosition: import('../types').ToolbarPosition;
+	}> {
+		const settings = await settingsService.getSettings();
+		const sidepanelMode = (settings.sidepanelMode === 'hover' ? 'hover' : 'expanded') as import('../types').LayoutMode;
+		const toolbarMode = (settings.toolbarMode === 'hover' ? 'hover' : 'expanded') as import('../types').LayoutMode;
+		// Display Mode is a single user-facing choice. Treat a legacy or partially
+		// saved mixed pair as Normal instead of leaving the selector indeterminate.
+		const resolvedMode = sidepanelMode === toolbarMode ? sidepanelMode : 'expanded';
+		const sidepanelPosition = (settings.sidepanelPosition === 'right' ? 'right' : 'left') as import('../types').SidepanelPosition;
+		const toolbarPosition = (settings.toolbarPosition === 'bottom' ? 'bottom' : 'top') as import('../types').ToolbarPosition;
+		return {
+			theme: settings.theme || 'dark',
+			sidepanelMode: resolvedMode,
+			toolbarMode: resolvedMode,
+			sidepanelPosition,
+			toolbarPosition
+		};
+	}
+
 	async switchTheme(theme: string): Promise<void> {
 		await themeManager.switchTheme(theme);
+	}
+
+	async setSidepanelMode(mode: import('../types').LayoutMode): Promise<void> {
+		await settingsService.updateSetting('sidepanelMode', mode);
+	}
+
+	async setToolbarMode(mode: import('../types').LayoutMode): Promise<void> {
+		await settingsService.updateSetting('toolbarMode', mode);
+	}
+
+	async setSidepanelPosition(position: import('../types').SidepanelPosition): Promise<void> {
+		await settingsService.updateSetting('sidepanelPosition', position);
+	}
+
+	async setToolbarPosition(position: import('../types').ToolbarPosition): Promise<void> {
+		await settingsService.updateSetting('toolbarPosition', position);
 	}
 
 	async copyToClipboard(text: string): Promise<void> {
@@ -71,3 +111,14 @@ export function hexToProjectColor(hex: string): number {
 }
 
 export const settingsFeatureService = new SettingsFeatureService();
+
+export async function initLayoutSettings(): Promise<void> {
+	const appearance = await settingsFeatureService.getAppearanceSettings();
+	const { layoutSettingsState } = await import('../state');
+	layoutSettingsState.set({
+		sidepanelMode: appearance.sidepanelMode,
+		toolbarMode: appearance.toolbarMode,
+		sidepanelPosition: appearance.sidepanelPosition,
+		toolbarPosition: appearance.toolbarPosition
+	});
+}

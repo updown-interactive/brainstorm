@@ -1,31 +1,310 @@
+/* Base Shell Container (Windowed Mode default) */
 .shell-container {
   display: flex;
   flex-direction: column;
   height: 100vh;
   width: 100vw;
   background-color: transparent !important;
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  padding: 6px;
+  gap: 6px;
+  box-sizing: border-box;
 }
 
+/* Sidepanel Position Right */
+.shell-container.sidepanel-position-right {
+  flex-direction: column;
+}
+
+.shell-workspace-row {
+  display: flex;
+  flex: 1;
+  flex-direction: row;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+}
+
+.shell-workspace-row.sidepanel-position-right {
+  flex-direction: row-reverse;
+}
+
+/* Sidebar Wrapper */
+.sidebar-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 56px;
+  height: 100%;
+  gap: 6px;
+  z-index: 10;
+  box-sizing: border-box;
+  transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+}
+
+.shell-sidebar {
+  width: 56px;
+  flex: 1;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0;
+  gap: 12px;
+  flex-shrink: 0;
+  color: #ffffff;
+  box-sizing: border-box;
+}
+
+/* Custom Apple Window Controls (Traffic Lights) inside the toolbar */
+.window-traffic-lights {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  height: 100%;
+  -webkit-app-region: no-drag !important;
+  cursor: default;
+}
+
+.toolbar-window-controls {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  flex-shrink: 0;
+  padding: 0 4px;
+  -webkit-app-region: no-drag !important;
+}
+
+.toolbar-window-controls .window-traffic-lights {
+  width: auto;
+  height: 100%;
+}
+
+.toolbar-window-controls.fullscreen-hidden {
+  display: none !important;
+}
+
+.traffic-btn {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  -webkit-app-region: no-drag !important;
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+.traffic-btn:hover {
+  filter: brightness(0.9);
+}
+
+.traffic-btn:active {
+  filter: brightness(0.75);
+  transform: scale(0.92);
+}
+
+.traffic-btn.close {
+  background-color: #FF5F57;
+  border-color: #E0443E;
+}
+
+.traffic-btn.minimize {
+  background-color: #FEBC2E;
+  border-color: #DEA123;
+}
+
+.traffic-btn.maximize {
+  background-color: #28C840;
+  border-color: #1AAB29;
+}
+
+.traffic-symbol {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(0, 0, 0, 0.75);
+  user-select: none;
+  pointer-events: none;
+}
+
+.traffic-symbol svg {
+  color: rgba(0, 0, 0, 0.75);
+  stroke: rgba(0, 0, 0, 0.75);
+  pointer-events: none;
+}
+
+/* Main Workspace Column (Content below the toolbar) */
+.shell-main-column {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+  gap: 0;
+  box-sizing: border-box;
+}
+
+/* Toolbar Base */
 .shell-toolbar {
   display: flex;
   align-items: center;
   height: 36px;
-  background-color: transparent;
+  min-height: 36px;
+  max-height: 36px;
+  width: 100%;
+  background-color: transparent !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
   color: #ffffff;
   user-select: none;
   -webkit-app-region: drag;
   flex-shrink: 0;
   z-index: 20;
+  padding: 0 4px;
+  box-sizing: border-box;
+  transition: height 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
 }
 
 .shell-toolbar button, .shell-toolbar .project-picker-container {
   -webkit-app-region: no-drag;
 }
 
-.mac-spacer {
-  width: 82px; /* Space for macOS traffic lights */
-  height: 100%;
-  flex-shrink: 0;
+/* Full Screen display mode still uses an inline toolbar. It collapses in the
+   layout and expands in place when the top trigger or toolbar is hovered. */
+.shell-toolbar.toolbar-collapsible {
+  height: 0;
+  min-height: 0;
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: height 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              max-height 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              padding 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.22s ease;
+}
+
+.shell-toolbar.toolbar-collapsible.revealed {
+  height: 36px;
+  min-height: 36px;
+  max-height: 36px;
+  padding-top: 0;
+  padding-bottom: 0;
+  overflow: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Toolbar Position Bottom (Full width footer toolbar) */
+.shell-container.toolbar-position-bottom {
+  padding-bottom: 44px;
+}
+
+.shell-container.toolbar-position-bottom .toolbar-bottom {
+  position: absolute;
+  bottom: 4px;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 30;
+}
+
+/* ── Toolbar Hover Mode – Floating Glass Overlay ── */
+.toolbar-overlay {
+  position: absolute;
+  top: 6px;
+  left: -6px;
+  right: -6px;
+  width: auto;
+  z-index: 50;
+  border-radius: 16px;
+  padding: 4px 10px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-8px) translateZ(0);
+  pointer-events: none;
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              visibility 0.22s step-end;
+  -webkit-app-region: drag;
+  color: #ffffff;
+  overflow: visible !important;
+  will-change: transform, opacity;
+}
+
+.toolbar-overlay button,
+.toolbar-overlay .project-picker-container {
+  -webkit-app-region: no-drag;
+}
+
+.toolbar-overlay:hover {
+  transform: translateY(0) translateZ(0);
+}
+
+.toolbar-overlay.revealed {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) translateZ(0);
+  pointer-events: auto;
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              visibility 0s;
+}
+
+/* Bottom positioned toolbar overlay */
+.toolbar-overlay.toolbar-overlay-bottom {
+  top: auto;
+  bottom: 6px;
+  transform: translateY(8px) translateZ(0);
+}
+
+.toolbar-overlay.toolbar-overlay-bottom.revealed {
+  transform: translateY(0) translateZ(0);
+}
+
+.toolbar-overlay .project-dropdown-menu {
+  top: calc(100% + 6px);
+}
+
+.toolbar-overlay.toolbar-overlay-bottom .project-dropdown-menu {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
+.toolbar-hover-trigger {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 14px;
+  z-index: 99;
+}
+
+.shell-container.toolbar-position-bottom .toolbar-hover-trigger {
+  top: auto;
+  bottom: 0;
+}
+
+.shell-container.toolbar-position-bottom .project-dropdown-menu {
+  top: auto;
+  bottom: calc(100% + 6px);
 }
 
 .toolbar-content {
@@ -48,19 +327,20 @@
   align-items: center;
   gap: 6px;
   height: 24px;
-  padding: 0 8px;
-  background-color: color-mix(in srgb, var(--colors-sidebar) 35%, transparent);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid color-mix(in srgb, var(--colors-border) 40%, transparent);
+  padding: 0 10px;
+  background-color: transparent !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid color-mix(in srgb, var(--colors-border) 40%, rgba(255, 255, 255, 0.2));
   border-radius: 14px;
-  box-shadow: inset -1px 0 0 0 rgba(255, 255, 255, 0.05), 0 4px 15px rgba(0, 0, 0, 0.1);
+  box-shadow: none !important;
   cursor: pointer;
   color: #ffffff;
   font-family: var(--typography-fontFamily);
   font-size: var(--typography-body);
   font-weight: 500;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
 }
 
 .project-picker-btn svg {
@@ -69,7 +349,8 @@
 }
 
 .project-picker-btn:hover {
-  background-color: color-mix(in srgb, var(--colors-hover) 70%, transparent);
+  background-color: color-mix(in srgb, var(--colors-hover) 50%, transparent) !important;
+  border-color: rgba(255, 255, 255, 0.3);
   color: #ffffff;
 }
 
@@ -77,17 +358,6 @@
   font-size: 13px;
   letter-spacing: 0.2px;
   color: #ffffff;
-}
-
-.project-badge {
-  font-size: 9px;
-  font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 12px;
-  background-color: var(--colors-surfaceVariant);
-  color: #ffffff;
-  letter-spacing: 0.5px;
-  margin-left: 2px;
 }
 
 .project-dropdown-menu {
@@ -106,7 +376,7 @@
   transform: none;
 }
 
-.dropdown-header {
+.panel-label {
   font-size: 11px;
   font-weight: 600;
   color: var(--colors-textMuted);
@@ -115,7 +385,7 @@
   letter-spacing: 0.5px;
 }
 
-.dropdown-item {
+.panel-item {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -131,63 +401,120 @@
   transition: background-color 0.2s;
 }
 
-.dropdown-item svg {
+.panel-item svg {
   color: currentColor;
   stroke: currentColor;
 }
 
-.dropdown-item:hover {
+.panel-item:hover {
   background-color: var(--colors-hover);
   color: var(--colors-text);
 }
 
-.dropdown-item.active {
+.panel-item.active {
   background-color: color-mix(in srgb, var(--colors-primary) 15%, transparent);
   color: var(--colors-primary);
 }
 
-.dropdown-divider {
+.panel-divider {
   height: 1px;
   background-color: var(--colors-border);
   margin: 4px 0;
 }
 
-.new-project-btn {
-  color: var(--colors-textMuted);
-}
-
-.new-project-btn:hover {
-  color: var(--colors-text);
-}
-
-.shell-body {
-  display: flex;
-  flex-direction: row;
-  flex: 1;
-  overflow: hidden;
-  position: relative;
-  background-color: transparent !important;
-  padding: 6px;
-  gap: 6px;
-}
-
-.shell-sidebar {
-  width: 48px;
+/* ── Sidepanel Hover Mode – Floating Glass Overlay ── */
+.sidebar-overlay {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  bottom: 6px;
+  z-index: 50;
+  width: 56px;
   border-radius: 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 12px 0;
-  gap: 16px;
-  flex-shrink: 0;
-  z-index: 10;
+  padding: 6px 0;
+  gap: 6px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-12px) translateZ(0);
+  pointer-events: none;
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              visibility 0.22s step-end;
   color: #ffffff;
-  box-sizing: border-box;
+  will-change: transform, opacity;
+}
+
+.sidebar-overlay::before {
+  background: color-mix(in srgb, var(--colors-surfaceVariant, var(--colors-surface, #1C1C1E)) 85%, rgba(20, 20, 24, 0.88)) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+}
+
+.sidebar-overlay:hover {
+  transform: translateX(0) translateZ(0);
+}
+
+.sidebar-overlay.revealed {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(0) translateZ(0);
+  pointer-events: auto;
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              visibility 0s;
+}
+
+/* Right-positioned sidebar overlay */
+.shell-container.sidepanel-position-right .sidebar-overlay {
+  left: auto;
+  right: 6px;
+  transform: translateX(12px) translateZ(0);
+}
+
+.shell-container.sidepanel-position-right .sidebar-overlay.revealed {
+  transform: translateX(0) translateZ(0);
+}
+
+/* Sidebar overlay inner sections */
+.overlay-nav-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  padding: 4px 0;
+  width: 100%;
+}
+
+.sidebar-hover-trigger {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 14px;
+  z-index: 89;
+}
+
+.shell-container.sidepanel-position-right .sidebar-hover-trigger {
+  left: auto;
+  right: 0;
+}
+
+/* Preserve floating glass pill shape and inset positioning for overlays in all modes */
+.sidebar-overlay {
+  border-radius: 16px !important;
+}
+
+.toolbar-overlay {
+  border-radius: 16px !important;
 }
 
 .sidebar-btn {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: var(--radius-medium);
   border: 1px solid transparent;
   background: transparent;
@@ -223,11 +550,115 @@
   stroke: #ffffff;
 }
 
+/* Shell Content Base (Windowed Mode: 18px rounded corner radius) */
 .shell-content {
   flex: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
   overflow-y: auto;
   position: relative;
   border-radius: 18px;
-  background-color: var(--colors-background);
+  background-color: var(--colors-background, #1E1E1E);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  box-sizing: border-box;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Maximized State: Remove outer padding & reduce gap */
+.shell-container.is-maximized {
+  padding: 0 !important;
+  margin: 0 !important;
+  gap: 4px !important;
+}
+
+.shell-container.is-fullscreen-shell .shell-content {
+  border-radius: 0 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+}
+
+.shell-container.is-maximized.toolbar-position-bottom {
+  padding-bottom: 40px !important;
+}
+
+.shell-container.is-maximized.toolbar-position-bottom .toolbar-bottom {
+  bottom: 2px !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+}
+
+/* ── Fullscreen-Specific Overrides ── */
+/* Remove all gap/padding so transparent window is not visible */
+.shell-container.is-fullscreen {
+  padding: 0 !important;
+  margin: 0 !important;
+  gap: 0 !important;
+}
+
+/* Square shell corners require native fullscreen AND Full Screen display mode. */
+.shell-container.is-fullscreen-shell {
+  border-radius: 0 !important;
+}
+
+/* Hide window action buttons in fullscreen (keep space) */
+/* Zero corner radius on shell content in fullscreen */
+/* Fullscreen bottom toolbar adjustments */
+.shell-container.is-fullscreen.toolbar-position-bottom {
+  padding-bottom: 40px !important;
+}
+
+.shell-container.is-fullscreen.toolbar-position-bottom .toolbar-bottom {
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+}
+
+/* Shell chrome uses a translucent frosted surface: the lower alpha keeps the
+   glass effect visible while the stronger blur prevents workspace details from
+   reading through the toolbar and sidebar. */
+.liquid-glass-panel.shell-toolbar::before,
+.liquid-glass-panel.toolbar-overlay::before,
+.liquid-glass-panel.sidebar-overlay::before,
+.liquid-glass-panel.shell-sidebar::before,
+.liquid-glass-panel.project-dropdown-menu::before {
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--colors-surfaceVariant, var(--colors-surface, #1c1c1e)) 58%, transparent),
+      color-mix(in srgb, var(--colors-surface, #1c1c1e) 42%, rgba(10, 14, 22, 0.28))
+    ) !important;
+  backdrop-filter: blur(32px) saturate(145%) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(145%) !important;
+}
+
+.liquid-glass-panel.shell-toolbar,
+.liquid-glass-panel.toolbar-overlay,
+.liquid-glass-panel.sidebar-overlay,
+.liquid-glass-panel.shell-sidebar,
+.liquid-glass-panel.project-dropdown-menu {
+  background: transparent !important;
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.24),
+    inset 0 1px 1px color-mix(in srgb, var(--colors-text) 22%, transparent),
+    inset 0 -1px 1px color-mix(in srgb, var(--colors-text) 7%, transparent) !important;
+}
+
+/* Hover mode uses solid chrome so the floating controls stay legible over the
+   workspace. Expanded mode keeps the regular translucent treatment. */
+.toolbar-overlay {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.liquid-glass-panel.sidebar-overlay::before {
+  background: var(--colors-surface, #1c1c1e) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }

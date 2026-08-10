@@ -7,6 +7,9 @@
   color: var(--colors-text);
   font-family: var(--typography-fontFamily);
   padding: 24px;
+  border-radius: 16px;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .onboarding-panel {

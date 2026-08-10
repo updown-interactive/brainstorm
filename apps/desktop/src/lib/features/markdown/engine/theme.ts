@@ -397,7 +397,7 @@ export const brainstormTheme = EditorView.theme({
 		backgroundColor: 'color-mix(in srgb, #007AFF 10%, var(--colors-surface))',
 		color: 'var(--colors-text)'
 	},
-	'.cm-property-menu, .cm-property-calendar, .cm-property-spotlight': {
+	'.cm-property-menu, .cm-property-spotlight': {
 		position: 'fixed',
 		zIndex: '999999 !important',
 		isolation: 'isolate',
@@ -416,7 +416,19 @@ export const brainstormTheme = EditorView.theme({
 		border: '1px solid color-mix(in srgb, var(--colors-text) 16%, rgba(255, 255, 255, 0.12)) !important',
 		boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 0 color-mix(in srgb, var(--colors-text) 20%, transparent) !important'
 	},
-	'.cm-property-menu::before, .cm-property-calendar::before, .cm-property-spotlight::before': {
+	'.cm-property-calendar': {
+		position: 'fixed',
+		zIndex: '999999 !important',
+		isolation: 'isolate',
+		boxSizing: 'border-box',
+		overflow: 'visible !important',
+		margin: '0 !important',
+		padding: '0 !important',
+		border: 'none !important',
+		background: 'transparent !important',
+		boxShadow: 'none !important'
+	},
+	'.cm-property-menu::before, .cm-property-spotlight::before': {
 		content: '""',
 		position: 'absolute',
 		inset: '0',
@@ -426,7 +438,7 @@ export const brainstormTheme = EditorView.theme({
 		WebkitBackdropFilter: 'blur(20px) saturate(160%)',
 		pointerEvents: 'none'
 	},
-	'.cm-property-menu::after, .cm-property-calendar::after, .cm-property-spotlight::after': {
+	'.cm-property-menu::after, .cm-property-spotlight::after': {
 		content: '""',
 		position: 'absolute',
 		inset: '0',
@@ -611,34 +623,33 @@ export const brainstormTheme = EditorView.theme({
 		strokeLinecap: 'round',
 		strokeLinejoin: 'round'
 	},
-	'.cm-property-calendar': {
-		width: '260px'
-	},
 	'.cm-property-calendar-header': {
-		display: 'grid',
-		gridTemplateColumns: '28px minmax(0, 1fr) 28px',
-		alignItems: 'center',
-		gap: '6px',
-		marginBottom: '8px'
+		display: 'flex !important',
+		alignItems: 'center !important',
+		justifyContent: 'space-between !important',
+		marginBottom: '10px !important',
+		padding: '0 2px !important'
 	},
 	'.cm-property-calendar-title': {
 		color: 'var(--colors-text)',
-		fontSize: '12.5px',
-		fontWeight: '600',
+		fontSize: '13px !important',
+		fontWeight: '600 !important',
+		letterSpacing: '-0.01em',
 		textAlign: 'center'
 	},
 	'.cm-property-calendar-nav': {
-		width: '28px',
-		height: '26px',
+		width: '28px !important',
+		height: '28px !important',
 		border: '1px solid color-mix(in srgb, var(--colors-border) 60%, transparent)',
-		borderRadius: '6px',
-		backgroundColor: 'color-mix(in srgb, var(--colors-background) 40%, transparent)',
+		borderRadius: '8px !important',
+		backgroundColor: 'color-mix(in srgb, var(--colors-surface) 70%, transparent)',
 		color: 'var(--colors-text)',
 		cursor: 'pointer',
 		transition: 'all 0.15s ease',
-		display: 'flex',
-		alignItems: 'center',
-		justifyContent: 'center'
+		display: 'flex !important',
+		alignItems: 'center !important',
+		justifyContent: 'center !important',
+		padding: '0 !important'
 	},
 	'.cm-property-calendar-nav:hover': {
 		backgroundColor: '#007AFF',
@@ -646,30 +657,39 @@ export const brainstormTheme = EditorView.theme({
 		color: '#ffffff'
 	},
 	'.cm-property-calendar-grid': {
-		display: 'grid',
-		gridTemplateColumns: 'repeat(7, 1fr)',
-		gap: '3px'
+		display: 'grid !important',
+		gridTemplateColumns: 'repeat(7, 34px) !important',
+		justifyContent: 'space-between !important',
+		rowGap: '4px !important'
 	},
 	'.cm-property-calendar-weekday': {
+		width: '34px !important',
+		height: '24px !important',
+		display: 'flex !important',
+		alignItems: 'center !important',
+		justifyContent: 'center !important',
 		color: 'var(--colors-textMuted)',
-		fontSize: '10.5px',
-		fontWeight: '600',
-		lineHeight: '22px',
-		textAlign: 'center'
+		fontSize: '11px !important',
+		fontWeight: '600 !important'
 	},
 	'.cm-property-calendar-empty': {
-		minHeight: '28px'
+		width: '34px !important',
+		height: '32px !important'
 	},
 	'.cm-property-calendar-day': {
-		minWidth: '0',
-		minHeight: '28px',
-		padding: '0',
-		border: '0',
-		borderRadius: '6px',
+		width: '34px !important',
+		height: '32px !important',
+		display: 'flex !important',
+		alignItems: 'center !important',
+		justifyContent: 'center !important',
+		padding: '0 !important',
+		border: '0 !important',
+		borderRadius: '8px !important',
 		backgroundColor: 'transparent',
 		color: 'var(--colors-text)',
 		font: 'inherit',
-		fontSize: '12px',
+		fontSize: '12.5px !important',
+		fontWeight: '500',
 		cursor: 'pointer',
 		transition: 'all 0.15s ease'
 	},
@@ -678,10 +698,10 @@ export const brainstormTheme = EditorView.theme({
 		color: '#007AFF'
 	},
 	'.cm-property-calendar-day.is-selected': {
-		backgroundColor: '#007AFF',
-		color: '#ffffff',
-		fontWeight: '600',
-		boxShadow: '0 2px 6px color-mix(in srgb, #007AFF 40%, transparent)'
+		backgroundColor: '#007AFF !important',
+		color: '#ffffff !important',
+		fontWeight: '600 !important',
+		boxShadow: '0 3px 10px color-mix(in srgb, #007AFF 40%, transparent) !important'
 	},
 
 	/* Custom Apple iOS/macOS Toggle Switch */

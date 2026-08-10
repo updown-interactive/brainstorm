@@ -2,6 +2,7 @@ import YAML from 'yaml';
 
 export const BUILT_IN_PROPERTY_ORDER = [
 	'name',
+	'author',
 	'created',
 	'updated',
 	'type',
@@ -156,6 +157,7 @@ export function parseFrontmatter(doc: string): ParsedFrontmatter {
 export function defaultFrontmatter(path?: string | null, date = todayString()) {
 	return serializeFrontmatter({
 		name: nameFromPath(path),
+		author: 'BrainStorm',
 		created: date,
 		updated: date
 	});
@@ -174,6 +176,7 @@ export function ensureMarkdownFrontmatter(content: string, path?: string | null,
 	const data = {
 		...parsed.data,
 		name: parsed.data.name || nameFromPath(path),
+		author: parsed.data.author || 'BrainStorm',
 		created: parsed.data.created || todayString(),
 		updated: touchUpdated ? date : (parsed.data.updated || date)
 	};
@@ -381,5 +384,5 @@ export function formatLabel(key: string) {
 }
 
 export function isRequiredLifecycleKey(key: string) {
-	return key === 'name' || key === 'created' || key === 'updated';
+	return key === 'name' || key === 'author' || key === 'created' || key === 'updated';
 }

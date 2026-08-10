@@ -15,6 +15,7 @@ export const maxExplorerSidebarWidth = 520;
 export const defaultExplorerConfig: ExplorerConfig = {
 	position: 'left',
 	sidebarWidth: 260,
+	showBrainstormFolder: false,
 };
 
 export async function ensureExplorerConfigPath(rootPathOverride?: string | null): Promise<string | null> {
@@ -89,10 +90,14 @@ export function normalizeExplorerConfig(value: unknown): ExplorerConfig {
 	const sidebarWidth = value && typeof value === 'object' && 'sidebarWidth' in value
 		? Number((value as { sidebarWidth?: unknown }).sidebarWidth)
 		: defaultExplorerConfig.sidebarWidth;
+	const showBrainstormFolder = value && typeof value === 'object' && 'showBrainstormFolder' in value
+		? Boolean((value as { showBrainstormFolder?: unknown }).showBrainstormFolder)
+		: defaultExplorerConfig.showBrainstormFolder;
 
 	return {
 		position: position === 'right' ? 'right' : 'left',
 		sidebarWidth: clampExplorerSidebarWidth(sidebarWidth),
+		showBrainstormFolder,
 	};
 }
 

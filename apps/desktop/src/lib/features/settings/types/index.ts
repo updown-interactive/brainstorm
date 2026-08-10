@@ -16,8 +16,16 @@ export interface GeneralSettingsForm {
 	error: string;
 }
 
+export type LayoutMode = 'expanded' | 'hover';
+export type SidepanelPosition = 'left' | 'right';
+export type ToolbarPosition = 'top' | 'bottom';
+
 export interface AppearanceSettingsState {
 	currentTheme: string;
+	sidepanelMode: LayoutMode;
+	toolbarMode: LayoutMode;
+	sidepanelPosition: SidepanelPosition;
+	toolbarPosition: ToolbarPosition;
 	isLoading: boolean;
 	error: string;
 }

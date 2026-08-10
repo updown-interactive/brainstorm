@@ -1,5 +1,6 @@
 export type AgentType =
 	| 'orchestrator'
+	| 'retrieval'
 	| 'knowledge'
 	| 'planning'
 	| 'memory'
@@ -78,6 +79,29 @@ export interface AgentManifest {
 	communication: AgentCommunicationConfig;
 	permissions: string[];
 	documents: AgentDocumentReferences;
+	aliases?: string[];
+	capabilities?: string[];
+	allowed_tools?: string[];
+}
+
+export interface ToolManifest {
+	id: string;
+	name: string;
+	description: string;
+	version: string;
+	permissions: string[];
+	functions: string[];
+}
+
+export interface ToolPackage {
+	id: string;
+	packagePath: string;
+	manifest: ToolManifest;
+	readme: string;
+	inputSchema?: string;
+	outputSchema?: string;
+	isValid: boolean;
+	validationErrors: string[];
 }
 
 export type AgentDocumentKind =

@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { json } from '@codemirror/lang-json';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
@@ -59,6 +60,8 @@ export class MarkdownController {
 	private saveTimeout: ReturnType<typeof setTimeout> | null = null;
 	private currentSavePromise: Promise<void> | null = null;
 	private loadRequest = 0;
+	private unlistenFsChange: UnlistenFn | null = null;
+	private windowFocusHandler: (() => void) | null = null;
 
 	mount(target: MarkdownControllerMountTarget): void {
 		this.editorContainer = target.editorContainer;
@@ -73,10 +76,50 @@ export class MarkdownController {
 		});
 		this.patchState({ view: this.view, isMarkdown: isMarkdownPath(target.path) });
 		this.view.focus();
+
+		void this.setupFsWatcher();
 		void this.loadPath(target.path);
 	}
 
+	private async setupFsWatcher(): Promise<void> {
+		if (this.unlistenFsChange) {
+			this.unlistenFsChange();
+			this.unlistenFsChange = null;
+		}
+
+		try {
+			this.unlistenFsChange = await listen('fs-change', (event: any) => {
+				const { kind, path: changedPath } = event.payload ?? {};
+				if (changedPath === this.path && (kind === 'modify' || kind === 'create')) {
+					// Reload document if user does not have pending unsaved local edits
+					if (!this.updateTimeout && !this.saveTimeout && !this.currentSavePromise) {
+						void this.loadPath(this.path);
+					}
+				}
+			});
+		} catch (error) {
+			console.error('Failed to setup editor fs-change listener:', error);
+		}
+
+		if (typeof window !== 'undefined' && !this.windowFocusHandler) {
+			this.windowFocusHandler = () => {
+				if (this.path && !this.updateTimeout && !this.saveTimeout && !this.currentSavePromise) {
+					void this.loadPath(this.path);
+				}
+			};
+			window.addEventListener('focus', this.windowFocusHandler);
+		}
+	}
+
 	destroy(): void {
+		if (this.unlistenFsChange) {
+			this.unlistenFsChange();
+			this.unlistenFsChange = null;
+		}
+		if (typeof window !== 'undefined' && this.windowFocusHandler) {
+			window.removeEventListener('focus', this.windowFocusHandler);
+			this.windowFocusHandler = null;
+		}
 		if (this.updateTimeout) clearTimeout(this.updateTimeout);
 		if (this.saveTimeout) clearTimeout(this.saveTimeout);
 		this.view?.destroy();

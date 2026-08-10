@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { projectService, type Project } from '../../core/service/projectsService';
 import { buildVaultIndex, updateVaultIndexEntry } from '../files/data/vault-index';
+import { initLayoutSettings } from '../settings/data/settings-service';
 import { shellState } from './state';
 import { ROUTES } from '../../app/routes';
 
@@ -12,6 +13,7 @@ class ShellController {
 
   async init() {
     shellState.update(s => ({ ...s, loading: true }));
+    void initLayoutSettings();
     try {
       const allProjects = await projectService.getProjects();
       if (allProjects.length > 0) {
@@ -87,6 +89,44 @@ class ShellController {
   createNewProject() {
     this.closeProjectDropdown();
     goto(ROUTES.ONBOARDING || '/onboarding');
+  }
+
+  async closeWindow() {
+    try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      const appWindow = getCurrentWindow();
+      await appWindow.close();
+    } catch (e) {
+      console.error('Failed to close window:', e);
+    }
+  }
+
+  async minimizeWindow() {
+    try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      const appWindow = getCurrentWindow();
+      await appWindow.minimize();
+    } catch (e) {
+      console.error('Failed to minimize window:', e);
+    }
+  }
+
+  async maximizeWindow() {
+    try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      const appWindow = getCurrentWindow();
+      const isFull = await appWindow.isFullscreen();
+      await appWindow.setFullscreen(!isFull);
+    } catch (e) {
+      console.warn('Native setFullscreen failed, falling back to toggleMaximize:', e);
+      try {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        const appWindow = getCurrentWindow();
+        await appWindow.toggleMaximize();
+      } catch (err) {
+        console.error('Failed to toggle window maximize state:', err);
+      }
+    }
   }
 }
 

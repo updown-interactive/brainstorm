@@ -9,6 +9,9 @@
    color: var(--colors-text, #FFFFFF);
    font-family: var(--typography-fontFamily, 'Inter', sans-serif);
    position: relative;
+   border-radius: 16px;
+   overflow: hidden;
+   box-sizing: border-box;
  }
 
  .logo-wrapper {

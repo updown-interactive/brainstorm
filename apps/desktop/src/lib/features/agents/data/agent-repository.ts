@@ -188,6 +188,9 @@ export class AgentRepository {
 
 		const delegates = this.getYamlList(yamlContent, 'delegates');
 		const permissions = this.getYamlList(yamlContent, 'permissions');
+		const aliases = this.getYamlList(yamlContent, 'aliases');
+		const capabilities = this.getYamlList(yamlContent, 'capabilities');
+		const allowedTools = this.getYamlList(yamlContent, 'allowed_tools');
 
 		const memory: AgentMemoryConfig = {
 			type: (this.getYamlNestedScalar(yamlContent, 'memory', 'type') as AgentMemoryConfig['type']) || defaults.memory.type,
@@ -237,7 +240,10 @@ export class AgentRepository {
 			memory,
 			communication,
 			permissions,
-			documents
+			documents,
+			aliases: aliases.length > 0 ? aliases : undefined,
+			capabilities: capabilities.length > 0 ? capabilities : undefined,
+			allowed_tools: allowedTools.length > 0 ? allowedTools : undefined
 		};
 	}
 
@@ -251,6 +257,13 @@ export class AgentRepository {
 			'',
 			`type: ${m.type}`,
 			`role: ${m.role}`,
+			'',
+			m.aliases && m.aliases.length > 0 ? 'aliases:' : '',
+			...(m.aliases && m.aliases.length > 0 ? m.aliases.map((a) => `  - ${a}`) : []),
+			m.capabilities && m.capabilities.length > 0 ? 'capabilities:' : '',
+			...(m.capabilities && m.capabilities.length > 0 ? m.capabilities.map((c) => `  - ${c}`) : []),
+			m.allowed_tools && m.allowed_tools.length > 0 ? 'allowed_tools:' : '',
+			...(m.allowed_tools && m.allowed_tools.length > 0 ? m.allowed_tools.map((t) => `  - ${t}`) : []),
 			'',
 			`color: "${m.color}"`,
 			`avatar: ${m.avatar}`,

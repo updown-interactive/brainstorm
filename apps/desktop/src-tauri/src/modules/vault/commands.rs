@@ -147,7 +147,7 @@ fn build_index_blocking(root: String) -> Result<VaultIndex, String> {
     }
 
     let mut files = HashMap::new();
-    let walker = build_walker(&root).build();
+    let walker = build_walker(&root, false).build();
 
     for result in walker {
         let entry = match result {

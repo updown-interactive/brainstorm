@@ -13,11 +13,17 @@
     "macOSPrivateApi": true,
     "windows": [
       {
+        "label": "main",
         "title": "brainstorm",
         "width": 800,
         "height": 600,
+        "decorations": true,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
+        "trafficLightPosition": {
+          "x": -1000,
+          "y": -1000
+        },
         "transparent": true
       }
     ],

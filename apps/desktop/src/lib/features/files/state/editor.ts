@@ -201,6 +201,22 @@ function createEditorStore() {
 			});
 		},
 
+		updateFilePath(oldPath: string, newPath: string, newName: string) {
+			update((s) => {
+				const panes = s.panes.map((pane) => {
+					const tabs = pane.tabs.map((tab) => {
+						if (tab.path === oldPath) {
+							return { ...tab, id: newPath, path: newPath, name: newName };
+						}
+						return tab;
+					});
+					const activeTabId = pane.activeTabId === oldPath ? newPath : pane.activeTabId;
+					return { ...pane, tabs, activeTabId };
+				});
+				return syncLegacyState({ ...s, panes });
+			});
+		},
+
 		restoreState(savedState: { activePaneId: string; panes: EditorPane[] }) {
 			set(syncLegacyState({ ...savedState }));
 		},

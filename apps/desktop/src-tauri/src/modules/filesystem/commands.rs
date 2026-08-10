@@ -2,18 +2,21 @@ use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-pub fn build_walker(root: &str) -> WalkBuilder {
+pub fn build_walker(root: &str, show_brainstorm: bool) -> WalkBuilder {
     let mut builder = WalkBuilder::new(root);
     builder
         .hidden(false)
         .git_ignore(true)
         .git_global(true)
         .git_exclude(true)
-        .filter_entry(|entry| {
+        .filter_entry(move |entry| {
             if entry.depth() == 0 {
                 return true;
             }
             let name = entry.file_name().to_string_lossy();
+            if show_brainstorm && name == ".brainstorm" {
+                return true;
+            }
             !matches!(
                 name.as_ref(),
                 ".brainstorm" | ".git" | "node_modules" | ".DS_Store"
@@ -48,15 +51,16 @@ pub async fn log_graph_perf(
 }
 
 #[tauri::command]
-pub async fn read_dir_entries(path: String) -> Result<Vec<FileEntry>, String> {
+pub async fn read_dir_entries(path: String, show_brainstorm: Option<bool>) -> Result<Vec<FileEntry>, String> {
     tokio::task::spawn_blocking(move || {
         let p = Path::new(&path);
         if !p.exists() || !p.is_dir() {
             return Err("Path does not exist or is not a directory".to_string());
         }
 
+        let show_brainstorm = show_brainstorm.unwrap_or(false);
         let mut entries = Vec::new();
-        let walker = build_walker(&path).max_depth(Some(1)).build();
+        let walker = build_walker(&path, show_brainstorm).max_depth(Some(1)).build();
 
         for result in walker {
             match result {
@@ -101,15 +105,16 @@ pub async fn read_dir_entries(path: String) -> Result<Vec<FileEntry>, String> {
 }
 
 #[tauri::command]
-pub async fn list_markdown_files(path: String) -> Result<Vec<FileEntry>, String> {
+pub async fn list_markdown_files(path: String, show_brainstorm: Option<bool>) -> Result<Vec<FileEntry>, String> {
     tokio::task::spawn_blocking(move || {
         let root = Path::new(&path);
         if !root.exists() || !root.is_dir() {
             return Err("Path does not exist or is not a directory".to_string());
         }
 
+        let show_brainstorm = show_brainstorm.unwrap_or(false);
         let mut entries = Vec::new();
-        let walker = build_walker(&path).build();
+        let walker = build_walker(&path, show_brainstorm).build();
 
         for result in walker {
             match result {

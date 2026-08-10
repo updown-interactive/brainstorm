@@ -69,6 +69,7 @@ export interface QuickOpenState {
 export interface ExplorerConfig {
 	position: 'left' | 'right';
 	sidebarWidth: number;
+	showBrainstormFolder?: boolean;
 }
 
 export type ExplorerPosition = 'left' | 'right';
