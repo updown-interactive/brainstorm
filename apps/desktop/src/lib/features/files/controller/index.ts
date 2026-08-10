@@ -170,6 +170,10 @@ class FilesController {
 			explorerPosition: config.position,
 			sidebarWidth: clampExplorerSidebarWidth(config.sidebarWidth)
 		});
+		const rootPath = get(fileTreeState).rootPath;
+		if (rootPath) {
+			await fileTreeController.loadChildren(rootPath);
+		}
 	};
 
 	startSidebarResize = (event: PointerEvent): void => {

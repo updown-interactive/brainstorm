@@ -220,6 +220,27 @@
               </label>
             </div>
           </div>
+
+          <div class="setting-row">
+            <div class="setting-copy">
+              <h3>Show .brainstorm Folder</h3>
+              <p>Display the hidden .brainstorm folder in the file tree explorer.</p>
+            </div>
+            <div class="segmented-control" aria-label="Show .brainstorm folder">
+              <button
+                class:is-selected={$configurationController.explorerConfig.showBrainstormFolder}
+                onclick={() => configurationController.saveExplorerShowBrainstormFolder(true)}
+              >
+                <span>Visible</span>
+              </button>
+              <button
+                class:is-selected={!$configurationController.explorerConfig.showBrainstormFolder}
+                onclick={() => configurationController.saveExplorerShowBrainstormFolder(false)}
+              >
+                <span>Hidden</span>
+              </button>
+            </div>
+          </div>
         </section>
       </div>
     {:else if $configurationController.selectedName === configurationController.editorConfigFileName}

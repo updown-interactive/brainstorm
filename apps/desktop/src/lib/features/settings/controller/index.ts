@@ -1,14 +1,14 @@
 import { goto } from '$app/navigation';
 import { get, writable } from 'svelte/store';
 import { ROUTES } from '../../../app/routes';
-import { settingsState, type SettingsTab } from '../state';
+import { layoutSettingsState, settingsState, type SettingsTab } from '../state';
 import {
 	hexToProjectColor,
 	projectColorToHex,
 	settingsFeatureService
 } from '../data/settings-service';
 import { settingsIconOptions } from '../config/constants';
-import type { AppearanceSettingsState, GeneralSettingsForm, SettingsIconId, SettingsViewState } from '../types';
+import type { AppearanceSettingsState, GeneralSettingsForm, LayoutMode, SidepanelPosition, ToolbarPosition, SettingsIconId, SettingsViewState } from '../types';
 import type { Project } from '../../../core/service/projectsService';
 
 class SettingsController {
@@ -18,6 +18,10 @@ class SettingsController {
 		general: this.createGeneralForm(settingsFeatureService.getCurrentProject()),
 		appearance: {
 			currentTheme: 'dark',
+			sidepanelMode: 'expanded',
+			toolbarMode: 'expanded',
+			sidepanelPosition: 'left',
+			toolbarPosition: 'top',
 			isLoading: true,
 			error: ''
 		}
@@ -131,11 +135,28 @@ class SettingsController {
 	loadAppearance = async (): Promise<void> => {
 		this.patchAppearance({ isLoading: true, error: '' });
 		try {
-			const currentTheme = await settingsFeatureService.getTheme();
-			this.patchAppearance({ currentTheme, isLoading: false });
+			const appearance = await settingsFeatureService.getAppearanceSettings();
+			this.patchAppearance({
+				currentTheme: appearance.theme,
+				sidepanelMode: appearance.sidepanelMode,
+				toolbarMode: appearance.toolbarMode,
+				sidepanelPosition: appearance.sidepanelPosition,
+				toolbarPosition: appearance.toolbarPosition,
+				isLoading: false
+			});
+			layoutSettingsState.set({
+				sidepanelMode: appearance.sidepanelMode,
+				toolbarMode: appearance.toolbarMode,
+				sidepanelPosition: appearance.sidepanelPosition,
+				toolbarPosition: appearance.toolbarPosition
+			});
 		} catch (error) {
 			this.patchAppearance({
 				currentTheme: 'dark',
+				sidepanelMode: 'expanded',
+				toolbarMode: 'expanded',
+				sidepanelPosition: 'left',
+				toolbarPosition: 'top',
 				isLoading: false,
 				error: error instanceof Error ? error.message : 'Failed to load appearance settings.'
 			});
@@ -149,6 +170,70 @@ class SettingsController {
 		} catch (error) {
 			this.patchAppearance({
 				error: error instanceof Error ? error.message : 'Failed to save theme.'
+			});
+		}
+	};
+
+	setDisplayMode = async (mode: 'normal' | 'fullscreen'): Promise<void> => {
+		const layoutMode: LayoutMode = mode === 'fullscreen' ? 'hover' : 'expanded';
+		this.patchAppearance({ sidepanelMode: layoutMode, toolbarMode: layoutMode, error: '' });
+		layoutSettingsState.update((state) => ({ ...state, sidepanelMode: layoutMode, toolbarMode: layoutMode }));
+		try {
+			await Promise.all([
+				settingsFeatureService.setSidepanelMode(layoutMode),
+				settingsFeatureService.setToolbarMode(layoutMode)
+			]);
+		} catch (error) {
+			this.patchAppearance({
+				error: error instanceof Error ? error.message : 'Failed to save display mode setting.'
+			});
+		}
+	};
+
+	setSidepanelMode = async (mode: LayoutMode): Promise<void> => {
+		this.patchAppearance({ sidepanelMode: mode, error: '' });
+		layoutSettingsState.update((state) => ({ ...state, sidepanelMode: mode }));
+		try {
+			await settingsFeatureService.setSidepanelMode(mode);
+		} catch (error) {
+			this.patchAppearance({
+				error: error instanceof Error ? error.message : 'Failed to save sidepanel setting.'
+			});
+		}
+	};
+
+	setToolbarMode = async (mode: LayoutMode): Promise<void> => {
+		this.patchAppearance({ toolbarMode: mode, error: '' });
+		layoutSettingsState.update((state) => ({ ...state, toolbarMode: mode }));
+		try {
+			await settingsFeatureService.setToolbarMode(mode);
+		} catch (error) {
+			this.patchAppearance({
+				error: error instanceof Error ? error.message : 'Failed to save toolbar setting.'
+			});
+		}
+	};
+
+	setSidepanelPosition = async (position: SidepanelPosition): Promise<void> => {
+		this.patchAppearance({ sidepanelPosition: position, error: '' });
+		layoutSettingsState.update((state) => ({ ...state, sidepanelPosition: position }));
+		try {
+			await settingsFeatureService.setSidepanelPosition(position);
+		} catch (error) {
+			this.patchAppearance({
+				error: error instanceof Error ? error.message : 'Failed to save sidepanel position.'
+			});
+		}
+	};
+
+	setToolbarPosition = async (position: ToolbarPosition): Promise<void> => {
+		this.patchAppearance({ toolbarPosition: position, error: '' });
+		layoutSettingsState.update((state) => ({ ...state, toolbarPosition: position }));
+		try {
+			await settingsFeatureService.setToolbarPosition(position);
+		} catch (error) {
+			this.patchAppearance({
+				error: error instanceof Error ? error.message : 'Failed to save toolbar position.'
 			});
 		}
 	};

@@ -374,6 +374,16 @@ class ConfigurationController {
 		this.onConfigChange();
 	};
 
+	saveExplorerShowBrainstormFolder = async (showBrainstormFolder: boolean): Promise<void> => {
+		const nextConfig = await writeExplorerConfig({
+			...this.snapshot().explorerConfig,
+			showBrainstormFolder
+		}, this.projectRootPath());
+		this.patchContent(`${JSON.stringify(nextConfig, null, 2)}\n`);
+		this.patchState({ parseError: '' });
+		this.onConfigChange();
+	};
+
 	saveGraphDisplayConfig = async (display: Partial<GraphConfig['display']>): Promise<void> => {
 		const graphConfig = this.snapshot().graphConfig;
 		await this.saveGraphConfig({ ...graphConfig, display: { ...graphConfig.display, ...display } });

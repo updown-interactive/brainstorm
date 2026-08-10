@@ -15,10 +15,12 @@ export const sidebarWidthStorageKey = 'brainstorm.explorer.sidebarWidth';
 
 export const defaultExplorerConfig: ExplorerConfig = {
 	position: 'left',
-	sidebarWidth: 260
+	sidebarWidth: 260,
+	showBrainstormFolder: false
 };
 
 export type ExplorerConfig = {
 	position: 'left' | 'right';
 	sidebarWidth: number;
+	showBrainstormFolder?: boolean;
 };

@@ -1,14 +1,84 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { getCurrentWindow } from '@tauri-apps/api/window';
   import { themeManager } from '../lib/core/theme/ThemeManager';
+  import { layoutSettingsState } from '../lib/features/settings/state';
   import '@fontsource/inter';
 
   let initialized = false;
+  let isMaximized = false;
+  let isFullscreen = false;
+
+  async function checkMaximized() {
+    let isMax = false;
+    let isFull = false;
+    try {
+      const appWindow = getCurrentWindow();
+      isMax = await appWindow.isMaximized();
+      isFull = await appWindow.isFullscreen();
+    } catch {
+      // ignore
+    }
+
+    const isMatchFull = typeof window !== 'undefined' && window.matchMedia('(display-mode: fullscreen)').matches;
+    const isDocFull = typeof document !== 'undefined' && (document.fullscreenElement != null || (document as any).webkitFullscreenElement != null);
+
+    const isNearWidth = typeof window !== 'undefined' && (
+      Math.abs(window.innerWidth - screen.availWidth) <= 16 ||
+      Math.abs(window.outerWidth - screen.width) <= 16
+    );
+
+    const isNearHeight = typeof window !== 'undefined' && (
+      Math.abs(window.innerHeight - screen.availHeight) <= 16 ||
+      Math.abs(window.outerHeight - screen.height) <= 16
+    );
+
+    const isDimensionMaximized = isNearWidth && isNearHeight;
+
+    isFullscreen = isFull || isMatchFull || isDocFull;
+    isMaximized = isMax || isFullscreen || isDimensionMaximized;
+  }
+
+  $: if (typeof document !== 'undefined') {
+    if (isMaximized) {
+      document.documentElement.classList.add('is-maximized');
+      document.body.classList.add('is-maximized');
+    } else {
+      document.documentElement.classList.remove('is-maximized');
+      document.body.classList.remove('is-maximized');
+    }
+    const isDisplayFullscreen = $layoutSettingsState.sidepanelMode === 'hover' && $layoutSettingsState.toolbarMode === 'hover';
+    const shouldUseFullscreenShell = isFullscreen && isDisplayFullscreen;
+    if (shouldUseFullscreenShell) {
+      document.documentElement.classList.add('is-fullscreen-shell');
+      document.body.classList.add('is-fullscreen-shell');
+    } else {
+      document.documentElement.classList.remove('is-fullscreen-shell');
+      document.body.classList.remove('is-fullscreen-shell');
+    }
+  }
 
   onMount(() => {
     void themeManager.init().then(() => {
       initialized = true;
     });
+
+    void checkMaximized();
+    const handleResize = () => {
+      void checkMaximized();
+    };
+    window.addEventListener('resize', handleResize);
+    const interval = setInterval(checkMaximized, 200);
+
+    let unlisten: (() => void) | null = null;
+    try {
+      const appWindow = getCurrentWindow();
+      appWindow.onResized(() => {
+        void checkMaximized();
+      }).then((u) => {
+        unlisten = u;
+      }).catch(() => {});
+    } catch {}
 
     const handleGlobalEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
@@ -63,13 +133,21 @@
 
     window.addEventListener('keydown', handleGlobalEscape, true);
     return () => {
+      clearInterval(interval);
+      window.removeEventListener('resize', handleResize);
       window.removeEventListener('keydown', handleGlobalEscape, true);
+      if (unlisten) unlisten();
     };
   });
 </script>
 
 {#if initialized}
-  <div class="global-layout">
+  <div
+    class="global-layout"
+    class:is-maximized={isMaximized}
+    class:is-fullscreen={isFullscreen}
+    class:is-fullscreen-shell={isFullscreen && $layoutSettingsState.sidepanelMode === 'hover' && $layoutSettingsState.toolbarMode === 'hover'}
+  >
     <div class="app-content">
       <slot />
     </div>
@@ -93,10 +171,13 @@
   :global(body) {
     margin: 0;
     padding: 0;
+    width: 100vw;
+    height: 100vh;
     overflow: hidden;
     user-select: none;
     -webkit-user-select: none;
     background-color: transparent !important;
+    border-radius: 16px;
   }
 
   :global(input),
@@ -114,9 +195,39 @@
     flex-direction: column;
     height: 100vh;
     width: 100vw;
+    border-radius: 16px;
+    overflow: hidden;
     background-color: transparent;
     color: var(--colors-text, #FFFFFF);
     font-family: var(--typography-fontFamily), 'Inter', sans-serif;
+    border: 1px solid color-mix(in srgb, var(--colors-border, #333336) 50%, rgba(255, 255, 255, 0.15));
+    box-sizing: border-box;
+  }
+
+  .global-layout.is-maximized {
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  :global(html.is-maximized),
+  :global(body.is-maximized) {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .global-layout.is-fullscreen-shell {
+    border-radius: 0 !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  :global(html.is-fullscreen-shell),
+  :global(body.is-fullscreen-shell) {
+    border-radius: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   .app-content {

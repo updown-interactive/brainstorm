@@ -7,7 +7,9 @@ import { mount, unmount } from 'svelte';
 import { get } from 'svelte/store';
 import { fileTreeState } from '../../files/state';
 import { editorState as editorStore } from '../../files/state/editor';
+import { fileTreeController } from '../../files/controller/file-tree-controller';
 import { ICON_OPTIONS, resolveIconComponent, setCustomFileIcon } from '../../files/config/icon-registry';
+import CalendarPicker from '$lib/shared/ui/CalendarPicker.svelte';
 import type { FileTreeState } from '../../files/state';
 import YAML from 'yaml';
 import {
@@ -1146,88 +1148,120 @@ class PropertiesWidget extends WidgetType {
 		button.title = 'Open calendar';
 		button.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>';
 
-		const popover = document.createElement('div');
-		popover.className = 'cm-property-calendar';
-		popover.hidden = true;
+		let popoverHost: HTMLDivElement | null = null;
+		let mountedCalendar: Record<string, unknown> | null = null;
+		let isOpen = false;
 
-		let visibleMonth = monthStart(parseDate(value) || new Date());
-
-		const renderCalendar = () => {
-			popover.replaceChildren();
-
-			const header = document.createElement('div');
-			header.className = 'cm-property-calendar-header';
-
-			const previous = document.createElement('button');
-			previous.type = 'button';
-			previous.className = 'cm-property-calendar-nav';
-			previous.textContent = '<';
-			previous.addEventListener('click', () => {
-				visibleMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1);
-				renderCalendar();
-			});
-
-			const title = document.createElement('div');
-			title.className = 'cm-property-calendar-title';
-			title.textContent = visibleMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-
-			const next = document.createElement('button');
-			next.type = 'button';
-			next.className = 'cm-property-calendar-nav';
-			next.textContent = '>';
-			next.addEventListener('click', () => {
-				visibleMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1);
-				renderCalendar();
-			});
-
-			header.append(previous, title, next);
-			popover.appendChild(header);
-
-			const grid = document.createElement('div');
-			grid.className = 'cm-property-calendar-grid';
-			for (const day of ['S', 'M', 'T', 'W', 'T', 'F', 'S']) {
-				const label = document.createElement('div');
-				label.className = 'cm-property-calendar-weekday';
-				label.textContent = day;
-				grid.appendChild(label);
+		const closeCalendar = () => {
+			if (!isOpen) return;
+			isOpen = false;
+			if (mountedCalendar) {
+				unmount(mountedCalendar);
+				mountedCalendar = null;
 			}
-
-			const selected = parseDate(input.value);
-			const startOffset = visibleMonth.getDay();
-			const daysInMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 0).getDate();
-
-			for (let index = 0; index < startOffset; index += 1) {
-				const empty = document.createElement('span');
-				empty.className = 'cm-property-calendar-empty';
-				grid.appendChild(empty);
+			if (popoverHost) {
+				popoverHost.remove();
+				popoverHost = null;
 			}
-
-			for (let day = 1; day <= daysInMonth; day += 1) {
-				const date = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), day);
-				const item = document.createElement('button');
-				item.type = 'button';
-				item.className = isSameDate(date, selected) ? 'cm-property-calendar-day is-selected' : 'cm-property-calendar-day';
-				item.textContent = `${day}`;
-				item.addEventListener('click', () => {
-					const nextValue = formatDate(date);
-					input.value = nextValue;
-					popover.hidden = true;
-					onSelect(nextValue);
-				});
-				grid.appendChild(item);
-			}
-
-			popover.appendChild(grid);
 		};
 
-		button.addEventListener('click', () => {
-			visibleMonth = monthStart(parseDate(input.value) || visibleMonth);
-			renderCalendar();
-			popover.hidden = !popover.hidden;
-		});
-		this.bindPopoverDismiss(view, button, popover, button);
+		const updatePosition = () => {
+			if (!isOpen || !popoverHost) return;
+			const calendarElement = popoverHost.firstElementChild as HTMLElement | null;
+			if (!calendarElement) return;
 
-		renderCalendar();
+			const rect = button.getBoundingClientRect();
+			const popoverHeight = calendarElement.offsetHeight || 300;
+			const spaceBelow = window.innerHeight - rect.bottom;
+			const spaceAbove = rect.top;
+
+			let top: number;
+			if (spaceBelow < popoverHeight && spaceAbove > spaceBelow) {
+				top = Math.max(8, rect.top - popoverHeight - 6);
+			} else {
+				top = Math.min(rect.bottom + 6, window.innerHeight - popoverHeight - 8);
+			}
+
+			let left = rect.left;
+			const popoverWidth = calendarElement.offsetWidth || 280;
+			if (left + popoverWidth > window.innerWidth - 12) {
+				left = Math.max(12, window.innerWidth - popoverWidth - 12);
+			}
+
+			calendarElement.style.position = 'fixed';
+			calendarElement.style.top = `${Math.max(8, top)}px`;
+			calendarElement.style.left = `${Math.max(8, left)}px`;
+			calendarElement.style.zIndex = '999999';
+		};
+
+		const openCalendar = () => {
+			if (isOpen) return;
+			isOpen = true;
+
+			const overlayHost = view.dom.closest<HTMLElement>('.shell-container') || document.body;
+			popoverHost = document.createElement('div');
+			popoverHost.style.display = 'contents';
+			overlayHost.appendChild(popoverHost);
+
+			mountedCalendar = mount(CalendarPicker, {
+				target: popoverHost,
+				props: {
+					value: input.value,
+					onSelect: (nextValue: string) => {
+						input.value = nextValue;
+						closeCalendar();
+						onSelect(nextValue);
+					}
+				}
+			});
+
+			requestAnimationFrame(() => {
+				updatePosition();
+			});
+		};
+
+		button.addEventListener('click', (e) => {
+			e.stopPropagation();
+			if (isOpen) {
+				closeCalendar();
+			} else {
+				openCalendar();
+			}
+		});
+
+		const onPointerDown = (event: PointerEvent) => {
+			if (!isOpen || !popoverHost) return;
+			const target = event.target;
+			const calendarElement = popoverHost.firstElementChild;
+			if (target instanceof Node && (button.contains(target) || (calendarElement && calendarElement.contains(target)))) return;
+			closeCalendar();
+		};
+
+		const onKeyDown = (event: KeyboardEvent) => {
+			if (!isOpen || event.key !== 'Escape') return;
+			event.preventDefault();
+			event.stopPropagation();
+			closeCalendar();
+			button.focus();
+		};
+
+		const onScrollOrResize = () => {
+			if (isOpen) updatePosition();
+		};
+
+		document.addEventListener('pointerdown', onPointerDown, true);
+		document.addEventListener('keydown', onKeyDown, true);
+		window.addEventListener('scroll', onScrollOrResize, true);
+		window.addEventListener('resize', onScrollOrResize, true);
+
+		this.cleanups.push(() => {
+			closeCalendar();
+			document.removeEventListener('pointerdown', onPointerDown, true);
+			document.removeEventListener('keydown', onKeyDown, true);
+			window.removeEventListener('scroll', onScrollOrResize, true);
+			window.removeEventListener('resize', onScrollOrResize, true);
+		});
+
 		wrap.append(input, button);
 		return wrap;
 	}
@@ -1240,13 +1274,42 @@ class PropertiesWidget extends WidgetType {
 		const updatePosition = () => {
 			if (popover.hidden) return;
 			const rect = anchorEl.getBoundingClientRect();
+			const popoverHeight = popover.firstElementChild?.getBoundingClientRect().height || popover.offsetHeight || 300;
+			const spaceBelow = window.innerHeight - rect.bottom;
+			const spaceAbove = rect.top;
+
+			let top: number;
+			if (spaceBelow < popoverHeight && spaceAbove > spaceBelow) {
+				top = Math.max(8, rect.top - popoverHeight - 6);
+			} else {
+				top = Math.min(rect.bottom + 6, window.innerHeight - popoverHeight - 8);
+			}
+
+			let left = rect.left;
+			const popoverWidth = popover.firstElementChild?.getBoundingClientRect().width || popover.offsetWidth || 286;
+			if (left + popoverWidth > window.innerWidth - 12) {
+				left = Math.max(12, window.innerWidth - popoverWidth - 12);
+			}
+
 			popover.style.position = 'fixed';
-			popover.style.top = `${rect.bottom + 4}px`;
-			popover.style.left = `${rect.left}px`;
+			popover.style.top = `${Math.max(8, top)}px`;
+			popover.style.left = `${Math.max(8, left)}px`;
+			popover.style.zIndex = '999999';
+			if (popover.classList.contains('cm-property-calendar')) {
+				popover.style.width = 'auto';
+				popover.style.height = 'auto';
+				popover.style.maxHeight = 'none';
+				popover.style.overflow = 'visible';
+				popover.style.border = 'none';
+				popover.style.padding = '0';
+				popover.style.background = 'transparent';
+				popover.style.boxShadow = 'none';
+				popover.style.borderRadius = '0';
+				return;
+			}
 			if (popover.classList.contains('cm-property-option-menu') || popover.classList.contains('cm-property-tag-menu') || popover.classList.contains('cm-property-link-menu')) {
 				popover.style.width = `${Math.max(rect.width, 280)}px`;
 			}
-			popover.style.zIndex = '999999';
 			popover.style.boxSizing = 'border-box';
 			popover.style.borderRadius = '16px';
 			popover.style.padding = '6px';
@@ -1303,7 +1366,68 @@ class PropertiesWidget extends WidgetType {
 	}
 
 	private updateValue(view: EditorView, key: string, value: unknown) {
+		if (key === 'name' && typeof value === 'string') {
+			void this.updateNamePropertyAndRenameFile(view, value);
+			return;
+		}
 		this.replaceDoc(view, updateFrontmatterProperty(view.state.doc.toString(), key, value));
+	}
+
+	private async updateNamePropertyAndRenameFile(view: EditorView, newNameVal: string) {
+		const currentDoc = view.state.doc.toString();
+		const nextDoc = updateFrontmatterProperty(currentDoc, 'name', newNameVal);
+
+		const activePath = get(editorStore).activeTabId;
+		if (!activePath || !newNameVal.trim()) {
+			this.replaceDoc(view, nextDoc);
+			return;
+		}
+
+		const currentName = nameFromPath(activePath);
+		const sanitizedName = newNameVal.trim().replace(/[\/\\?%*:|"<>]/g, '-');
+
+		if (!sanitizedName || sanitizedName === currentName) {
+			this.replaceDoc(view, nextDoc);
+			return;
+		}
+
+		const parentDir = activePath.substring(0, activePath.lastIndexOf('/'));
+		const ext = activePath.endsWith('.mdx') ? '.mdx' : '.md';
+		const newPath = `${parentDir}/${sanitizedName}${ext}`;
+
+		if (newPath === activePath) {
+			this.replaceDoc(view, nextDoc);
+			return;
+		}
+
+		try {
+			const exists = await invoke<boolean>('path_exists', { path: newPath });
+			if (exists) {
+				console.warn('Target file path already exists', newPath);
+				this.replaceDoc(view, nextDoc);
+				return;
+			}
+
+			// Update in-memory document first
+			this.replaceDoc(view, nextDoc);
+
+			// Rename file on disk using backend link update command
+			await invoke('rename_path_with_link_update', { oldPath: activePath, newPath });
+
+			// Save updated document content to the new path
+			await invoke('write_file', { path: newPath, content: nextDoc });
+
+			// Update active tab and editor store path references
+			const newFileName = `${sanitizedName}${ext}`;
+			editorStore.updateFilePath(activePath, newPath, newFileName);
+
+			// Refresh parent folder in file explorer tree
+			if (parentDir) {
+				void fileTreeController.loadChildren(parentDir);
+			}
+		} catch (error) {
+			console.error('Failed to rename file from property change:', error);
+		}
 	}
 
 	private async openOrCreateLink(value: string, view: EditorView) {

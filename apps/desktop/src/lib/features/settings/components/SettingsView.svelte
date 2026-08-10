@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { FileJson, SlidersHorizontal, Palette, Network } from 'lucide-svelte';
+  import { FileJson, SlidersHorizontal, Palette, Cpu } from 'lucide-svelte';
   import { settingsController } from '../controller';
   import GeneralSettings from './GeneralSettings.svelte';
   import ProvidersSettings from './ProvidersSettings.svelte';
@@ -19,13 +19,13 @@
 
 <div class="settings-container">
   <aside class="settings-sidebar">
-    <div class="settings-section-title">Project Settings</div>
+    <div class="settings-section-title">Project</div>
     
     <button 
       class="settings-nav-item {$settingsController.activeTab === 'general' ? 'active' : ''}"
       onclick={() => settingsController.switchTab('general')}
     >
-      <SlidersHorizontal size={16} />
+      <SlidersHorizontal size={15} />
       <span>General</span>
     </button>
     
@@ -33,7 +33,7 @@
       class="settings-nav-item {$settingsController.activeTab === 'providers' ? 'active' : ''}"
       onclick={() => settingsController.switchTab('providers')}
     >
-      <Network size={16} />
+      <Cpu size={15} />
       <span>Providers</span>
     </button>
 
@@ -41,17 +41,17 @@
       class="settings-nav-item {$settingsController.activeTab === 'configurations' ? 'active' : ''}"
       onclick={() => settingsController.switchTab('configurations')}
     >
-      <FileJson size={16} />
+      <FileJson size={15} />
       <span>Configurations</span>
     </button>
 
-    <div class="settings-section-title">App Settings</div>
+    <div class="settings-section-title">System</div>
     
     <button 
       class="settings-nav-item {$settingsController.activeTab === 'appearance' ? 'active' : ''}"
       onclick={() => settingsController.switchTab('appearance')}
     >
-      <Palette size={16} />
+      <Palette size={15} />
       <span>Appearance</span>
     </button>
   </aside>

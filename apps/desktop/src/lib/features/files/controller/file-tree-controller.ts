@@ -13,6 +13,14 @@ import {
 } from '../state';
 import { editorState } from '../state/editor';
 import { readWorkspaceState, writeWorkspaceState } from '../data/workspace-state';
+import { readExplorerConfig } from '../config/explorer-config';
+import {
+	defaultFrontmatter,
+	ensureMarkdownFrontmatter,
+	isMarkdownPath,
+	nameFromPath,
+	updateFrontmatterProperty
+} from '../../markdown/engine/frontmatter';
 import type { FileTreeController } from '../types';
 
 export function createFileTreeController(): FileTreeController {
@@ -259,18 +267,32 @@ export function createFileTreeController(): FileTreeController {
 			if (!node || !node.isDir) return;
 
 			try {
-				const entries: FileEntry[] = await invoke('read_dir_entries', { path });
+				const explorerConfig = await readExplorerConfig(state.rootPath);
+				const entries: FileEntry[] = await invoke('read_dir_entries', {
+					path,
+					showBrainstorm: explorerConfig.showBrainstormFolder
+				});
 
 				fileTreeState.update((s) => {
 					const parent = s.nodes.get(path);
 					if (!parent) return s;
+
+					const entryPaths = new Set(entries.map((e) => e.path));
+
+					// Prune child nodes no longer present on disk
+					for (const oldChildPath of parent.children) {
+						if (!entryPaths.has(oldChildPath)) {
+							s.nodes.delete(oldChildPath);
+						}
+					}
 
 					parent.children = [];
 
 					for (const entry of entries) {
 						parent.children.push(entry.path);
 
-						if (!s.nodes.has(entry.path)) {
+						const existing = s.nodes.get(entry.path);
+						if (!existing) {
 							s.nodes.set(entry.path, {
 								name: entry.name,
 								path: entry.path,
@@ -281,6 +303,10 @@ export function createFileTreeController(): FileTreeController {
 								children: [],
 								depth: parent.depth + 1,
 							});
+						} else {
+							existing.name = entry.name;
+							existing.isDir = entry.is_dir;
+							existing.isSymlink = entry.is_symlink;
 						}
 					}
 
@@ -368,11 +394,19 @@ export function createFileTreeController(): FileTreeController {
 			try {
 				if (unlistenFsChange) unlistenFsChange();
 
-				unlistenFsChange = await listen('fs-change', async (event: any) => {
-					const { kind, path: changedPath } = event.payload;
-					const parentPath = changedPath.substring(0, changedPath.lastIndexOf('/'));
+				try {
+					await invoke('start_project_watcher', { path });
+				} catch (e) {
+					console.error('Failed to start project watcher in backend:', e);
+				}
 
+				unlistenFsChange = await listen('fs-change', async (event: any) => {
+					const { kind, path: changedPath } = event.payload ?? {};
+					if (!changedPath) return;
+
+					const parentPath = parentPathFor(changedPath);
 					const state = get(fileTreeState);
+
 					if (kind === 'remove') {
 						editorState.closePath(changedPath);
 						fileTreeState.update((s) => ({
@@ -385,16 +419,25 @@ export function createFileTreeController(): FileTreeController {
 					}
 
 					const parentNode = state.nodes.get(parentPath);
-					if (parentNode && (parentNode.isExpanded || parentPath === state.rootPath)) {
+					if (parentNode && (parentNode.isExpanded || parentPath === state.rootPath || parentNode.isLoaded)) {
 						await this.loadChildren(parentPath);
 					}
 
+					if (state.rootPath && (parentPath === state.rootPath || changedPath === state.rootPath)) {
+						await this.loadChildren(state.rootPath);
+					}
+
+					const changedNode = state.nodes.get(changedPath);
+					if (changedNode?.isDir && changedNode.isExpanded) {
+						await this.loadChildren(changedPath);
+					}
+
 					if (state.rootPath) {
-						this.refreshGitStatus(state.rootPath);
+						await this.refreshGitStatus(state.rootPath);
 					}
 				});
-			} catch (e) {
-				console.error('Failed to start watcher', e);
+			} catch (err) {
+				console.error('Failed to setup file watcher listener', err);
 			}
 		},
 
@@ -672,6 +715,10 @@ export function createFileTreeController(): FileTreeController {
 					const newPath = `${editState.parentPath}/${value}`;
 					if (editState.type === 'file') {
 						await invoke('create_file', { path: newPath });
+						if (isMarkdownPath(newPath)) {
+							const initialDoc = defaultFrontmatter(newPath);
+							await invoke('write_file', { path: newPath, content: initialDoc });
+						}
 					} else {
 						await invoke('create_folder', { path: newPath });
 					}
@@ -680,6 +727,23 @@ export function createFileTreeController(): FileTreeController {
 					const newPath = editState.path.substring(0, editState.path.lastIndexOf('/')) + '/' + value;
 					if (newPath !== editState.path) {
 						await invoke('rename_path_with_link_update', { oldPath: editState.path, newPath });
+
+						if (isMarkdownPath(newPath)) {
+							try {
+								const newName = nameFromPath(newPath);
+								const content = await invoke<string>('read_file', { path: newPath });
+								const updatedDoc = ensureMarkdownFrontmatter(content, newPath, false);
+								const finalDoc = updateFrontmatterProperty(updatedDoc, 'name', newName);
+								if (finalDoc !== content) {
+									await invoke('write_file', { path: newPath, content: finalDoc });
+								}
+							} catch (e) {
+								console.error('Failed to sync frontmatter name on file rename', e);
+							}
+						}
+
+						editorState.updateFilePath(editState.path, newPath, value);
+
 						const parentPath = editState.path.substring(0, editState.path.lastIndexOf('/'));
 						await this.loadChildren(parentPath);
 					}

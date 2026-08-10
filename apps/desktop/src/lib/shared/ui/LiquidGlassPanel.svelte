@@ -34,9 +34,12 @@
     position: absolute;
     inset: 0;
     z-index: 0;
-    background: color-mix(in srgb, var(--colors-surfaceVariant, var(--colors-surface, #1C1C1E)) 55%, transparent);
-    backdrop-filter: url(#liquid-glass-refract-dark) blur(8px) saturate(160%);
-    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border-radius: inherit;
+    background: color-mix(in srgb, var(--colors-surfaceVariant, var(--colors-surface, #1C1C1E)) 85%, rgba(20, 20, 24, 0.88));
+    backdrop-filter: url(#liquid-glass-refract-dark) blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    will-change: transform, opacity;
+    transform: translateZ(0);
   }
 
   /* the rim highlight — adapting dynamically to theme text/highlight color */
