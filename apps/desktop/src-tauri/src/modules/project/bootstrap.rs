@@ -28,9 +28,10 @@ capabilities:
   - workflow-coordination
 
 allowed_tools:
-  - workspace
-  - memory
-  - llm
+  - vault.*
+  - markdown.*
+  - search.*
+  - web.*
 
 color: "#8E44AD"
 avatar: assets/avatar.png
@@ -240,10 +241,9 @@ capabilities:
   - workspace-indexing
 
 allowed_tools:
-  - markdown
-  - graph
-  - search
-  - memory
+  - search.*
+  - markdown.*
+  - vault.*
 
 color: "#2ECC71"
 avatar: assets/avatar.png
@@ -435,10 +435,9 @@ capabilities:
   - embedding-generation
 
 allowed_tools:
-  - graph
-  - markdown
-  - memory
-  - filesystem
+  - vault.*
+  - markdown.*
+  - search.*
 
 color: "#3498DB"
 avatar: assets/avatar.png
@@ -634,13 +633,10 @@ capabilities:
   - deep-investigation
 
 allowed_tools:
-  - filesystem
-  - terminal
-  - web
-  - git
-  - graph
-  - search
-  - markdown
+  - web.*
+  - search.*
+  - markdown.*
+  - vault.*
 
 color: "#E74C3C"
 avatar: assets/avatar.png
@@ -648,7 +644,7 @@ banner: assets/banner.png
 icon: cpu
 
 enabled: true
-priority: 80
+priority: 60
 can_delegate: false
 parallel_execution: true
 max_concurrent_tasks: 5
@@ -1682,7 +1678,8 @@ impl<'a> BootstrapEngine<'a> {
                                 let mut denied_tools = Vec::new();
 
                                 for req_tool in &requested_tools {
-                                    if let Some(req_perms) = tool_permissions_map.get(req_tool) {
+                                    let tool_id = req_tool.trim_end_matches(".*");
+                                    if let Some(req_perms) = tool_permissions_map.get(tool_id) {
                                         let perms_satisfied =
                                             req_perms.iter().all(|p| agent_perms.contains(p));
                                         if perms_satisfied {
@@ -2065,7 +2062,7 @@ mod tests {
         let reflex_granted = reflex_map.get("granted_tools").unwrap().as_array().unwrap();
         assert!(reflex_granted
             .iter()
-            .any(|v| v.as_str() == Some("markdown")));
+            .any(|v| v.as_str() == Some("markdown.*")));
 
         let _ = std::fs::remove_dir_all(temp_dir);
     }

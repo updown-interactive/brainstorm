@@ -34,6 +34,14 @@ pub async fn web_fetch(
     request: WebFetchRequest,
     state: State<'_, WebState>,
 ) -> Result<WebFetchResult, AppError> {
+    execute(request, &state.tool, &state.runtime).await
+}
+
+pub async fn execute(
+    request: WebFetchRequest,
+    tool: &WebTool,
+    runtime: &ToolRuntime,
+) -> Result<WebFetchResult, AppError> {
     if !registry::contains("web.fetch") {
         return Err(AppError::Tool("web.fetch is not registered".into()));
     }
@@ -44,9 +52,7 @@ pub async fn web_fetch(
             "web.fetch is disabled by project configuration".into(),
         ));
     }
-    state.runtime.require_network()?;
-    state
-        .tool
-        .execute(serde_json::json!({ "url": request.url }), &config)
+    runtime.require_network()?;
+    tool.execute(serde_json::json!({ "url": request.url }), &config)
         .await
 }
