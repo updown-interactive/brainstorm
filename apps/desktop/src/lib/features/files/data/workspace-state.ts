@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { get } from 'svelte/store';
-import { brainstormFolderName, explorerStateFileName } from '../config/constants';
+import { brainstormFolderName, explorerStateFileName, stateFolderName } from '../config/constants';
 import { fileTreeState } from '../state';
 
 export interface PersistedTab {
@@ -51,7 +51,7 @@ export async function ensureWorkspaceStatePath(rootPathOverride?: string | null)
 	const rootPath = rootPathOverride ?? get(fileTreeState).rootPath;
 	if (!rootPath) return null;
 
-	const folderPath = `${rootPath}/${brainstormFolderName}`;
+	const folderPath = `${rootPath}/${brainstormFolderName}/${stateFolderName}`;
 	const statePath = `${folderPath}/${explorerStateFileName}`;
 
 	try {

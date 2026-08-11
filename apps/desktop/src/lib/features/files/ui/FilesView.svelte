@@ -125,7 +125,7 @@
 
             <div class="editor-container">
               {#if pane.activeTabId}
-                <svelte:component this={filesController.editorComponent} path={pane.activeTabId} />
+                <svelte:component this={filesController.editorComponentForPath(pane.activeTabId)} path={pane.activeTabId} />
               {:else}
                 <div class="pane-placeholder">Open a file in this pane</div>
               {/if}

@@ -1,8 +1,9 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { Bot, Braces, Brain, Check, ChevronDown, Database, Edit2, FileJson, GitBranch, Network, PanelLeft, PanelRight, Plus, RefreshCw, Settings, SlidersHorizontal, Tag, TerminalSquare, Wrench, X } from 'lucide-svelte';
+  import { Bot, Braces, Brain, Check, ChevronDown, Database, Edit2, FileJson, FileText, GitBranch, Network, PanelLeft, PanelRight, Plus, RefreshCw, Settings, SlidersHorizontal, Tag, TerminalSquare, Wrench, X } from 'lucide-svelte';
   import { configurationController } from '../controller';
   import JsonInspector from './JsonInspector.svelte';
+  import YamlInspector from './YamlInspector.svelte';
   import LiquidGlassPanel from '$lib/shared/ui/LiquidGlassPanel.svelte';
   import type { PropertiesDisplayMode } from '../../markdown/config/editor-config';
   import AgentPackageInspector from '../../agents/components/AgentPackageInspector.svelte';
@@ -78,6 +79,8 @@
                   >
                     {#if file.kind === 'agent'}
                       <Bot size={15} />
+                    {:else if file.kind === 'yaml'}
+                      <FileText size={15} />
                     {:else}
                       <FileJson size={15} />
                     {/if}
@@ -160,6 +163,12 @@
         content={$configurationController.rawContent}
         error={$configurationController.jsonEditorError}
         onChange={configurationController.handleJsonChange}
+      />
+    {:else if $configurationController.selectedKind === 'yaml'}
+      <YamlInspector
+        content={$configurationController.rawContent}
+        error={$configurationController.jsonEditorError}
+        onChange={configurationController.handleYamlChange}
       />
     {:else if $configurationController.selectedName === configurationController.explorerConfigFileName}
       <div class="config-overview">

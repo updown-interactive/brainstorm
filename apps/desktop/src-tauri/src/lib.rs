@@ -22,19 +22,31 @@ pub fn run() {
             }
 
             let handle = app.handle().clone();
+            let init_handle = handle.clone();
             tauri::async_runtime::block_on(async move {
-                let db_state = core::db::init(&handle)
+                let db_state = core::db::init(&init_handle)
                     .await
                     .expect("failed to initialize db");
                 let ai_state = modules::ai::commands::state(db_state.pool.clone());
-                handle.manage(db_state);
-                let chat_state = modules::chat::commands::ChatState { service: std::sync::Arc::new(modules::chat::service::ChatService::new(ai_state.factory.clone())) };
-                handle.manage(ai_state);
-                handle.manage(chat_state);
+                init_handle.manage(db_state);
+                let chat_state = modules::chat::commands::ChatState {
+                    service: std::sync::Arc::new(modules::chat::service::ChatService::new(
+                        ai_state.factory.clone(),
+                    )),
+                };
+                init_handle.manage(ai_state);
+                init_handle.manage(chat_state);
             });
+            handle.manage(
+                modules::tools::web::commands::WebState::new()
+                    .expect("failed to initialize web tool"),
+            );
             Ok(())
         })
         .manage(modules::vault::commands::VaultState::default())
+        .manage(modules::tools::markdown::commands::MarkdownState::default())
+        .manage(modules::tools::search::commands::SearchState::default())
+        .manage(modules::tools::vault::vault::VaultState::default())
         .invoke_handler(tauri::generate_handler![
             greet,
             modules::ai::commands::ai_list_providers,
@@ -79,7 +91,11 @@ pub fn run() {
             modules::vault::commands::build_vault_index,
             modules::vault::commands::get_vault_index,
             modules::vault::commands::update_index_entry,
-            modules::vault::commands::rename_path_with_link_update
+            modules::vault::commands::rename_path_with_link_update,
+            modules::tools::web::commands::web_fetch,
+            modules::tools::markdown::commands::markdown_execute,
+            modules::tools::search::commands::search_execute,
+            modules::tools::vault::vault::vault_execute
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
