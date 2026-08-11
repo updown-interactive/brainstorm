@@ -9,6 +9,36 @@ use tauri::State;
 
 pub type VaultState = Mutex<Option<VaultIndex>>;
 
+/// Reads one Markdown document after enforcing the vault root boundary.
+pub fn read_markdown_document(root: &Path, relative_path: &str) -> Result<String, String> {
+    let relative = Path::new(relative_path);
+    if relative.is_absolute() || relative_path.trim().is_empty() {
+        return Err("invalid document path".into());
+    }
+    let extension = relative
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default();
+    if !matches!(extension, "md" | "mdx") {
+        return Err("unsupported document type".into());
+    }
+    let canonical_root = root
+        .canonicalize()
+        .map_err(|_| "vault path does not exist".to_string())?;
+    let candidate = root.join(relative);
+    let canonical_candidate = candidate
+        .canonicalize()
+        .map_err(|_| format!("document not found: {relative_path}"))?;
+    if !canonical_candidate.starts_with(&canonical_root) {
+        return Err("document path is outside the vault".into());
+    }
+    if !canonical_candidate.is_file() {
+        return Err(format!("document not found: {relative_path}"));
+    }
+    std::fs::read_to_string(canonical_candidate)
+        .map_err(|_| format!("could not read document: {relative_path}"))
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct VaultIndex {
     pub root: String,

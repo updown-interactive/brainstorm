@@ -44,6 +44,7 @@ pub fn run() {
             Ok(())
         })
         .manage(modules::vault::commands::VaultState::default())
+        .manage(modules::tools::markdown::commands::MarkdownState::default())
         .invoke_handler(tauri::generate_handler![
             greet,
             modules::ai::commands::ai_list_providers,
@@ -89,7 +90,8 @@ pub fn run() {
             modules::vault::commands::get_vault_index,
             modules::vault::commands::update_index_entry,
             modules::vault::commands::rename_path_with_link_update,
-            modules::tools::web::commands::web_fetch
+            modules::tools::web::commands::web_fetch,
+            modules::tools::markdown::commands::markdown_execute
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
