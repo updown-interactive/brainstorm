@@ -4,6 +4,7 @@ use crate::core::error::AppError;
 pub struct PermissionSet {
     pub network: bool,
     pub vault_read: bool,
+    pub vault_write: bool,
 }
 
 impl PermissionSet {
@@ -11,6 +12,7 @@ impl PermissionSet {
         Self {
             network: true,
             vault_read: true,
+            vault_write: true,
         }
     }
 }
@@ -39,6 +41,16 @@ impl ToolRuntime {
         } else {
             Err(AppError::Tool(
                 "vault read permission is not granted".into(),
+            ))
+        }
+    }
+
+    pub fn require_vault_write(&self) -> Result<(), AppError> {
+        if self.permissions.vault_write {
+            Ok(())
+        } else {
+            Err(AppError::Tool(
+                "vault write permission is not granted".into(),
             ))
         }
     }
