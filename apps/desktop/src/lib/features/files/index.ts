@@ -5,6 +5,7 @@ export * from './types';
 export {
 	brainstormFolderName,
 	configurationFolderName,
+	stateFolderName,
 	explorerConfigFileName,
 	legacyConfigFileName,
 	propertyConfigFileName,

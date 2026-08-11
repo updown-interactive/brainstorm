@@ -1,5 +1,6 @@
 export const brainstormFolderName = '.brainstorm';
 export const configurationFolderName = 'configuration';
+export const stateFolderName = 'state';
 export const explorerConfigFileName = 'explorer-config.json';
 export const legacyConfigFileName = 'config.json';
 export const propertyConfigFileName = 'property-config.json';
