@@ -218,7 +218,6 @@ No active tasks.
 - [Initialized] Cerebrum (@cerebrum, @cereb) bootstrapped.
 "##,
     },
-
     // --- Reflex (@reflex, @flex) ---
     BootstrapFile {
         relative_path: &["agents", "reflex", "agent.yaml"],
@@ -414,7 +413,6 @@ No active tasks.
 - [Initialized] Reflex (@reflex, @flex) bootstrapped.
 "##,
     },
-
     // --- Hippocampus (@hippocampus, @hippo) ---
     BootstrapFile {
         relative_path: &["agents", "hippocampus", "agent.yaml"],
@@ -613,7 +611,6 @@ No active tasks.
 - [Initialized] Hippocampus (@hippocampus, @hippo) bootstrapped.
 "##,
     },
-
     // --- Cortex (@cortex, @tex) ---
     BootstrapFile {
         relative_path: &["agents", "cortex", "agent.yaml"],
@@ -869,7 +866,6 @@ Provides file system operations (read, write, move, copy) within workspace scope
 }
 "#,
     },
-
     // --- markdown ---
     BootstrapFile {
         relative_path: &["tools", "markdown", "tool.yaml"],
@@ -1149,7 +1145,6 @@ See [[Project Roadmap|Roadmap]] and #markdown #testing.
 }
 "#,
     },
-
     // --- graph ---
     BootstrapFile {
         relative_path: &["tools", "graph", "tool.yaml"],
@@ -1198,7 +1193,6 @@ Provides graph query, node linking, and relationship traversal capabilities.
 }
 "#,
     },
-
     // --- search ---
     BootstrapFile {
         relative_path: &["tools", "search", "tool.yaml"],
@@ -1244,7 +1238,6 @@ Provides hybrid text and vector semantic similarity search across workspace docu
 }
 "#,
     },
-
     // --- git ---
     BootstrapFile {
         relative_path: &["tools", "git", "tool.yaml"],
@@ -1291,7 +1284,6 @@ Provides Git repository status, log, and commit actions for workspace tracking.
 }
 "#,
     },
-
     // --- terminal ---
     BootstrapFile {
         relative_path: &["tools", "terminal", "tool.yaml"],
@@ -1338,7 +1330,6 @@ Provides sandboxed terminal command execution capabilities.
 }
 "#,
     },
-
     // --- web ---
     BootstrapFile {
         relative_path: &["tools", "web", "tool.yaml"],
@@ -1384,7 +1375,6 @@ Provides web search and HTTP URL content fetching for online research.
 }
 "#,
     },
-
     // --- memory ---
     BootstrapFile {
         relative_path: &["tools", "memory", "tool.yaml"],
@@ -1432,7 +1422,6 @@ Provides key-value and vector session/persistent memory store operations.
 }
 "#,
     },
-
     // --- notes ---
     BootstrapFile {
         relative_path: &["tools", "notes", "tool.yaml"],
@@ -1481,7 +1470,6 @@ Provides note creation, editing, tagging, and backlink management.
 }
 "#,
     },
-
     // --- workspace ---
     BootstrapFile {
         relative_path: &["tools", "workspace", "tool.yaml"],
@@ -1528,7 +1516,6 @@ Provides workspace metadata inspection and settings configuration.
 }
 "#,
     },
-
     // --- llm ---
     BootstrapFile {
         relative_path: &["tools", "llm", "tool.yaml"],
@@ -1830,12 +1817,18 @@ impl<'a> BootstrapEngine<'a> {
     }
 
     fn stage_6_build_capability_registry(&self) -> Result<(), AppError> {
-        let registry_file = self.brainstorm_root.join("configuration").join("capability-registry.json");
+        let registry_file = self
+            .brainstorm_root
+            .join("configuration")
+            .join("capability-registry.json");
         let agents_dir = self.brainstorm_root.join("agents");
 
-        let mut capabilities_map: std::collections::BTreeMap<String, Vec<String>> = std::collections::BTreeMap::new();
-        let mut aliases_map: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
-        let mut primary_capability_map: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
+        let mut capabilities_map: std::collections::BTreeMap<String, Vec<String>> =
+            std::collections::BTreeMap::new();
+        let mut aliases_map: std::collections::BTreeMap<String, String> =
+            std::collections::BTreeMap::new();
+        let mut primary_capability_map: std::collections::BTreeMap<String, String> =
+            std::collections::BTreeMap::new();
 
         if agents_dir.exists() {
             if let Ok(entries) = std::fs::read_dir(&agents_dir) {
@@ -1844,12 +1837,17 @@ impl<'a> BootstrapEngine<'a> {
                         let manifest_path = entry.path().join("agent.yaml");
                         if manifest_path.exists() {
                             if let Ok(content) = std::fs::read_to_string(&manifest_path) {
-                                let agent_id = parse_yaml_scalar(&content, "id")
-                                    .unwrap_or_else(|| entry.file_name().to_string_lossy().to_string());
+                                let agent_id =
+                                    parse_yaml_scalar(&content, "id").unwrap_or_else(|| {
+                                        entry.file_name().to_string_lossy().to_string()
+                                    });
 
                                 let capabilities = parse_yaml_list(&content, "capabilities");
                                 for cap in capabilities {
-                                    capabilities_map.entry(cap.clone()).or_default().push(agent_id.clone());
+                                    capabilities_map
+                                        .entry(cap.clone())
+                                        .or_default()
+                                        .push(agent_id.clone());
                                     if !primary_capability_map.contains_key(&cap) {
                                         primary_capability_map.insert(cap, agent_id.clone());
                                     }
@@ -1876,7 +1874,10 @@ impl<'a> BootstrapEngine<'a> {
             let arr = agents.into_iter().map(serde_json::Value::String).collect();
             caps_val.insert(cap, serde_json::Value::Array(arr));
         }
-        json_obj.insert("capabilities".to_string(), serde_json::Value::Object(caps_val));
+        json_obj.insert(
+            "capabilities".to_string(),
+            serde_json::Value::Object(caps_val),
+        );
 
         let mut alias_val = serde_json::Map::new();
         for (alias, agent_id) in aliases_map {
@@ -1884,8 +1885,10 @@ impl<'a> BootstrapEngine<'a> {
         }
         json_obj.insert("aliases".to_string(), serde_json::Value::Object(alias_val));
 
-        let json_str = serde_json::to_string_pretty(&serde_json::Value::Object(json_obj))
-            .map_err(|e| AppError::Internal(format!("Failed to serialize capability registry: {}", e)))?;
+        let json_str =
+            serde_json::to_string_pretty(&serde_json::Value::Object(json_obj)).map_err(|e| {
+                AppError::Internal(format!("Failed to serialize capability registry: {}", e))
+            })?;
 
         if let Some(parent) = registry_file.parent() {
             std::fs::create_dir_all(parent).map_err(bootstrap_error)?;
@@ -1895,12 +1898,17 @@ impl<'a> BootstrapEngine<'a> {
     }
 
     fn stage_6_b_build_tool_registry(&self) -> Result<(), AppError> {
-        let registry_file = self.brainstorm_root.join("configuration").join("tool-registry.json");
+        let registry_file = self
+            .brainstorm_root
+            .join("configuration")
+            .join("tool-registry.json");
         let tools_dir = self.brainstorm_root.join("tools");
         let agents_dir = self.brainstorm_root.join("agents");
 
-        let mut installed_tools: std::collections::BTreeMap<String, serde_json::Value> = std::collections::BTreeMap::new();
-        let mut tool_permissions_map: std::collections::BTreeMap<String, Vec<String>> = std::collections::BTreeMap::new();
+        let mut installed_tools: std::collections::BTreeMap<String, serde_json::Value> =
+            std::collections::BTreeMap::new();
+        let mut tool_permissions_map: std::collections::BTreeMap<String, Vec<String>> =
+            std::collections::BTreeMap::new();
 
         if tools_dir.exists() {
             if let Ok(entries) = std::fs::read_dir(&tools_dir) {
@@ -1909,25 +1917,59 @@ impl<'a> BootstrapEngine<'a> {
                         let manifest_path = entry.path().join("tool.yaml");
                         if manifest_path.exists() {
                             if let Ok(content) = std::fs::read_to_string(&manifest_path) {
-                                let tool_id = parse_yaml_scalar(&content, "id")
-                                    .unwrap_or_else(|| entry.file_name().to_string_lossy().to_string());
-                                let tool_name = parse_yaml_scalar(&content, "name").unwrap_or_else(|| tool_id.clone());
-                                let tool_desc = parse_yaml_scalar(&content, "description").unwrap_or_default();
-                                let tool_ver = parse_yaml_scalar(&content, "version").unwrap_or_else(|| "1.0.0".to_string());
+                                let tool_id =
+                                    parse_yaml_scalar(&content, "id").unwrap_or_else(|| {
+                                        entry.file_name().to_string_lossy().to_string()
+                                    });
+                                let tool_name = parse_yaml_scalar(&content, "name")
+                                    .unwrap_or_else(|| tool_id.clone());
+                                let tool_desc =
+                                    parse_yaml_scalar(&content, "description").unwrap_or_default();
+                                let tool_ver = parse_yaml_scalar(&content, "version")
+                                    .unwrap_or_else(|| "1.0.0".to_string());
                                 let permissions = parse_yaml_list(&content, "permissions");
                                 let functions = parse_yaml_list(&content, "functions");
 
                                 tool_permissions_map.insert(tool_id.clone(), permissions.clone());
 
                                 let mut tool_obj = serde_json::Map::new();
-                                tool_obj.insert("id".to_string(), serde_json::Value::String(tool_id.clone()));
-                                tool_obj.insert("name".to_string(), serde_json::Value::String(tool_name));
-                                tool_obj.insert("description".to_string(), serde_json::Value::String(tool_desc));
-                                tool_obj.insert("version".to_string(), serde_json::Value::String(tool_ver));
-                                tool_obj.insert("permissions".to_string(), serde_json::Value::Array(permissions.into_iter().map(serde_json::Value::String).collect()));
-                                tool_obj.insert("functions".to_string(), serde_json::Value::Array(functions.into_iter().map(serde_json::Value::String).collect()));
+                                tool_obj.insert(
+                                    "id".to_string(),
+                                    serde_json::Value::String(tool_id.clone()),
+                                );
+                                tool_obj.insert(
+                                    "name".to_string(),
+                                    serde_json::Value::String(tool_name),
+                                );
+                                tool_obj.insert(
+                                    "description".to_string(),
+                                    serde_json::Value::String(tool_desc),
+                                );
+                                tool_obj.insert(
+                                    "version".to_string(),
+                                    serde_json::Value::String(tool_ver),
+                                );
+                                tool_obj.insert(
+                                    "permissions".to_string(),
+                                    serde_json::Value::Array(
+                                        permissions
+                                            .into_iter()
+                                            .map(serde_json::Value::String)
+                                            .collect(),
+                                    ),
+                                );
+                                tool_obj.insert(
+                                    "functions".to_string(),
+                                    serde_json::Value::Array(
+                                        functions
+                                            .into_iter()
+                                            .map(serde_json::Value::String)
+                                            .collect(),
+                                    ),
+                                );
 
-                                installed_tools.insert(tool_id, serde_json::Value::Object(tool_obj));
+                                installed_tools
+                                    .insert(tool_id, serde_json::Value::Object(tool_obj));
                             }
                         }
                     }
@@ -1935,7 +1977,8 @@ impl<'a> BootstrapEngine<'a> {
             }
         }
 
-        let mut agent_tool_mappings: std::collections::BTreeMap<String, serde_json::Value> = std::collections::BTreeMap::new();
+        let mut agent_tool_mappings: std::collections::BTreeMap<String, serde_json::Value> =
+            std::collections::BTreeMap::new();
 
         if agents_dir.exists() {
             if let Ok(entries) = std::fs::read_dir(&agents_dir) {
@@ -1944,8 +1987,10 @@ impl<'a> BootstrapEngine<'a> {
                         let manifest_path = entry.path().join("agent.yaml");
                         if manifest_path.exists() {
                             if let Ok(content) = std::fs::read_to_string(&manifest_path) {
-                                let agent_id = parse_yaml_scalar(&content, "id")
-                                    .unwrap_or_else(|| entry.file_name().to_string_lossy().to_string());
+                                let agent_id =
+                                    parse_yaml_scalar(&content, "id").unwrap_or_else(|| {
+                                        entry.file_name().to_string_lossy().to_string()
+                                    });
 
                                 let agent_perms = parse_yaml_list(&content, "permissions");
                                 let requested_tools = parse_yaml_list(&content, "allowed_tools");
@@ -1955,7 +2000,8 @@ impl<'a> BootstrapEngine<'a> {
 
                                 for req_tool in &requested_tools {
                                     if let Some(req_perms) = tool_permissions_map.get(req_tool) {
-                                        let perms_satisfied = req_perms.iter().all(|p| agent_perms.contains(p));
+                                        let perms_satisfied =
+                                            req_perms.iter().all(|p| agent_perms.contains(p));
                                         if perms_satisfied {
                                             granted_tools.push(req_tool.clone());
                                         } else {
@@ -1967,11 +2013,36 @@ impl<'a> BootstrapEngine<'a> {
                                 }
 
                                 let mut map_obj = serde_json::Map::new();
-                                map_obj.insert("requested_tools".to_string(), serde_json::Value::Array(requested_tools.into_iter().map(serde_json::Value::String).collect()));
-                                map_obj.insert("granted_tools".to_string(), serde_json::Value::Array(granted_tools.into_iter().map(serde_json::Value::String).collect()));
-                                map_obj.insert("denied_tools".to_string(), serde_json::Value::Array(denied_tools.into_iter().map(serde_json::Value::String).collect()));
+                                map_obj.insert(
+                                    "requested_tools".to_string(),
+                                    serde_json::Value::Array(
+                                        requested_tools
+                                            .into_iter()
+                                            .map(serde_json::Value::String)
+                                            .collect(),
+                                    ),
+                                );
+                                map_obj.insert(
+                                    "granted_tools".to_string(),
+                                    serde_json::Value::Array(
+                                        granted_tools
+                                            .into_iter()
+                                            .map(serde_json::Value::String)
+                                            .collect(),
+                                    ),
+                                );
+                                map_obj.insert(
+                                    "denied_tools".to_string(),
+                                    serde_json::Value::Array(
+                                        denied_tools
+                                            .into_iter()
+                                            .map(serde_json::Value::String)
+                                            .collect(),
+                                    ),
+                                );
 
-                                agent_tool_mappings.insert(agent_id, serde_json::Value::Object(map_obj));
+                                agent_tool_mappings
+                                    .insert(agent_id, serde_json::Value::Object(map_obj));
                             }
                         }
                     }
@@ -1984,13 +2055,19 @@ impl<'a> BootstrapEngine<'a> {
         for (id, val) in installed_tools {
             tools_val.insert(id, val);
         }
-        root_obj.insert("installed_tools".to_string(), serde_json::Value::Object(tools_val));
+        root_obj.insert(
+            "installed_tools".to_string(),
+            serde_json::Value::Object(tools_val),
+        );
 
         let mut mappings_val = serde_json::Map::new();
         for (agent_id, val) in agent_tool_mappings {
             mappings_val.insert(agent_id, val);
         }
-        root_obj.insert("agent_tool_mappings".to_string(), serde_json::Value::Object(mappings_val));
+        root_obj.insert(
+            "agent_tool_mappings".to_string(),
+            serde_json::Value::Object(mappings_val),
+        );
 
         let json_str = serde_json::to_string_pretty(&serde_json::Value::Object(root_obj))
             .map_err(|e| AppError::Internal(format!("Failed to serialize tool registry: {}", e)))?;
@@ -2113,7 +2190,12 @@ fn ensure_brainstorm_markdown_frontmatter(file_path: &Path, content: &str) -> St
             new_yaml.push_str(yaml_block);
 
             let body = &content[actual_fence_end + 4..];
-            return format!("---\n{}{}---\n{}", new_yaml, if new_yaml.ends_with('\n') { "" } else { "\n" }, body);
+            return format!(
+                "---\n{}{}---\n{}",
+                new_yaml,
+                if new_yaml.ends_with('\n') { "" } else { "\n" },
+                body
+            );
         }
     }
 
@@ -2203,7 +2285,8 @@ mod tests {
 
     #[test]
     fn test_bootstrap_core_agents_and_capabilities() {
-        let temp_dir = std::env::temp_dir().join(format!("brainstorm_test_{}", uuid::Uuid::new_v4()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("brainstorm_test_{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let engine = BootstrapEngine::new(temp_dir.to_str().unwrap());
@@ -2234,7 +2317,11 @@ mod tests {
 
         // Verify old agents are removed
         for old_agent in &["main-agent", "planning-agent", "knowledge-agent"] {
-            assert!(!agents_dir.join(old_agent).exists(), "Old agent {} should not exist", old_agent);
+            assert!(
+                !agents_dir.join(old_agent).exists(),
+                "Old agent {} should not exist",
+                old_agent
+            );
         }
 
         // Verify standalone tools installation
@@ -2269,23 +2356,36 @@ mod tests {
         assert!(markdown_tool_dir.join("OUTPUT_SCHEMA.json").exists());
 
         // Verify capability registry
-        let registry_file = brainstorm_root.join("configuration").join("capability-registry.json");
+        let registry_file = brainstorm_root
+            .join("configuration")
+            .join("capability-registry.json");
         assert!(registry_file.exists());
         let registry_raw = std::fs::read_to_string(registry_file).unwrap();
         let registry_json: serde_json::Value = serde_json::from_str(&registry_raw).unwrap();
 
         let aliases = registry_json.get("aliases").unwrap();
-        assert_eq!(aliases.get("@cerebrum").unwrap().as_str().unwrap(), "cerebrum");
+        assert_eq!(
+            aliases.get("@cerebrum").unwrap().as_str().unwrap(),
+            "cerebrum"
+        );
         assert_eq!(aliases.get("@cereb").unwrap().as_str().unwrap(), "cerebrum");
         assert_eq!(aliases.get("@reflex").unwrap().as_str().unwrap(), "reflex");
         assert_eq!(aliases.get("@flex").unwrap().as_str().unwrap(), "reflex");
-        assert_eq!(aliases.get("@hippocampus").unwrap().as_str().unwrap(), "hippocampus");
-        assert_eq!(aliases.get("@hippo").unwrap().as_str().unwrap(), "hippocampus");
+        assert_eq!(
+            aliases.get("@hippocampus").unwrap().as_str().unwrap(),
+            "hippocampus"
+        );
+        assert_eq!(
+            aliases.get("@hippo").unwrap().as_str().unwrap(),
+            "hippocampus"
+        );
         assert_eq!(aliases.get("@cortex").unwrap().as_str().unwrap(), "cortex");
         assert_eq!(aliases.get("@tex").unwrap().as_str().unwrap(), "cortex");
 
         // Verify tool registry
-        let tool_registry_file = brainstorm_root.join("configuration").join("tool-registry.json");
+        let tool_registry_file = brainstorm_root
+            .join("configuration")
+            .join("tool-registry.json");
         assert!(tool_registry_file.exists());
         let tool_reg_raw = std::fs::read_to_string(tool_registry_file).unwrap();
         let tool_reg_json: serde_json::Value = serde_json::from_str(&tool_reg_raw).unwrap();
@@ -2297,11 +2397,11 @@ mod tests {
         let mappings = tool_reg_json.get("agent_tool_mappings").unwrap();
         let reflex_map = mappings.get("reflex").unwrap();
         let reflex_granted = reflex_map.get("granted_tools").unwrap().as_array().unwrap();
-        assert!(reflex_granted.iter().any(|v| v.as_str() == Some("markdown")));
+        assert!(reflex_granted
+            .iter()
+            .any(|v| v.as_str() == Some("markdown")));
         assert!(reflex_granted.iter().any(|v| v.as_str() == Some("graph")));
 
         let _ = std::fs::remove_dir_all(temp_dir);
     }
 }
-
-

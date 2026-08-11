@@ -17,9 +17,22 @@ pub async fn init(_app_handle: &tauri::AppHandle) -> Result<DbState, String> {
     let pool = SqlitePool::connect_with(options)
         .await
         .map_err(|e| e.to_string())?;
+    sqlx::query("PRAGMA foreign_keys = ON")
+        .execute(&pool)
+        .await
+        .map_err(|e| e.to_string())?;
 
     // Initialize project tables
     crate::modules::project::service::init(&pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    let _ = sqlx::query("ALTER TABLE projects ADD COLUMN last_conversation_id TEXT")
+        .execute(&pool)
+        .await;
+    crate::modules::conversation::commands::init(&pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    crate::modules::ai::commands::init(&pool)
         .await
         .map_err(|e| e.to_string())?;
 

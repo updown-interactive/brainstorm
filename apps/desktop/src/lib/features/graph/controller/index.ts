@@ -3,7 +3,7 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { writable, type Unsubscriber } from 'svelte/store';
 import { editorState } from '../../files/state/editor';
 import { fileTreeController } from '../../files/controller/file-tree-controller';
-import { shellState } from '../../shell/state';
+import { shellState } from '../../shell/state/state';
 import { defaultGraphConfig } from '../config/constants';
 import { buildGraphData } from '../data/graph-data';
 import { GraphCamera } from '../layouts/graph-camera';

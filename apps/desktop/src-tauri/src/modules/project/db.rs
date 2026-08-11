@@ -26,6 +26,7 @@ pub async fn init_table(pool: &SqlitePool) -> Result<(), AppError> {
             created_at INTEGER NOT NULL,
             updated_at INTEGER NOT NULL,
             last_opened_at INTEGER,
+            last_conversation_id TEXT,
             metadata TEXT
         );
         "#,
@@ -76,11 +77,11 @@ pub async fn create_project(pool: &SqlitePool, project: &Project) -> Result<(), 
         INSERT INTO projects (
             id, name, description, icon, color, banner, path, template, version, schema_version,
             document_count, graph_node_count, chat_count, task_count, attachment_count,
-            is_favorite, is_archived, created_at, updated_at, last_opened_at, metadata
+            is_favorite, is_archived, created_at, updated_at, last_opened_at, last_conversation_id, metadata
         ) VALUES (
             ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
             ?11, ?12, ?13, ?14, ?15,
-            ?16, ?17, ?18, ?19, ?20, ?21
+            ?16, ?17, ?18, ?19, ?20, ?21, ?22
         )
         "#,
     )
@@ -104,6 +105,7 @@ pub async fn create_project(pool: &SqlitePool, project: &Project) -> Result<(), 
     .bind(project.created_at)
     .bind(project.updated_at)
     .bind(project.last_opened_at)
+    .bind(&project.last_conversation_id)
     .bind(&project.metadata)
     .execute(pool)
     .await?;

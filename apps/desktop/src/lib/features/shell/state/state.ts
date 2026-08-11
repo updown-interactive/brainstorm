@@ -1,5 +1,5 @@
 import { writable } from "svelte/store";
-import type { Project } from '../../core/service/projectsService';
+import type { Project } from '../../../core/service/projectsService';
 
 export type ShellTab = 'chat' | 'files' | 'graph' | 'settings';
 

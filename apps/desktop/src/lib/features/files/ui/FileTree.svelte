@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { shellState } from '../../shell/state';
+  import { shellState } from '../../shell/state/state';
   import { filesController } from '../controller';
   import FileTreeNode from './FileTreeNode.svelte';
   import ContextMenu from './ContextMenu.svelte';

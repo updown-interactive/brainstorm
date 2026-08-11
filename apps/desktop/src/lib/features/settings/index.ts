@@ -4,6 +4,8 @@ export type { SettingsState, SettingsTab } from './state';
 export * from './config/constants';
 export type { AppearanceSettingsState, GeneralSettingsForm, SettingsIconId, SettingsViewState } from './types';
 export { settingsFeatureService } from './data/settings-service';
+export { providersService } from './data/providers-service';
+export { providersController } from './controller/providers-controller';
 export { default as SettingsView } from './components/SettingsView.svelte';
 export { default as GeneralSettings } from './components/GeneralSettings.svelte';
 export { default as AppearanceSettings } from './components/AppearanceSettings.svelte';

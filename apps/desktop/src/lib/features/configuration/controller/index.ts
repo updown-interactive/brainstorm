@@ -24,7 +24,7 @@ import {
 	type SharedTag
 } from '../../markdown/data/tag-registry';
 import { todayString } from '../../markdown/engine/frontmatter';
-import { shellState } from '../../shell/state';
+import { shellState } from '../../shell/state/state';
 import { ensureGraphConfigPath, normalizeGraphConfig, readGraphConfig, writeGraphConfig } from '../../graph/config/graph-config';
 import { graphConfigFileName, legacyGraphStateFileName } from '../../graph/config/constants';
 import type { DisplayRangeKey, ForceRangeKey, GraphConfig } from '../../graph/types';
