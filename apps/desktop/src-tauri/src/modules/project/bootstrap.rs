@@ -675,6 +675,7 @@ permissions:
   - workspace.read
   - workspace.write
   - terminal.execute
+  - network
   - internet.access
   - memory.read
 
@@ -1334,21 +1335,75 @@ Provides sandboxed terminal command execution capabilities.
     BootstrapFile {
         relative_path: &["tools", "web", "tool.yaml"],
         content: r#"id: web
-name: Web Research
-description: Fetch web pages, query internet search engines, and extract online content.
+name: Web
+description: Fetch public web pages and extract readable online content.
 version: 1.0.0
 permissions:
-  - internet.access
+  - network
 functions:
-  - search_web
-  - fetch_url
+  - web.fetch
+"#,
+    },
+    BootstrapFile {
+        relative_path: &["tools", "web", "manifest.yaml"],
+        content: r#"# Project-owned web tool configuration.
+# The native runtime reads this file for every web operation.
+name: web
+version: 0.1.0
+description: Access and retrieve information from the public web
+runtime: native
+
+permissions:
+# This must remain true for web.fetch to execute. Agent permissions are checked separately.
+  network: true
+
+limits:
+  timeout_seconds: 20
+  max_response_size: 10485760
+  max_extracted_text_size: 524288
+  max_redirects: 5
+
+client:
+  user_agent: "Brainstorm/0.1 web.fetch"
+  follow_redirects: true
+
+extraction:
+# Change this selector to control which page elements become readable content.
+  content_selector: "body :not(script):not(style):not(noscript):not(nav)"
+
+tools:
+  - name: web.fetch
+    enabled: true
+    description: Fetch a public web page and return readable content
 "#,
     },
     BootstrapFile {
         relative_path: &["tools", "web", "README.md"],
         content: r#"# Web Tool
 
-Provides web search and HTTP URL content fetching for online research.
+The native Web runtime is project-independent Rust code. This package is the
+project-owned configuration that controls how that runtime behaves.
+
+## Configuration
+
+Edit `manifest.yaml` to enable or disable operations and tune timeouts,
+response limits, redirect behavior, user-agent, and readable-content selection.
+Changes are read when an operation runs, so the runtime does not need to be
+rebuilt when a project owner changes these settings.
+
+`permissions.network` must be enabled both here and in the invoking agent's
+permissions. The runtime always enforces HTTP/HTTPS-only URLs and blocks local,
+private, loopback, and link-local addresses; project configuration cannot
+weaken those protections.
+
+## Runtime flow
+
+`web.fetch` → project manifest → permission check → URL/SSRF validation →
+bounded async HTTP request → content-type check → HTML/plain-text extraction →
+structured result.
+
+Only `web.fetch` is implemented in this version. Future operations such as
+`web.search` can be added as new `[[tools]]` entries and native handlers.
 "#,
     },
     BootstrapFile {
@@ -1358,7 +1413,7 @@ Provides web search and HTTP URL content fetching for online research.
   "type": "object",
   "properties": {
     "url": { "type": "string" },
-    "query": { "type": "string" }
+    "project_path": { "type": "string" }
   }
 }
 "#,
@@ -1369,8 +1424,12 @@ Provides web search and HTTP URL content fetching for online research.
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
-    "results": { "type": "array" },
-    "body": { "type": "string" }
+    "success": { "type": "boolean" },
+    "url": { "type": "string" },
+    "status": { "type": "integer" },
+    "content_type": { "type": "string" },
+    "title": { "type": ["string", "null"] },
+    "content": { "type": "string" }
   }
 }
 "#,
@@ -2345,6 +2404,8 @@ mod tests {
             assert!(tool_dir.join("tool.yaml").exists());
             assert!(tool_dir.join("README.md").exists());
         }
+
+        assert!(tools_dir.join("web").join("manifest.yaml").exists());
 
         // Verify full tools/markdown package file suite
         let markdown_tool_dir = tools_dir.join("markdown");

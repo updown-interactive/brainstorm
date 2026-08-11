@@ -10,6 +10,9 @@ pub enum AppError {
 
     #[error("AI provider error: {0}")]
     Ai(String),
+
+    #[error("Tool error: {0}")]
+    Tool(String),
 }
 
 // Convert our AppError into a String so Tauri can pass it to the frontend

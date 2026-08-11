@@ -22,16 +22,25 @@ pub fn run() {
             }
 
             let handle = app.handle().clone();
+            let init_handle = handle.clone();
             tauri::async_runtime::block_on(async move {
-                let db_state = core::db::init(&handle)
+                let db_state = core::db::init(&init_handle)
                     .await
                     .expect("failed to initialize db");
                 let ai_state = modules::ai::commands::state(db_state.pool.clone());
-                handle.manage(db_state);
-                let chat_state = modules::chat::commands::ChatState { service: std::sync::Arc::new(modules::chat::service::ChatService::new(ai_state.factory.clone())) };
-                handle.manage(ai_state);
-                handle.manage(chat_state);
+                init_handle.manage(db_state);
+                let chat_state = modules::chat::commands::ChatState {
+                    service: std::sync::Arc::new(modules::chat::service::ChatService::new(
+                        ai_state.factory.clone(),
+                    )),
+                };
+                init_handle.manage(ai_state);
+                init_handle.manage(chat_state);
             });
+            handle.manage(
+                modules::tools::web::commands::WebState::new()
+                    .expect("failed to initialize web tool"),
+            );
             Ok(())
         })
         .manage(modules::vault::commands::VaultState::default())
@@ -79,7 +88,8 @@ pub fn run() {
             modules::vault::commands::build_vault_index,
             modules::vault::commands::get_vault_index,
             modules::vault::commands::update_index_entry,
-            modules::vault::commands::rename_path_with_link_update
+            modules::vault::commands::rename_path_with_link_update,
+            modules::tools::web::commands::web_fetch
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
