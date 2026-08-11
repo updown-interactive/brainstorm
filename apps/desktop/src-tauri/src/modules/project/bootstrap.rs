@@ -873,58 +873,29 @@ Provides file system operations (read, write, move, copy) within workspace scope
         content: r#"id: markdown
 name: Markdown
 display_name: Markdown Tool
-version: 1.0.0
-
-description: >
-  Read, parse, create, modify, validate, and analyze
-  Brainstorm Markdown documents and their YAML frontmatter.
-
+version: 0.1.0
+description: Read Brainstorm Markdown documents and return structured content.
 category: document
-
 enabled: true
-
 capabilities:
   - markdown.read
-  - markdown.write
-  - markdown.create
-  - markdown.update
-  - markdown.parse
-  - markdown.validate
-  - markdown.properties
+  - markdown.metadata
   - markdown.links
-  - markdown.tags
   - markdown.headings
-  - markdown.sections
-  - markdown.code_blocks
-  - markdown.frontmatter
-  - markdown.extract
-
 permissions:
   - workspace.read
-  - workspace.write
-
 operations:
   - read
-  - create
-  - update
-  - append
-  - prepend
-  - replace
-  - parse
-  - validate
-  - properties
-  - sections
+  - metadata
   - links
-  - tags
   - headings
-  - extract
 "#,
     },
     BootstrapFile {
         relative_path: &["tools", "markdown", "README.md"],
         content: r#"# Markdown Tool (`tools/markdown`)
 
-The **Markdown Tool** is a standalone, agent-independent runtime capability responsible for reading, parsing, creating, updating, validating, and analyzing Brainstorm Markdown documents.
+The **Markdown Tool** is a standalone, agent-independent runtime capability for reading and analyzing Brainstorm Markdown documents.
 
 ## Architecture
 
@@ -934,7 +905,7 @@ Agent (Cerebrum / Reflex / Hippocampus / Cortex / User Agent)
 Markdown Tool (.brainstorm/tools/markdown/)
   ↓ validates permissions & workspace boundaries
 Parser & Frontmatter Property Engine
-  ↓ executes targeted edits
+  ↓ parses a read-only document request
 Workspace Files (.md / .mdx)
 ```
 
@@ -945,10 +916,38 @@ Every Brainstorm Markdown document consists of two distinct components:
 2. **Markdown Body**: Rich body content containing headings, paragraphs, lists, task lists, code blocks, math, callouts, and wiki links.
 
 ## Core Features
-- **Targeted Updates**: Modifies requested frontmatter properties or sections while preserving formatting, ordering, blank lines, and comments.
-- **Bidirectional File Sync**: The `name` property is bidirectionally synchronized with the disk filename.
+- **Structured Reads**: Returns typed frontmatter, body content, headings, wiki links, Markdown links, and tags.
 - **Workspace Boundary Safety**: Enforces strict workspace path validation, blocking traversal escapes (`../`, absolute paths, symlinks).
 - **AST Structural Extraction**: Parses headings, sections, wiki links (`[[Target]]`), tags (`#tag`), task lists (`- [x]`), callouts (`> [!NOTE]`), math (`$E=mc^2$`), tables, and code blocks (`mermaid`, `rust`, etc.).
+
+Only `markdown.read`, `markdown.metadata`, `markdown.links`, and `markdown.headings` are enabled in this version. Write operations are intentionally not available.
+"#,
+    },
+    BootstrapFile {
+        relative_path: &["tools", "markdown", "manifest.yaml"],
+        content: r#"# Project-owned Markdown tool configuration.
+name: markdown
+version: 0.1.0
+description: Read and understand Brainstorm Markdown knowledge documents
+runtime: native
+
+permissions:
+  vault_read: true
+  vault_write: false
+
+tools:
+  - name: markdown.read
+    enabled: true
+    description: Read a Markdown document and return its structured representation
+  - name: markdown.metadata
+    enabled: true
+    description: Extract document metadata and YAML frontmatter
+  - name: markdown.links
+    enabled: true
+    description: Extract wiki links and Markdown links from a document
+  - name: markdown.headings
+    enabled: true
+    description: Extract the heading structure of a Markdown document
 "#,
     },
     BootstrapFile {
@@ -2415,6 +2414,7 @@ mod tests {
         assert!(markdown_tool_dir.join("EXAMPLES.md").exists());
         assert!(markdown_tool_dir.join("INPUT_SCHEMA.json").exists());
         assert!(markdown_tool_dir.join("OUTPUT_SCHEMA.json").exists());
+        assert!(markdown_tool_dir.join("manifest.yaml").exists());
 
         // Verify capability registry
         let registry_file = brainstorm_root

@@ -3,11 +3,15 @@ use crate::core::error::AppError;
 #[derive(Debug, Clone, Copy)]
 pub struct PermissionSet {
     pub network: bool,
+    pub vault_read: bool,
 }
 
 impl PermissionSet {
     pub const fn native_defaults() -> Self {
-        Self { network: true }
+        Self {
+            network: true,
+            vault_read: true,
+        }
     }
 }
 
@@ -26,6 +30,16 @@ impl ToolRuntime {
             Ok(())
         } else {
             Err(AppError::Tool("network permission is not granted".into()))
+        }
+    }
+
+    pub fn require_vault_read(&self) -> Result<(), AppError> {
+        if self.permissions.vault_read {
+            Ok(())
+        } else {
+            Err(AppError::Tool(
+                "vault read permission is not granted".into(),
+            ))
         }
     }
 }
