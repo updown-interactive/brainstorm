@@ -49,12 +49,19 @@ pub async fn update_message_content(
     content: &str,
     status: &str,
 ) -> Result<(), AppError> {
-    sqlx::query("UPDATE conversation_messages SET content = ?, status = ?, updated_at = ? WHERE id = ?")
-        .bind(content)
-        .bind(status)
-        .bind(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|duration| duration.as_secs() as i64).unwrap_or_default())
-        .bind(message_id)
-        .execute(pool)
-        .await?;
+    sqlx::query(
+        "UPDATE conversation_messages SET content = ?, status = ?, updated_at = ? WHERE id = ?",
+    )
+    .bind(content)
+    .bind(status)
+    .bind(
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|duration| duration.as_secs() as i64)
+            .unwrap_or_default(),
+    )
+    .bind(message_id)
+    .execute(pool)
+    .await?;
     Ok(())
 }

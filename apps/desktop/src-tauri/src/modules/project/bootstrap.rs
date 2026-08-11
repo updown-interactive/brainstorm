@@ -816,26 +816,26 @@ No active tasks.
 ];
 
 const TOOL_FILES: &[BootstrapFile] = &[
-    // --- knowledge ---
+    // --- vault ---
     BootstrapFile {
-        relative_path: &["tools", "knowledge", "tool.yaml"],
-        content: r#"id: knowledge
-name: Knowledge
-description: Manage the structure and contents of the Brainstorm knowledge vault.
+        relative_path: &["tools", "vault", "tool.yaml"],
+        content: r#"id: vault
+name: Vault
+description: Manage the structure and contents of the Brainstorm vault.
 version: 0.1.0
 permissions:
   - workspace.read
   - workspace.write
 functions:
-  - knowledge.vault.execute
+  - vault.execute
 "#,
     },
     BootstrapFile {
-        relative_path: &["tools", "knowledge", "manifest.yaml"],
-        content: r#"# Project-owned Knowledge tool configuration.
-name: knowledge
+        relative_path: &["tools", "vault", "manifest.yaml"],
+        content: r#"# Project-owned Vault tool configuration.
+name: vault
 version: 0.1.0
-description: Manage the Brainstorm knowledge vault structure
+description: Manage the Brainstorm vault structure
 runtime: native
 
 permissions:
@@ -843,40 +843,40 @@ permissions:
   vault_write: false
 
 tools:
-  - name: knowledge.vault.list
+  - name: vault.list
     enabled: true
-    description: List files and folders in the knowledge vault
-  - name: knowledge.vault.tree
+    description: List files and folders in the vault
+  - name: vault.tree
     enabled: true
-    description: Get the directory structure of the knowledge vault
-  - name: knowledge.vault.exists
+    description: Get the directory structure of the vault
+  - name: vault.exists
     enabled: true
-    description: Check whether a path exists in the knowledge vault
-  - name: knowledge.vault.info
+    description: Check whether a path exists in the vault
+  - name: vault.info
     enabled: true
     description: Get metadata about a vault file or directory
-  - name: knowledge.vault.create_file
+  - name: vault.create_file
     enabled: true
-    description: Create a file in the knowledge vault
-  - name: knowledge.vault.create_folder
+    description: Create a file in the vault
+  - name: vault.create_folder
     enabled: true
-    description: Create a folder in the knowledge vault
-  - name: knowledge.vault.move
+    description: Create a folder in the vault
+  - name: vault.move
     enabled: true
-    description: Move a file or folder within the knowledge vault
-  - name: knowledge.vault.rename
+    description: Move a file or folder within the vault
+  - name: vault.rename
     enabled: true
-    description: Rename a file or folder within the knowledge vault
-  - name: knowledge.vault.delete
+    description: Rename a file or folder within the vault
+  - name: vault.delete
     enabled: true
-    description: Delete a file or folder from the knowledge vault
+    description: Delete a file or folder from the vault
 "#,
     },
     BootstrapFile {
-        relative_path: &["tools", "knowledge", "README.md"],
-        content: r#"# Knowledge Tool
+        relative_path: &["tools", "vault", "README.md"],
+        content: r#"# Vault Tool
 
-The Knowledge tool owns vault structure: relative paths, files, folders,
+The Vault tool owns vault structure: relative paths, files, folders,
 directory listings, metadata, and permission-controlled file operations.
 Document semantics remain in the Markdown tool.
 
@@ -887,55 +887,46 @@ Read operations are enabled by default. Write operations require both
 Directory deletion additionally requires `recursive: true`.
 "#,
     },
-    // --- filesystem ---
+    // --- search ---
     BootstrapFile {
-        relative_path: &["tools", "filesystem", "tool.yaml"],
-        content: r#"id: filesystem
-name: File System
-description: Read, write, move, and copy files inside the workspace.
-version: 1.0.0
+        relative_path: &["tools", "search", "tool.yaml"],
+        content: r#"id: search
+name: Search
+description: Search the Brainstorm vault for relevant documents and content
+version: 0.1.0
 permissions:
-  - workspace.read
-  - workspace.write
+  - vault.read
 functions:
-  - read_file
-  - write_file
-  - move_file
-  - copy_file
+  - search.query
 "#,
     },
     BootstrapFile {
-        relative_path: &["tools", "filesystem", "README.md"],
-        content: r#"# File System Tool
+        relative_path: &["tools", "search", "manifest.yaml"],
+        content: r#"# Project-owned Search tool configuration.
+name: search
+version: 0.1.0
+description: Search the Brainstorm vault for relevant documents and content
+runtime: native
 
-Provides file system operations (read, write, move, copy) within workspace scope.
+permissions:
+  vault_read: true
+
+tools:
+  - name: search.query
+    enabled: true
+    description: Search the Brainstorm vault for relevant documents and content
 "#,
     },
     BootstrapFile {
-        relative_path: &["tools", "filesystem", "INPUT_SCHEMA.json"],
-        content: r#"{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
-    "path": { "type": "string" },
-    "content": { "type": "string" },
-    "destination": { "type": "string" }
-  },
-  "required": ["path"]
-}
-"#,
-    },
-    BootstrapFile {
-        relative_path: &["tools", "filesystem", "OUTPUT_SCHEMA.json"],
-        content: r#"{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
-    "success": { "type": "boolean" },
-    "content": { "type": "string" },
-    "error": { "type": "string" }
-  }
-}
+        relative_path: &["tools", "search", "README.md"],
+        content: r#"# Search Tool
+
+Search discovers relevant Markdown documents in the active vault. It uses a
+local derived index and returns ranked paths and concise snippets.
+
+The index is rebuilt when needed and updated from the existing file watcher.
+Search is read-only; use the Vault and Markdown tools for file operations and
+document inspection.
 "#,
     },
     // --- markdown ---
@@ -1216,191 +1207,6 @@ See [[Project Roadmap|Roadmap]] and #markdown #testing.
 }
 "#,
     },
-    // --- graph ---
-    BootstrapFile {
-        relative_path: &["tools", "graph", "tool.yaml"],
-        content: r#"id: graph
-name: Knowledge Graph
-description: Query nodes, create links, traverse relationships, and update graph indices.
-version: 1.0.0
-permissions:
-  - workspace.read
-  - workspace.write
-functions:
-  - query_nodes
-  - link_nodes
-  - traverse_edges
-"#,
-    },
-    BootstrapFile {
-        relative_path: &["tools", "graph", "README.md"],
-        content: r#"# Knowledge Graph Tool
-
-Provides graph query, node linking, and relationship traversal capabilities.
-"#,
-    },
-    BootstrapFile {
-        relative_path: &["tools", "graph", "INPUT_SCHEMA.json"],
-        content: r#"{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
-    "query": { "type": "string" },
-    "source": { "type": "string" },
-    "target": { "type": "string" }
-  }
-}
-"#,
-    },
-    BootstrapFile {
-        relative_path: &["tools", "graph", "OUTPUT_SCHEMA.json"],
-        content: r#"{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
-    "nodes": { "type": "array" },
-    "edges": { "type": "array" }
-  }
-}
-"#,
-    },
-    // --- search ---
-    BootstrapFile {
-        relative_path: &["tools", "search", "tool.yaml"],
-        content: r#"id: search
-name: Search Engine
-description: Execute text, fuzzy term, and vector semantic similarity searches.
-version: 1.0.0
-permissions:
-  - workspace.read
-functions:
-  - search_text
-  - search_vector
-"#,
-    },
-    BootstrapFile {
-        relative_path: &["tools", "search", "README.md"],
-        content: r#"# Search Engine Tool
-
-Provides hybrid text and vector semantic similarity search across workspace documents.
-"#,
-    },
-    BootstrapFile {
-        relative_path: &["tools", "search", "INPUT_SCHEMA.json"],
-        content: r#"{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
-    "query": { "type": "string" },
-    "limit": { "type": "integer" }
-  },
-  "required": ["query"]
-}
-"#,
-    },
-    BootstrapFile {
-        relative_path: &["tools", "search", "OUTPUT_SCHEMA.json"],
-        content: r#"{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
-    "results": { "type": "array" }
-  }
-}
-"#,
-    },
-    // --- git ---
-    BootstrapFile {
-        relative_path: &["tools", "git", "tool.yaml"],
-        content: r#"id: git
-name: Git Version Control
-description: Inspect git history, commit changes, branch, and status workspace repository.
-version: 1.0.0
-permissions:
-  - workspace.read
-  - workspace.write
-functions:
-  - git_status
-  - git_commit
-  - git_log
-"#,
-    },
-    BootstrapFile {
-        relative_path: &["tools", "git", "README.md"],
-        content: r#"# Git Tool
-
-Provides Git repository status, log, and commit actions for workspace tracking.
-"#,
-    },
-    BootstrapFile {
-        relative_path: &["tools", "git", "INPUT_SCHEMA.json"],
-        content: r#"{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
-    "message": { "type": "string" }
-  }
-}
-"#,
-    },
-    BootstrapFile {
-        relative_path: &["tools", "git", "OUTPUT_SCHEMA.json"],
-        content: r#"{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
-    "status": { "type": "string" },
-    "log": { "type": "array" }
-  }
-}
-"#,
-    },
-    // --- terminal ---
-    BootstrapFile {
-        relative_path: &["tools", "terminal", "tool.yaml"],
-        content: r#"id: terminal
-name: Terminal Shell
-description: Execute background commands and shell scripts within workspace sandbox.
-version: 1.0.0
-permissions:
-  - terminal.execute
-functions:
-  - execute_command
-"#,
-    },
-    BootstrapFile {
-        relative_path: &["tools", "terminal", "README.md"],
-        content: r#"# Terminal Tool
-
-Provides sandboxed terminal command execution capabilities.
-"#,
-    },
-    BootstrapFile {
-        relative_path: &["tools", "terminal", "INPUT_SCHEMA.json"],
-        content: r#"{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
-    "command": { "type": "string" },
-    "cwd": { "type": "string" }
-  },
-  "required": ["command"]
-}
-"#,
-    },
-    BootstrapFile {
-        relative_path: &["tools", "terminal", "OUTPUT_SCHEMA.json"],
-        content: r#"{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
-    "exit_code": { "type": "integer" },
-    "stdout": { "type": "string" },
-    "stderr": { "type": "string" }
-  }
-}
-"#,
-    },
     // --- web ---
     BootstrapFile {
         relative_path: &["tools", "web", "tool.yaml"],
@@ -1417,14 +1223,12 @@ functions:
     BootstrapFile {
         relative_path: &["tools", "web", "manifest.yaml"],
         content: r#"# Project-owned web tool configuration.
-# The native runtime reads this file for every web operation.
 name: web
 version: 0.1.0
 description: Access and retrieve information from the public web
 runtime: native
 
 permissions:
-# This must remain true for web.fetch to execute. Agent permissions are checked separately.
   network: true
 
 limits:
@@ -1438,7 +1242,6 @@ client:
   follow_redirects: true
 
 extraction:
-# Change this selector to control which page elements become readable content.
   content_selector: "body :not(script):not(style):not(noscript):not(nav)"
 
 tools:
@@ -1504,247 +1307,6 @@ Only `web.fetch` is implemented in this version. Future operations such as
 }
 "#,
     },
-    // --- memory ---
-    BootstrapFile {
-        relative_path: &["tools", "memory", "tool.yaml"],
-        content: r#"id: memory
-name: Session & Persistent Memory
-description: Store and retrieve short-term session state and long-term workspace memory.
-version: 1.0.0
-permissions:
-  - memory.read
-  - memory.write
-functions:
-  - read_memory
-  - write_memory
-"#,
-    },
-    BootstrapFile {
-        relative_path: &["tools", "memory", "README.md"],
-        content: r#"# Memory Tool
-
-Provides key-value and vector session/persistent memory store operations.
-"#,
-    },
-    BootstrapFile {
-        relative_path: &["tools", "memory", "INPUT_SCHEMA.json"],
-        content: r#"{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
-    "key": { "type": "string" },
-    "value": { "type": "string" }
-  },
-  "required": ["key"]
-}
-"#,
-    },
-    BootstrapFile {
-        relative_path: &["tools", "memory", "OUTPUT_SCHEMA.json"],
-        content: r#"{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
-    "value": { "type": "string" },
-    "success": { "type": "boolean" }
-  }
-}
-"#,
-    },
-    // --- notes ---
-    BootstrapFile {
-        relative_path: &["tools", "notes", "tool.yaml"],
-        content: r#"id: notes
-name: Notes Manager
-description: Manage workspace notes, scratchpads, tag indexing, and backlinks.
-version: 1.0.0
-permissions:
-  - workspace.read
-  - workspace.write
-functions:
-  - create_note
-  - update_note
-  - get_backlinks
-"#,
-    },
-    BootstrapFile {
-        relative_path: &["tools", "notes", "README.md"],
-        content: r#"# Notes Tool
-
-Provides note creation, editing, tagging, and backlink management.
-"#,
-    },
-    BootstrapFile {
-        relative_path: &["tools", "notes", "INPUT_SCHEMA.json"],
-        content: r#"{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
-    "title": { "type": "string" },
-    "body": { "type": "string" },
-    "tags": { "type": "array" }
-  }
-}
-"#,
-    },
-    BootstrapFile {
-        relative_path: &["tools", "notes", "OUTPUT_SCHEMA.json"],
-        content: r#"{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
-    "note_id": { "type": "string" },
-    "backlinks": { "type": "array" }
-  }
-}
-"#,
-    },
-    // --- workspace ---
-    BootstrapFile {
-        relative_path: &["tools", "workspace", "tool.yaml"],
-        content: r#"id: workspace
-name: Workspace Management
-description: Manage workspace configuration, project metadata, and layout presets.
-version: 1.0.0
-permissions:
-  - workspace.read
-  - workspace.write
-functions:
-  - get_workspace_info
-  - update_settings
-"#,
-    },
-    BootstrapFile {
-        relative_path: &["tools", "workspace", "README.md"],
-        content: r#"# Workspace Tool
-
-Provides workspace metadata inspection and settings configuration.
-"#,
-    },
-    BootstrapFile {
-        relative_path: &["tools", "workspace", "INPUT_SCHEMA.json"],
-        content: r#"{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
-    "setting_key": { "type": "string" },
-    "value": { "type": "string" }
-  }
-}
-"#,
-    },
-    BootstrapFile {
-        relative_path: &["tools", "workspace", "OUTPUT_SCHEMA.json"],
-        content: r#"{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
-    "workspace_id": { "type": "string" },
-    "info": { "type": "object" }
-  }
-}
-"#,
-    },
-    // --- llm ---
-    BootstrapFile {
-        relative_path: &["tools", "llm", "tool.yaml"],
-        content: r#"id: llm
-name: Language Model Interface
-description: Interface with reasoning models, stream completions, and manage token context.
-version: 1.0.0
-permissions:
-  - llm.invoke
-functions:
-  - generate_completion
-  - count_tokens
-"#,
-    },
-    BootstrapFile {
-        relative_path: &["tools", "llm", "README.md"],
-        content: r#"# LLM Tool
-
-Provides direct model completion generation and token estimation capabilities.
-"#,
-    },
-    BootstrapFile {
-        relative_path: &["tools", "llm", "INPUT_SCHEMA.json"],
-        content: r#"{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
-    "prompt": { "type": "string" },
-    "model": { "type": "string" }
-  },
-  "required": ["prompt"]
-}
-"#,
-    },
-    BootstrapFile {
-        relative_path: &["tools", "llm", "OUTPUT_SCHEMA.json"],
-        content: r#"{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
-    "completion": { "type": "string" },
-    "tokens_used": { "type": "integer" }
-  }
-}
-"#,
-    },
-];
-
-const WORKFLOW_TEMPLATES: &[BootstrapFile] = &[
-    BootstrapFile {
-        relative_path: &["workflows", "templates", "meeting-summary.yaml"],
-        content: r#"id: meeting-summary
-name: Meeting Summary
-description: Extracts action items, key decisions, and discussion points from meeting notes.
-agent: reflex
-steps:
-  - parse_transcript
-  - extract_decisions
-  - extract_action_items
-  - format_summary
-"#,
-    },
-    BootstrapFile {
-        relative_path: &["workflows", "templates", "research.yaml"],
-        content: r#"id: research
-name: Deep Research Workflow
-description: Performs systematic investigation, links sources, and structures research findings.
-agent: cortex
-steps:
-  - define_objectives
-  - gather_context
-  - analyze_sources
-  - synthesize_report
-"#,
-    },
-    BootstrapFile {
-        relative_path: &["workflows", "templates", "release-note.yaml"],
-        content: r#"id: release-note
-name: Release Notes Generator
-description: Compiles changelogs, pull requests, and commit logs into user-facing release notes.
-agent: cortex
-steps:
-  - collect_commits
-  - group_by_category
-  - format_changelog
-"#,
-    },
-    BootstrapFile {
-        relative_path: &["workflows", "templates", "documentation.yaml"],
-        content: r#"id: documentation
-name: Documentation Generator
-description: Scans source code and architecture files to build comprehensive documentation graphs.
-agent: hippocampus
-steps:
-  - scan_workspace
-  - parse_ast
-  - extract_docstrings
-  - update_knowledge_graph
-"#,
-    },
 ];
 
 const CONFIGURATION_FILES: &[BootstrapFile] = &[
@@ -1796,6 +1358,28 @@ const CONFIGURATION_FILES: &[BootstrapFile] = &[
     },
 ];
 
+const STATE_FILES: &[BootstrapFile] = &[BootstrapFile {
+    relative_path: &["state", "explorer-state.json"],
+    content: r#"{
+  "version": 1,
+  "fileTree": {
+    "expandedPaths": [],
+    "focusedPath": null
+  },
+  "editor": {
+    "activePaneId": "pane-1",
+    "panes": [
+      {
+        "id": "pane-1",
+        "activeTabId": null,
+        "tabs": []
+      }
+    ]
+  }
+}
+"#,
+}];
+
 pub struct BootstrapEngine<'a> {
     brainstorm_root: PathBuf,
     _project_path: &'a Path,
@@ -1815,8 +1399,8 @@ impl<'a> BootstrapEngine<'a> {
         // Stage 1 — Create .brainstorm
         self.stage_1_create_workspace_root()?;
 
-        // Stage 2 — Install Runtime
-        self.stage_2_install_runtime()?;
+        // Stage 2 — Prepare configuration
+        self.stage_2_prepare_configuration()?;
 
         // Stage 3 — Install Core Agents & Tools
         self.stage_3_install_core_agents()?;
@@ -1832,16 +1416,7 @@ impl<'a> BootstrapEngine<'a> {
         self.stage_6_build_capability_registry()?;
         self.stage_6_b_build_tool_registry()?;
 
-        // Stage 7 — Install Workflow Templates
-        self.stage_7_install_workflow_templates()?;
-
-        // Stage 8 — Initialize Memory
-        self.stage_8_initialize_memory()?;
-
-        // Stage 9 — Initialize Knowledge
-        self.stage_9_initialize_knowledge()?;
-
-        // Stage 10 — Validate & Generate bootstrap.yaml
+        // Stage 7 — Validate & Generate bootstrap.yaml
         self.stage_10_validate_and_finalize(&workspace_id, &installed_agents)?;
 
         // Install UI Configuration files
@@ -1855,43 +1430,22 @@ impl<'a> BootstrapEngine<'a> {
         Ok(())
     }
 
-    fn stage_2_install_runtime(&self) -> Result<(), AppError> {
-        let runtime_dir = self.brainstorm_root.join("runtime");
+    fn stage_2_prepare_configuration(&self) -> Result<(), AppError> {
         let configuration_dir = self.brainstorm_root.join("configuration");
-        let logs_dir = self.brainstorm_root.join("logs");
+        let state_dir = self.brainstorm_root.join("state");
+        let legacy_explorer_state = self.brainstorm_root.join("explorer-state.json");
 
         // Clean up legacy `config` directory to avoid confusion with `configuration`
         let legacy_config_dir = self.brainstorm_root.join("config");
         if legacy_config_dir.exists() {
             let _ = std::fs::remove_dir_all(legacy_config_dir);
         }
+        if legacy_explorer_state.exists() {
+            let _ = std::fs::remove_file(legacy_explorer_state);
+        }
 
-        std::fs::create_dir_all(&runtime_dir).map_err(bootstrap_error)?;
         std::fs::create_dir_all(&configuration_dir).map_err(bootstrap_error)?;
-        std::fs::create_dir_all(&logs_dir).map_err(bootstrap_error)?;
-
-        let engine_file = runtime_dir.join("engine.json");
-        if !engine_file.exists() {
-            let engine_content = r#"{
-  "engineVersion": "0.1.0",
-  "status": "active",
-  "mode": "standalone"
-}
-"#;
-            std::fs::write(engine_file, engine_content).map_err(bootstrap_error)?;
-        }
-
-        let runtime_config_file = configuration_dir.join("runtime-config.json");
-        if !runtime_config_file.exists() {
-            let config_content = r#"{
-  "logLevel": "info",
-  "maxConcurrentTasks": 10,
-  "autoSyncMemory": true
-}
-"#;
-            std::fs::write(runtime_config_file, config_content).map_err(bootstrap_error)?;
-        }
-
+        std::fs::create_dir_all(&state_dir).map_err(bootstrap_error)?;
         Ok(())
     }
 
@@ -2208,29 +1762,6 @@ impl<'a> BootstrapEngine<'a> {
         Ok(())
     }
 
-    fn stage_7_install_workflow_templates(&self) -> Result<(), AppError> {
-        for file in WORKFLOW_TEMPLATES {
-            write_bootstrap_file(&self.brainstorm_root, file)?;
-        }
-        Ok(())
-    }
-
-    fn stage_8_initialize_memory(&self) -> Result<(), AppError> {
-        let memory_root = self.brainstorm_root.join("memory");
-        for sub in &["shared", "private", "sessions", "cache"] {
-            std::fs::create_dir_all(memory_root.join(sub)).map_err(bootstrap_error)?;
-        }
-        Ok(())
-    }
-
-    fn stage_9_initialize_knowledge(&self) -> Result<(), AppError> {
-        let knowledge_root = self.brainstorm_root.join("knowledge");
-        for sub in &["index", "graph", "chunks", "embeddings"] {
-            std::fs::create_dir_all(knowledge_root.join(sub)).map_err(bootstrap_error)?;
-        }
-        Ok(())
-    }
-
     fn stage_10_validate_and_finalize(
         &self,
         workspace_id: &str,
@@ -2255,12 +1786,8 @@ bootstrap_version: 1.0.0
 brainstorm_version: 0.1.0
 completed_at: {}
 installed:
-  runtime: true
   agents: true
   tools: true
-  workflows: true
-  memory: true
-  knowledge: true
   settings: true
 installed_agents:
 {}
@@ -2277,6 +1804,9 @@ schema_version: 1
 
     fn install_configuration_files(&self) -> Result<(), AppError> {
         for file in CONFIGURATION_FILES {
+            write_bootstrap_file(&self.brainstorm_root, file)?;
+        }
+        for file in STATE_FILES {
             write_bootstrap_file(&self.brainstorm_root, file)?;
         }
         Ok(())
@@ -2456,20 +1986,7 @@ mod tests {
         // Verify standalone tools installation
         let tools_dir = brainstorm_root.join("tools");
         assert!(tools_dir.exists());
-        for tool in &[
-            "filesystem",
-            "knowledge",
-            "markdown",
-            "graph",
-            "search",
-            "git",
-            "terminal",
-            "web",
-            "memory",
-            "notes",
-            "workspace",
-            "llm",
-        ] {
+        for tool in &["vault", "markdown", "search", "web"] {
             let tool_dir = tools_dir.join(tool);
             assert!(tool_dir.exists(), "Tool dir {} should exist", tool);
             assert!(tool_dir.join("tool.yaml").exists());
@@ -2477,6 +1994,7 @@ mod tests {
         }
 
         assert!(tools_dir.join("web").join("manifest.yaml").exists());
+        assert!(tools_dir.join("search").join("manifest.yaml").exists());
 
         // Verify full tools/markdown package file suite
         let markdown_tool_dir = tools_dir.join("markdown");
@@ -2487,8 +2005,19 @@ mod tests {
         assert!(markdown_tool_dir.join("INPUT_SCHEMA.json").exists());
         assert!(markdown_tool_dir.join("OUTPUT_SCHEMA.json").exists());
         assert!(markdown_tool_dir.join("manifest.yaml").exists());
-        let knowledge_tool_dir = tools_dir.join("knowledge");
-        assert!(knowledge_tool_dir.join("manifest.yaml").exists());
+        let vault_tool_dir = tools_dir.join("vault");
+        assert!(vault_tool_dir.join("manifest.yaml").exists());
+
+        let explorer_state_file = brainstorm_root.join("state").join("explorer-state.json");
+        assert!(explorer_state_file.exists());
+        let explorer_state: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(explorer_state_file).unwrap()).unwrap();
+        assert_eq!(
+            explorer_state
+                .get("version")
+                .and_then(|value| value.as_i64()),
+            Some(1)
+        );
 
         // Verify capability registry
         let registry_file = brainstorm_root
@@ -2526,8 +2055,10 @@ mod tests {
         let tool_reg_json: serde_json::Value = serde_json::from_str(&tool_reg_raw).unwrap();
 
         let installed_tools = tool_reg_json.get("installed_tools").unwrap();
-        assert!(installed_tools.get("filesystem").is_some());
-        assert!(installed_tools.get("terminal").is_some());
+        assert!(installed_tools.get("vault").is_some());
+        assert!(installed_tools.get("markdown").is_some());
+        assert!(installed_tools.get("search").is_some());
+        assert!(installed_tools.get("web").is_some());
 
         let mappings = tool_reg_json.get("agent_tool_mappings").unwrap();
         let reflex_map = mappings.get("reflex").unwrap();
@@ -2535,7 +2066,6 @@ mod tests {
         assert!(reflex_granted
             .iter()
             .any(|v| v.as_str() == Some("markdown")));
-        assert!(reflex_granted.iter().any(|v| v.as_str() == Some("graph")));
 
         let _ = std::fs::remove_dir_all(temp_dir);
     }

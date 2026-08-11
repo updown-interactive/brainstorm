@@ -4,10 +4,10 @@ use super::{
     response::{LlmModel, LlmResponse},
 };
 use async_trait::async_trait;
+use futures_util::{stream, StreamExt};
 use reqwest::Client;
 use serde_json::{json, Value};
 use std::sync::Arc;
-use futures_util::{stream, StreamExt};
 
 pub struct HttpProvider {
     pub id: String,
@@ -53,10 +53,20 @@ impl HttpProvider {
         })
     }
 
-    async fn openai_stream(&self, request: LlmRequest) -> Result<super::provider::LlmStream, LlmError> {
+    async fn openai_stream(
+        &self,
+        request: LlmRequest,
+    ) -> Result<super::provider::LlmStream, LlmError> {
         let body = json!({ "model": request.model, "messages": request.messages.iter().map(|m| json!({"role": match m.role { LlmRole::System => "system", LlmRole::User => "user", LlmRole::Assistant => "assistant", LlmRole::Tool => "tool" }, "content": m.content})).collect::<Vec<_>>(), "temperature": request.temperature, "max_tokens": request.max_tokens, "stream": true });
         let response = self
-            .auth(self.client.post(format!("{}/chat/completions", self.base_url.trim_end_matches('/'))).json(&body))
+            .auth(
+                self.client
+                    .post(format!(
+                        "{}/chat/completions",
+                        self.base_url.trim_end_matches('/')
+                    ))
+                    .json(&body),
+            )
             .send()
             .await
             .map_err(LlmError::Request)?;
@@ -65,33 +75,49 @@ impl HttpProvider {
         }
 
         let bytes = response.bytes_stream();
-        let stream = stream::unfold((bytes, String::new(), false), |(mut bytes, mut buffer, finished)| async move {
-            if finished {
-                return None;
-            }
-            loop {
-                if let Some(separator) = buffer.find("\n\n") {
-                    let event = buffer[..separator].to_owned();
-                    buffer.drain(..separator + 2);
-                    let data = event.lines().filter_map(|line| line.strip_prefix("data:")).map(str::trim).collect::<Vec<_>>().join("\n");
-                    if data == "[DONE]" {
-                        return None;
-                    }
-                    let delta = serde_json::from_str::<Value>(&data).ok().and_then(|value| value["choices"][0]["delta"]["content"].as_str().map(str::to_owned));
-                    if let Some(delta) = delta.filter(|value| !value.is_empty()) {
-                        return Some((Ok(delta), (bytes, buffer, finished)));
-                    }
-                    continue;
+        let stream = stream::unfold(
+            (bytes, String::new(), false),
+            |(mut bytes, mut buffer, finished)| async move {
+                if finished {
+                    return None;
                 }
-                match bytes.next().await {
-                    Some(Ok(chunk)) => buffer.push_str(&String::from_utf8_lossy(&chunk).replace("\r\n", "\n")),
-                    Some(Err(error)) => return Some((Err(LlmError::Request(error)), (bytes, buffer, true))),
-                    None => {
-                        return None;
+                loop {
+                    if let Some(separator) = buffer.find("\n\n") {
+                        let event = buffer[..separator].to_owned();
+                        buffer.drain(..separator + 2);
+                        let data = event
+                            .lines()
+                            .filter_map(|line| line.strip_prefix("data:"))
+                            .map(str::trim)
+                            .collect::<Vec<_>>()
+                            .join("\n");
+                        if data == "[DONE]" {
+                            return None;
+                        }
+                        let delta = serde_json::from_str::<Value>(&data).ok().and_then(|value| {
+                            value["choices"][0]["delta"]["content"]
+                                .as_str()
+                                .map(str::to_owned)
+                        });
+                        if let Some(delta) = delta.filter(|value| !value.is_empty()) {
+                            return Some((Ok(delta), (bytes, buffer, finished)));
+                        }
+                        continue;
+                    }
+                    match bytes.next().await {
+                        Some(Ok(chunk)) => {
+                            buffer.push_str(&String::from_utf8_lossy(&chunk).replace("\r\n", "\n"))
+                        }
+                        Some(Err(error)) => {
+                            return Some((Err(LlmError::Request(error)), (bytes, buffer, true)))
+                        }
+                        None => {
+                            return None;
+                        }
                     }
                 }
-            }
-        });
+            },
+        );
         Ok(Box::pin(stream))
     }
 }
@@ -108,7 +134,10 @@ impl super::provider::LlmProvider for HttpProvider {
     }
     async fn stream(&self, request: LlmRequest) -> Result<super::provider::LlmStream, LlmError> {
         if self.id == "google" {
-            return self.generate(request).await.map(|response| Box::pin(stream::once(async move { Ok(response.content) })) as super::provider::LlmStream);
+            return self.generate(request).await.map(|response| {
+                Box::pin(stream::once(async move { Ok(response.content) }))
+                    as super::provider::LlmStream
+            });
         }
         self.openai_stream(request).await
     }

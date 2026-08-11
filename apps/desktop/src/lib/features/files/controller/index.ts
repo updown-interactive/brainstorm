@@ -4,6 +4,7 @@ import { Columns2, File, FileArchive, FileCode, FileJson, FileText, FolderPlus, 
 import { getCustomFileIcon, resolveIconComponent } from '../config/icon-registry';
 import { ConfigurationPanel } from '../../configuration';
 import MarkdownEditor from '../../markdown';
+import YamlFileEditor from '../../configuration/ui/YamlFileEditor.svelte';
 import { editorState, type EditorPane, type EditorState } from '../state/editor';
 import {
 	contextMenuState,
@@ -60,6 +61,10 @@ class FilesController {
 	readonly quickOpenState = quickOpenController.state;
 	readonly settingsComponent = ConfigurationPanel;
 	readonly editorComponent = MarkdownEditor;
+
+	editorComponentForPath(path: string) {
+		return /\.(yaml|yml)$/i.test(path) ? YamlFileEditor : MarkdownEditor;
+	}
 	readonly splitIcon = Columns2;
 	readonly newFolderIcon = FolderPlus;
 	readonly searchIcon = Search;

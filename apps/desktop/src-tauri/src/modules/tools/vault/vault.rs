@@ -10,25 +10,20 @@ use crate::{
     },
 };
 
-const READ_OPERATIONS: &[&str] = &[
-    "knowledge.vault.list",
-    "knowledge.vault.tree",
-    "knowledge.vault.exists",
-    "knowledge.vault.info",
-];
+const READ_OPERATIONS: &[&str] = &["vault.list", "vault.tree", "vault.exists", "vault.info"];
 const WRITE_OPERATIONS: &[&str] = &[
-    "knowledge.vault.create_file",
-    "knowledge.vault.create_folder",
-    "knowledge.vault.move",
-    "knowledge.vault.rename",
-    "knowledge.vault.delete",
+    "vault.create_file",
+    "vault.create_folder",
+    "vault.move",
+    "vault.rename",
+    "vault.delete",
 ];
 
-pub struct KnowledgeVaultState {
+pub struct VaultState {
     pub runtime: ToolRuntime,
 }
 
-impl Default for KnowledgeVaultState {
+impl Default for VaultState {
     fn default() -> Self {
         Self {
             runtime: ToolRuntime::new(PermissionSet::native_defaults()),
@@ -51,49 +46,47 @@ pub struct VaultRequest {
 }
 
 #[derive(Debug, Deserialize)]
-struct KnowledgeManifest {
-    permissions: KnowledgePermissions,
-    tools: Vec<KnowledgeTool>,
+struct VaultManifest {
+    permissions: VaultPermissions,
+    tools: Vec<VaultTool>,
 }
 #[derive(Debug, Deserialize)]
-struct KnowledgePermissions {
+struct VaultPermissions {
     vault_read: bool,
     vault_write: bool,
 }
 #[derive(Debug, Deserialize)]
-struct KnowledgeTool {
+struct VaultTool {
     name: String,
     #[serde(default = "default_enabled")]
     enabled: bool,
 }
 
 #[tauri::command]
-pub async fn knowledge_vault_execute(
+pub async fn vault_execute(
     request: VaultRequest,
-    state: State<'_, KnowledgeVaultState>,
+    state: State<'_, VaultState>,
 ) -> Result<Value, AppError> {
     let operation = request.operation.clone();
     if (!READ_OPERATIONS.contains(&operation.as_str())
         && !WRITE_OPERATIONS.contains(&operation.as_str()))
         || !registry::contains(&operation)
     {
-        return Err(AppError::Tool(
-            "unsupported knowledge vault operation".into(),
-        ));
+        return Err(AppError::Tool("unsupported vault operation".into()));
     }
-    let manifest_path = std::path::Path::new(&request.project_path)
-        .join(".brainstorm/tools/knowledge/manifest.yaml");
+    let manifest_path =
+        std::path::Path::new(&request.project_path).join(".brainstorm/tools/vault/manifest.yaml");
     let manifest_content = std::fs::read_to_string(manifest_path)
-        .map_err(|_| AppError::Tool("knowledge tool configuration is missing or invalid".into()))?;
-    let manifest: KnowledgeManifest = serde_yaml::from_str(&manifest_content)
-        .map_err(|_| AppError::Tool("knowledge tool configuration is missing or invalid".into()))?;
+        .map_err(|_| AppError::Tool("vault tool configuration is missing or invalid".into()))?;
+    let manifest: VaultManifest = serde_yaml::from_str(&manifest_content)
+        .map_err(|_| AppError::Tool("vault tool configuration is missing or invalid".into()))?;
     if !manifest
         .tools
         .iter()
         .any(|tool| tool.name == operation && tool.enabled)
     {
         return Err(AppError::Tool(
-            "knowledge vault operation is disabled by project configuration".into(),
+            "vault operation is disabled by project configuration".into(),
         ));
     }
     if READ_OPERATIONS.contains(&operation.as_str()) {
@@ -114,7 +107,7 @@ pub async fn knowledge_vault_execute(
     let project_path = request.project_path.clone();
     tokio::task::spawn_blocking(move || execute_blocking(&operation, &project_path, request))
         .await
-        .map_err(|_| AppError::Tool("knowledge vault operation failed".into()))?
+        .map_err(|_| AppError::Tool("vault operation failed".into()))?
         .map_err(|error| AppError::Tool(error.to_string()))
 }
 
@@ -125,13 +118,13 @@ fn execute_blocking(
 ) -> Result<Value, crate::modules::vault::error::VaultError> {
     let service = VaultService::new(project_path)?;
     match operation {
-        "knowledge.vault.list" => Ok(
+        "vault.list" => Ok(
             json!({ "path": request.path.clone().unwrap_or_default(), "entries": service.list(request.path.as_deref())? }),
         ),
-        "knowledge.vault.tree" => Ok(
+        "vault.tree" => Ok(
             json!({ "path": request.path.clone().unwrap_or_default(), "entries": service.tree(request.path.as_deref(), request.depth)? }),
         ),
-        "knowledge.vault.exists" => {
+        "vault.exists" => {
             let path = request.path.unwrap_or_default();
             let entry_type = service.exists(&path)?;
             Ok(match entry_type {
@@ -139,11 +132,11 @@ fn execute_blocking(
                 None => json!({ "path": path, "exists": false }),
             })
         }
-        "knowledge.vault.info" => {
+        "vault.info" => {
             let info = service.info(request.path.as_deref().unwrap_or_default())?;
             Ok(serde_json::to_value(info).unwrap_or_else(|_| json!({ "success": false })))
         }
-        "knowledge.vault.create_file" => {
+        "vault.create_file" => {
             let path = request
                 .path
                 .as_deref()
@@ -151,7 +144,7 @@ fn execute_blocking(
             service.create_file(path, request.content.as_deref())?;
             Ok(json!({ "success": true, "path": path }))
         }
-        "knowledge.vault.create_folder" => {
+        "vault.create_folder" => {
             let path = request
                 .path
                 .as_deref()
@@ -159,7 +152,7 @@ fn execute_blocking(
             service.create_folder(path)?;
             Ok(json!({ "success": true, "path": path }))
         }
-        "knowledge.vault.move" => {
+        "vault.move" => {
             let source = request
                 .source
                 .as_deref()
@@ -171,7 +164,7 @@ fn execute_blocking(
             service.move_path(source, destination)?;
             Ok(json!({ "success": true, "source": source, "destination": destination }))
         }
-        "knowledge.vault.rename" => {
+        "vault.rename" => {
             let path = request
                 .path
                 .as_deref()
@@ -183,7 +176,7 @@ fn execute_blocking(
             service.rename(path, name)?;
             Ok(json!({ "success": true, "path": path, "name": name }))
         }
-        "knowledge.vault.delete" => {
+        "vault.delete" => {
             let path = request
                 .path
                 .as_deref()
