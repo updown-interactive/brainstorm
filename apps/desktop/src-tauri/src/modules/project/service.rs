@@ -66,6 +66,7 @@ pub async fn create_project(
         created_at: now,
         updated_at: now,
         last_opened_at: Some(now),
+        last_conversation_id: None,
         metadata: None,
     };
 

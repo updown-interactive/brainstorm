@@ -7,6 +7,9 @@ pub enum AppError {
 
     #[error("Internal error: {0}")]
     Internal(String),
+
+    #[error("AI provider error: {0}")]
+    Ai(String),
 }
 
 // Convert our AppError into a String so Tauri can pass it to the frontend

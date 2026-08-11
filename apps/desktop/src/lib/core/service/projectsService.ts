@@ -21,6 +21,7 @@ export interface Project {
   created_at: number;
   updated_at: number;
   last_opened_at: number | null;
+  last_conversation_id: string | null;
   metadata: string | null;
 }
 

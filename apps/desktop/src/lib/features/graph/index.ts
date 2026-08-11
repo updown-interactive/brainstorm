@@ -14,7 +14,7 @@ export { GraphRenderer } from './engine/graph-renderer';
 export { GraphRenderScheduler, GraphDirtyFlag } from './engine/graph-scheduler';
 
 // Config
-export { 
+export {
 	ensureGraphConfigPath,
 	readGraphConfig,
 	writeGraphConfig,
@@ -28,7 +28,7 @@ export { GraphRuntimeStore } from './state/graph-store';
 // Data
 export { buildGraphData } from './data/graph-data';
 
-// Components
-export { default as GraphView } from './components/GraphView.svelte';
-export { default as GraphControlCenter } from './components/GraphControlCenter.svelte';
-export { default as GraphEmptyState } from './components/GraphEmptyState.svelte';
+// UI
+export { default as GraphView } from './ui/GraphView.svelte';
+export { default as GraphControlCenter } from './ui/GraphControlCenter.svelte';
+export { default as GraphEmptyState } from './ui/GraphEmptyState.svelte';

@@ -38,6 +38,7 @@ pub struct Project {
     pub created_at: i64,
     pub updated_at: i64,
     pub last_opened_at: Option<i64>,
+    pub last_conversation_id: Option<String>,
 
     // Optional metadata
     pub metadata: Option<String>,

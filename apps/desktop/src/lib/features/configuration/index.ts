@@ -8,5 +8,5 @@ export {
 } from './controller';
 
 // Components
-export { default as ConfigurationPanel } from './components/ConfigurationPanel.svelte';
-export { default as JsonInspector } from './components/JsonInspector.svelte';
+export { default as ConfigurationPanel } from './ui/ConfigurationPanel.svelte';
+export { default as JsonInspector } from './ui/JsonInspector.svelte';

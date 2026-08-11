@@ -1,11 +1,12 @@
 import { goto } from '$app/navigation';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import { projectService, type Project } from '../../core/service/projectsService';
-import { buildVaultIndex, updateVaultIndexEntry } from '../files/data/vault-index';
-import { initLayoutSettings } from '../settings/data/settings-service';
-import { shellState } from './state';
-import { ROUTES } from '../../app/routes';
+import { projectService, type Project } from '../../../core/service/projectsService';
+import { projectStore } from '../../../core/stores/projectStore';
+import { buildVaultIndex, updateVaultIndexEntry } from '../../files/data/vault-index';
+import { initLayoutSettings } from '../../settings/data/settings-service';
+import { shellState } from '../state/state';
+import { ROUTES } from '../../../app/routes';
 
 class ShellController {
   private activeRuntimePath = '';
@@ -16,6 +17,7 @@ class ShellController {
     void initLayoutSettings();
     try {
       const allProjects = await projectService.getProjects();
+      projectStore.setProjects(allProjects);
       if (allProjects.length > 0) {
         // Sort by last_opened_at descending
         allProjects.sort((a, b) => (b.last_opened_at || 0) - (a.last_opened_at || 0));
@@ -35,8 +37,10 @@ class ShellController {
           currentProject: activeProject,
           loading: false
         }));
+        projectStore.setCurrentProject(activeProject);
       } else {
         shellState.update(s => ({ ...s, loading: false }));
+        projectStore.setCurrentProject(null);
       }
     } catch (error) {
       console.error('Failed to load projects for shell view:', error);
@@ -59,6 +63,7 @@ class ShellController {
       currentProject: project,
       showProjectDropdown: false 
     }));
+    projectStore.setCurrentProject(project);
   }
 
   async ensureProjectRuntime(project: Project) {
@@ -82,7 +87,7 @@ class ShellController {
     }
   }
 
-  switchTab(tab: import('./state').ShellTab) {
+  switchTab(tab: import('../state/state').ShellTab) {
     shellState.update(s => ({ ...s, activeTab: tab }));
   }
 

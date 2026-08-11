@@ -51,7 +51,10 @@ pub async fn log_graph_perf(
 }
 
 #[tauri::command]
-pub async fn read_dir_entries(path: String, show_brainstorm: Option<bool>) -> Result<Vec<FileEntry>, String> {
+pub async fn read_dir_entries(
+    path: String,
+    show_brainstorm: Option<bool>,
+) -> Result<Vec<FileEntry>, String> {
     tokio::task::spawn_blocking(move || {
         let p = Path::new(&path);
         if !p.exists() || !p.is_dir() {
@@ -60,7 +63,9 @@ pub async fn read_dir_entries(path: String, show_brainstorm: Option<bool>) -> Re
 
         let show_brainstorm = show_brainstorm.unwrap_or(false);
         let mut entries = Vec::new();
-        let walker = build_walker(&path, show_brainstorm).max_depth(Some(1)).build();
+        let walker = build_walker(&path, show_brainstorm)
+            .max_depth(Some(1))
+            .build();
 
         for result in walker {
             match result {
@@ -105,7 +110,10 @@ pub async fn read_dir_entries(path: String, show_brainstorm: Option<bool>) -> Re
 }
 
 #[tauri::command]
-pub async fn list_markdown_files(path: String, show_brainstorm: Option<bool>) -> Result<Vec<FileEntry>, String> {
+pub async fn list_markdown_files(
+    path: String,
+    show_brainstorm: Option<bool>,
+) -> Result<Vec<FileEntry>, String> {
     tokio::task::spawn_blocking(move || {
         let root = Path::new(&path);
         if !root.exists() || !root.is_dir() {

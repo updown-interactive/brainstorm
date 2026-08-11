@@ -1,15 +1,15 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getCurrentWindow } from '@tauri-apps/api/window';
-  import { shellState } from './state';
-  import { shellController } from './controller';
-  import { layoutSettingsState } from '../settings/state';
-  import ShellToolbar from './components/ShellToolbar.svelte';
-  import ShellSidebar from './components/ShellSidebar.svelte';
-  import ChatView from '../chat/ChatView.svelte';
-  import FilesView from '../files/components/FilesView.svelte';
-  import GraphView from '../graph/components/GraphView.svelte';
-  import SettingsView from '../settings/components/SettingsView.svelte';
+  import { shellState } from '../state/state';
+  import { shellController } from '../controller/controller';
+  import { layoutSettingsState } from '$lib/features/settings/state';
+  import ShellToolbar from '../ui/ShellToolbar.svelte';
+  import ShellSidebar from '../ui/ShellSidebar.svelte';
+  import ChatView from '$lib/features/chat/ui/ChatView.svelte';
+  import FilesView from '$lib/features/files/ui/FilesView.svelte';
+  import GraphView from '$lib/features/graph/ui/GraphView.svelte';
+  import SettingsView from '$lib/features/settings/ui/SettingsView.svelte';
   import './shell.css';
 
   let isToolbarHovered = false;

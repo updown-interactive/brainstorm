@@ -1,16 +1,16 @@
-import { get } from 'svelte/store';
 import { projectService, type Project, type UpdateProjectPayload } from '../../../core/service/projectsService';
 import { settingsService } from '../../../core/service/settingsService';
 import { themeManager } from '../../../core/theme/ThemeManager';
-import { shellState } from '../../shell/state';
+import { projectStore } from '../../../core/stores/projectStore';
+import { shellState } from '../../shell/state/state';
 
 class SettingsFeatureService {
 	getCurrentProject(): Project | null {
-		return get(shellState).currentProject;
+		return projectStore.getCurrentProject();
 	}
 
 	subscribeToProject(callback: (project: Project | null) => void): () => void {
-		return shellState.subscribe((state) => callback(state.currentProject));
+		return projectStore.subscribe(callback);
 	}
 
 	async getTheme(): Promise<string> {
@@ -83,6 +83,16 @@ class SettingsFeatureService {
 				allProjects: state.allProjects.map((project) => project.id === payload.id ? updatedProject : project)
 			};
 		});
+		const currentProject = projectStore.getCurrentProject();
+		if (currentProject?.id === payload.id) {
+			projectStore.updateCurrentProject({
+				...currentProject,
+				name: payload.name,
+				description: payload.description || null,
+				icon: payload.icon || null,
+				color: payload.color || null
+			});
+		}
 	}
 
 	async deleteProject(projectId: string): Promise<Project | null> {
@@ -97,6 +107,7 @@ class SettingsFeatureService {
 				currentProject: nextProject
 			};
 		});
+		projectStore.removeProject(projectId);
 		return nextProject;
 	}
 }

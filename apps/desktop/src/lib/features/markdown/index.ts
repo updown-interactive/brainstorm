@@ -1,4 +1,4 @@
-import MarkdownEditor from './components/MarkdownEditor.svelte';
+import MarkdownEditor from './ui/MarkdownEditor.svelte';
 
 // Types
 export type { FileEntry, MarkdownFileSuggestion, MarkdownState } from './types';
@@ -22,7 +22,7 @@ export * from './engine/advanced-extensions';
 export { createMarkdownController, MarkdownController } from './controller';
 
 // Components
-export { default as MarkdownEditor } from './components/MarkdownEditor.svelte';
-export { default as MarkdownToolbar } from './components/MarkdownToolbar.svelte';
-export { default as MarkdownContextMenu } from './components/MarkdownContextMenu.svelte';
+export { default as MarkdownEditor } from './ui/MarkdownEditor.svelte';
+export { default as MarkdownToolbar } from './ui/MarkdownToolbar.svelte';
+export { default as MarkdownContextMenu } from './ui/MarkdownContextMenu.svelte';
 export default MarkdownEditor;

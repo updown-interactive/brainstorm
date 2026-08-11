@@ -1,0 +1,38 @@
+use std::sync::Arc;
+use serde::{Deserialize, Serialize};
+use tauri::{AppHandle, State};
+use crate::core::{db::DbState, error::AppError};
+use crate::modules::conversation::model::ConversationMessage;
+use super::service::ChatService;
+
+pub struct ChatState { pub service: Arc<ChatService> }
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SendMessageRequest {
+    pub project_id: String,
+    pub conversation_id: Option<String>,
+    pub content: String,
+    pub agent_id: Option<String>,
+    pub provider_config_id: Option<String>,
+    pub model: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SendMessageResponse { pub conversation_id: String, pub message: ConversationMessage }
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatStreamEvent {
+    pub conversation_id: String,
+    pub message_id: String,
+    pub delta: String,
+    pub done: bool,
+    pub message: Option<ConversationMessage>,
+}
+
+#[tauri::command]
+pub async fn chat_send_message(app: AppHandle, request: SendMessageRequest, db: State<'_, DbState>, chat: State<'_, ChatState>) -> Result<SendMessageResponse, AppError> {
+    chat.service.send_message(&db.pool, &app, request).await
+}

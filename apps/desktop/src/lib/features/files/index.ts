@@ -49,11 +49,11 @@ export {
 } from './data/workspace-state';
 export type { PersistedWorkspaceState, PersistedPane, PersistedTab } from './data/workspace-state';
 
-// Components
-export { default as FilesView } from './components/FilesView.svelte';
-export { default as FileTree } from './components/FileTree.svelte';
-export { default as FileTreeNode } from './components/FileTreeNode.svelte';
-export { default as FileQuickOpen } from './components/FileQuickOpen.svelte';
-export { default as FileTabBar } from './components/FileTabBar.svelte';
-export { default as ContextMenu } from './components/ContextMenu.svelte';
-export { default as InlineInput } from './components/InlineInput.svelte';
+// UI
+export { default as FilesView } from './ui/FilesView.svelte';
+export { default as FileTree } from './ui/FileTree.svelte';
+export { default as FileTreeNode } from './ui/FileTreeNode.svelte';
+export { default as FileQuickOpen } from './ui/FileQuickOpen.svelte';
+export { default as FileTabBar } from './ui/FileTabBar.svelte';
+export { default as ContextMenu } from './ui/ContextMenu.svelte';
+export { default as InlineInput } from './ui/InlineInput.svelte';

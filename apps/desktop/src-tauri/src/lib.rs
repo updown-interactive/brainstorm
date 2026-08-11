@@ -26,13 +26,35 @@ pub fn run() {
                 let db_state = core::db::init(&handle)
                     .await
                     .expect("failed to initialize db");
+                let ai_state = modules::ai::commands::state(db_state.pool.clone());
                 handle.manage(db_state);
+                let chat_state = modules::chat::commands::ChatState { service: std::sync::Arc::new(modules::chat::service::ChatService::new(ai_state.factory.clone())) };
+                handle.manage(ai_state);
+                handle.manage(chat_state);
             });
             Ok(())
         })
         .manage(modules::vault::commands::VaultState::default())
         .invoke_handler(tauri::generate_handler![
             greet,
+            modules::ai::commands::ai_list_providers,
+            modules::ai::commands::ai_get_configured_providers,
+            modules::ai::commands::ai_add_provider,
+            modules::ai::commands::ai_update_provider,
+            modules::ai::commands::ai_remove_provider,
+            modules::ai::commands::ai_test_provider,
+            modules::ai::commands::ai_list_models,
+            modules::conversation::commands::create_conversation,
+            modules::conversation::commands::get_conversation_history,
+            modules::conversation::commands::get_conversation,
+            modules::conversation::commands::get_conversation_messages,
+            modules::conversation::commands::add_conversation_message,
+            modules::conversation::commands::rename_conversation,
+            modules::conversation::commands::delete_conversation,
+            modules::conversation::commands::archive_conversation,
+            modules::conversation::commands::unarchive_conversation,
+            modules::conversation::commands::set_active_conversation,
+            modules::chat::commands::chat_send_message,
             modules::project::commands::get_projects,
             modules::project::commands::create_project,
             modules::project::commands::update_project,
