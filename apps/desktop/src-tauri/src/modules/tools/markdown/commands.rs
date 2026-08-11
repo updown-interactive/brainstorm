@@ -36,6 +36,10 @@ pub async fn markdown_execute(
     request: MarkdownRequest,
     state: State<'_, MarkdownState>,
 ) -> Result<Value, AppError> {
+    execute(request, &state.runtime).await
+}
+
+pub async fn execute(request: MarkdownRequest, runtime: &ToolRuntime) -> Result<Value, AppError> {
     let operation = request.operation.as_str();
     if !matches!(
         operation,
@@ -44,7 +48,7 @@ pub async fn markdown_execute(
     {
         return Err(AppError::Tool("unsupported markdown operation".into()));
     }
-    state.runtime.require_vault_read()?;
+    runtime.require_vault_read()?;
     let manifest_path = std::path::Path::new(&request.project_path)
         .join(".brainstorm/tools/markdown/manifest.yaml");
     let manifest = std::fs::read_to_string(manifest_path)

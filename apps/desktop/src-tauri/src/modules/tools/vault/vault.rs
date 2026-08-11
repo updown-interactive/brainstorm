@@ -67,6 +67,10 @@ pub async fn vault_execute(
     request: VaultRequest,
     state: State<'_, VaultState>,
 ) -> Result<Value, AppError> {
+    execute(request, &state.runtime).await
+}
+
+pub async fn execute(request: VaultRequest, runtime: &ToolRuntime) -> Result<Value, AppError> {
     let operation = request.operation.clone();
     if (!READ_OPERATIONS.contains(&operation.as_str())
         && !WRITE_OPERATIONS.contains(&operation.as_str()))
@@ -95,14 +99,14 @@ pub async fn vault_execute(
                 "vault read permission is not granted".into(),
             ));
         }
-        state.runtime.require_vault_read()?;
+        runtime.require_vault_read()?;
     } else {
         if !manifest.permissions.vault_write {
             return Err(AppError::Tool(
                 "vault write permission is not granted".into(),
             ));
         }
-        state.runtime.require_vault_write()?;
+        runtime.require_vault_write()?;
     }
     let project_path = request.project_path.clone();
     tokio::task::spawn_blocking(move || execute_blocking(&operation, &project_path, request))

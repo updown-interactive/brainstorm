@@ -57,6 +57,15 @@ pub async fn get_project_by_path(
     Ok(project)
 }
 
+pub async fn get_project(pool: &SqlitePool, id: &str) -> Result<Option<Project>, AppError> {
+    Ok(
+        sqlx::query_as::<_, Project>("SELECT * FROM projects WHERE id = ?1")
+            .bind(id)
+            .fetch_optional(pool)
+            .await?,
+    )
+}
+
 pub async fn touch_last_opened(
     pool: &SqlitePool,
     id: &str,

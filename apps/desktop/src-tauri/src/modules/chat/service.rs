@@ -11,6 +11,8 @@ use crate::modules::{
         db,
         model::{ConversationMessage, MessageRole, MessageStatus},
     },
+    project::db as project_db,
+    tools::{agent, registry},
 };
 use futures_util::StreamExt;
 use sqlx::SqlitePool;
@@ -75,6 +77,20 @@ impl ChatService {
             .execute(pool)
             .await?;
         let history = db::messages(pool, &conversation_id, 100, 0).await?;
+        let project = project_db::get_project(pool, &request.project_id)
+            .await?
+            .ok_or_else(|| AppError::Ai("Project not found".into()))?;
+        let agent_id = request.agent_id.as_deref().unwrap_or("cerebrum");
+        let agent_context = agent::resolve(&project.path, agent_id)?;
+        let tools = registry::list()
+            .into_iter()
+            .filter(|definition| agent::can_use(&agent_context, definition.name))
+            .map(|definition| crate::modules::ai::request::ToolDefinition {
+                name: definition.name.to_string(),
+                description: definition.description.to_string(),
+                parameters: definition.schema(),
+            })
+            .collect();
         let llm_request = LlmRequest {
             model: model.clone(),
             messages: history
@@ -89,7 +105,7 @@ impl ChatService {
                     content: message.content,
                 })
                 .collect(),
-            tools: vec![],
+            tools,
             temperature: None,
             max_tokens: None,
         };

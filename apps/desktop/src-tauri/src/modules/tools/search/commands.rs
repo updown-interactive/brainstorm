@@ -36,10 +36,14 @@ pub async fn search_execute(
     request: SearchRequest,
     state: State<'_, SearchState>,
 ) -> Result<Value, AppError> {
+    execute(request, &state.runtime).await
+}
+
+pub async fn execute(request: SearchRequest, runtime: &ToolRuntime) -> Result<Value, AppError> {
     if request.operation != "search.query" || !registry::contains(&request.operation) {
         return Err(AppError::Tool("unsupported search operation".into()));
     }
-    state.runtime.require_vault_read()?;
+    runtime.require_vault_read()?;
 
     let manifest_path =
         std::path::Path::new(&request.project_path).join(".brainstorm/tools/search/manifest.yaml");
