@@ -278,8 +278,13 @@ pub async fn start_project_watcher(path: String, app_handle: AppHandle) -> Resul
     // Store watcher to keep it alive
     *ACTIVE_WATCHER.lock().unwrap() = Some(watcher);
 
-    // Spawn listener thread
+    // Build the derived search index in the background, then update it from
+    // the same watcher that already drives filesystem events.
+    let index_root = Path::new(&path)
+        .canonicalize()
+        .unwrap_or_else(|_| Path::new(&path).to_path_buf());
     thread::spawn(move || {
+        let _ = crate::modules::tools::search::index::ensure_index(&index_root);
         for res in rx {
             match res {
                 Ok(event) => {
@@ -293,6 +298,11 @@ pub async fn start_project_watcher(path: String, app_handle: AppHandle) -> Resul
                     };
 
                     for path_buf in event.paths {
+                        crate::modules::tools::search::index::handle_file_event(
+                            &index_root,
+                            kind_str,
+                            &path_buf,
+                        );
                         let ev = FsChangeEvent {
                             kind: kind_str.to_string(),
                             path: path_buf.to_string_lossy().to_string(),

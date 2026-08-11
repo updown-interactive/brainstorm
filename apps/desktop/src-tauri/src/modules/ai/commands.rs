@@ -20,12 +20,16 @@ pub struct AiState {
 
 pub async fn init(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     sqlx::query("CREATE TABLE IF NOT EXISTS llm_provider_configs (id TEXT PRIMARY KEY, provider_id TEXT NOT NULL, name TEXT NOT NULL, model TEXT NOT NULL, base_url TEXT, credential_id TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)").execute(pool).await?;
-    EncryptedDatabaseStore::initialize(pool).await.map_err(|error| sqlx::Error::Protocol(error.to_string()))?;
+    EncryptedDatabaseStore::initialize(pool)
+        .await
+        .map_err(|error| sqlx::Error::Protocol(error.to_string()))?;
     Ok(())
 }
 
 pub fn state(pool: SqlitePool) -> AiState {
-    let credentials = Arc::new(CredentialService::new(Arc::new(EncryptedDatabaseStore::new(pool))));
+    let credentials = Arc::new(CredentialService::new(Arc::new(
+        EncryptedDatabaseStore::new(pool),
+    )));
     let factory = Arc::new(ProviderFactory::new(credentials.clone()));
     AiState {
         credentials,
@@ -185,7 +189,8 @@ pub async fn ai_list_models(
 ) -> Result<Vec<LlmModel>, AppError> {
     let config = get_config(&db.pool, &id).await?;
     ai.factory
-        .create(&config).await
+        .create(&config)
+        .await
         .map_err(map_error)?
         .models()
         .await

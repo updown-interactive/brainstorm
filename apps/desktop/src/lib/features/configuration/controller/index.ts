@@ -15,6 +15,7 @@ import {
 	type ExplorerPosition
 } from '../../files/config/explorer-config';
 import { fileTreeState, type FileEntry } from '../../files/state';
+import { stateFolderName } from '../../files/config/constants';
 import {
 	ensurePropertyConfigPath,
 	normalizeTagColor,
@@ -24,6 +25,7 @@ import {
 	type SharedTag
 } from '../../markdown/data/tag-registry';
 import { todayString } from '../../markdown/engine/frontmatter';
+import YAML from 'yaml';
 import { shellState } from '../../shell/state/state';
 import { ensureGraphConfigPath, normalizeGraphConfig, readGraphConfig, writeGraphConfig } from '../../graph/config/graph-config';
 import { graphConfigFileName, legacyGraphStateFileName } from '../../graph/config/constants';
@@ -43,7 +45,7 @@ import {
 export interface ConfigurationFile {
 	name: string;
 	path: string;
-	kind: 'configuration' | 'agent';
+	kind: 'configuration' | 'agent' | 'yaml';
 }
 
 export interface ConfigurationSection {
@@ -203,6 +205,7 @@ class ConfigurationController {
 		const editorConfigPath = await ensureEditorConfigPath(rootPath);
 		const brainstormFolderPath = this.brainstormPath();
 		const configurationFolderPath = this.configurationPath();
+		const toolsFolderPath = `${brainstormFolderPath}/tools`;
 		if (!brainstormFolderPath || !configurationFolderPath || !schemaPath || !explorerConfigPath || !graphConfigPath || !editorConfigPath) {
 			this.patchState({ isLoading: false });
 			return;
@@ -221,7 +224,8 @@ class ConfigurationController {
 			sections = this.buildSectionsFromFiles(configurationFolderPath, files, sections);
 			sections = this.compactSections([
 				...sections,
-				await this.buildAgentSection(brainstormFolderPath)
+				await this.buildAgentSection(brainstormFolderPath),
+				...(await this.buildToolSections(toolsFolderPath))
 			]);
 			files = this.flattenSections(sections);
 			if (files.length === 0) files = [{ name: explorerConfigFileName, path: explorerConfigPath, kind: 'configuration' }];
@@ -419,12 +423,42 @@ class ConfigurationController {
 		}, 400);
 	};
 
+	handleYamlChange = (content: string): void => {
+		if (this.snapshot().selectedKind !== 'yaml') return;
+		this.patchState({ rawContent: content, parseError: '' });
+		const validationError = this.validateYaml(content);
+		if (validationError) {
+			this.patchState({ jsonEditorError: validationError });
+			this.clearJsonSaveTimeout();
+			return;
+		}
+		this.patchState({ jsonEditorError: '' });
+		this.clearJsonSaveTimeout();
+		this.jsonSaveTimeout = setTimeout(() => {
+			this.jsonSaveTimeout = null;
+			void this.saveRawJsonContent();
+		}, 400);
+	};
+
 	private async migrateLegacyConfigurationFiles(folderPath: string): Promise<void> {
-		const explorerStatePath = `${folderPath}/${explorerStateFileName}`;
+		const stateFolderPath = `${folderPath}/${stateFolderName}`;
+		const explorerStatePath = `${stateFolderPath}/${explorerStateFileName}`;
+		const legacyExplorerStatePath = `${folderPath}/${explorerStateFileName}`;
 		const legacyGraphStatePath = `${folderPath}/${legacyGraphStateFileName}`;
 		const graphConfigPath = `${folderPath}/${graphConfigFileName}`;
 
 		try {
+			const stateFolderExists = await invoke<boolean>('path_exists', { path: stateFolderPath });
+			if (!stateFolderExists) await invoke('create_folder', { path: stateFolderPath });
+
+			const explorerStateExists = await invoke<boolean>('path_exists', { path: explorerStatePath });
+			const legacyExplorerStateExists = await invoke<boolean>('path_exists', { path: legacyExplorerStatePath });
+			if (!explorerStateExists && legacyExplorerStateExists) {
+				await invoke('rename_path', { oldPath: legacyExplorerStatePath, newPath: explorerStatePath });
+			} else if (explorerStateExists && legacyExplorerStateExists) {
+				await invoke('delete_path', { path: legacyExplorerStatePath, useTrash: false });
+			}
+
 			const legacyGraphStateExists = await invoke<boolean>('path_exists', { path: legacyGraphStatePath });
 			if (legacyGraphStateExists) {
 				const graphConfigExists = await invoke<boolean>('path_exists', { path: graphConfigPath });
@@ -435,10 +469,6 @@ class ConfigurationController {
 				}
 			}
 
-			const explorerStateExists = await invoke<boolean>('path_exists', { path: explorerStatePath });
-			if (explorerStateExists) {
-				await invoke('delete_path', { path: explorerStatePath, useTrash: false });
-			}
 		} catch (error) {
 			console.error('Failed to migrate .brainstorm files', error);
 		}
@@ -446,7 +476,7 @@ class ConfigurationController {
 
 	private async saveRawJsonContent(): Promise<void> {
 		const state = this.snapshot();
-		if (!state.selectedPath || state.selectedKind !== 'configuration') return;
+		if (!state.selectedPath || !['configuration', 'yaml'].includes(state.selectedKind)) return;
 
 		try {
 			await invoke('write_file', { path: state.selectedPath, content: state.rawContent });
@@ -578,6 +608,15 @@ class ConfigurationController {
 		}
 	}
 
+	private validateYaml(content: string): string {
+		try {
+			if (content.trim()) YAML.parse(content);
+			return '';
+		} catch (error) {
+			return error instanceof Error ? error.message : 'Invalid YAML.';
+		}
+	}
+
 	private ensureFile(files: ConfigurationFile[], name: string, path: string): ConfigurationFile[] {
 		if (files.some((file) => file.name === name)) return files;
 		const nextFile: ConfigurationFile = { name, path, kind: 'configuration' };
@@ -652,8 +691,26 @@ class ConfigurationController {
 				&& entry.name !== legacyPropertiesSchemaFileName
 				&& entry.name !== legacyGraphStateFileName
 			)
-			.map((entry) => ({ name: entry.name, path: entry.path, kind: 'configuration' as const }))
+			.map((entry) => ({
+				name: entry.name,
+				path: entry.path,
+				kind: /\.(yaml|yml)$/i.test(entry.name) ? 'yaml' as const : 'configuration' as const
+			}))
 			.sort((left, right) => left.name.localeCompare(right.name));
+	}
+
+	private async buildToolSections(toolsFolderPath: string): Promise<ConfigurationSection[]> {
+		try {
+			if (!await invoke<boolean>('path_exists', { path: toolsFolderPath })) return [];
+			const entries = await invoke<FileEntry[]>('read_dir_entries', { path: toolsFolderPath, showBrainstorm: true });
+			return Promise.all(entries.filter((entry) => entry.is_dir).map(async (entry) => ({
+				name: `Tools / ${this.sectionName(entry.name)}`,
+				path: entry.path,
+				files: this.entryFiles(await invoke<FileEntry[]>('read_dir_entries', { path: entry.path, showBrainstorm: true }))
+			})));
+		} catch {
+			return [];
+		}
 	}
 
 	private async buildAgentSection(brainstormFolderPath: string): Promise<ConfigurationSection> {

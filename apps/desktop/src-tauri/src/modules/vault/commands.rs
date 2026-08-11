@@ -9,6 +9,21 @@ use tauri::State;
 
 pub type VaultState = Mutex<Option<VaultIndex>>;
 
+/// Reads one Markdown document after enforcing the vault root boundary.
+pub fn read_markdown_document(root: &Path, relative_path: &str) -> Result<String, String> {
+    let extension = Path::new(relative_path)
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default();
+    if !matches!(extension, "md" | "mdx") {
+        return Err("unsupported document type".into());
+    }
+    crate::modules::vault::service::VaultService::new(root)
+        .map_err(|error| error.to_string())?
+        .read_file(relative_path)
+        .map_err(|error| error.to_string())
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct VaultIndex {
     pub root: String,
