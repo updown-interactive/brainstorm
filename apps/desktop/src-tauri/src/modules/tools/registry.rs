@@ -34,6 +34,51 @@ pub fn definitions() -> Vec<ToolDefinition> {
             description: "Extract the heading structure of a Markdown document",
             permissions: &["vault_read"],
         },
+        ToolDefinition {
+            name: "knowledge.vault.list",
+            description: "List files and folders in the knowledge vault",
+            permissions: &["vault_read"],
+        },
+        ToolDefinition {
+            name: "knowledge.vault.tree",
+            description: "Get the directory structure of the knowledge vault",
+            permissions: &["vault_read"],
+        },
+        ToolDefinition {
+            name: "knowledge.vault.exists",
+            description: "Check whether a path exists in the knowledge vault",
+            permissions: &["vault_read"],
+        },
+        ToolDefinition {
+            name: "knowledge.vault.info",
+            description: "Get metadata about a vault file or directory",
+            permissions: &["vault_read"],
+        },
+        ToolDefinition {
+            name: "knowledge.vault.create_file",
+            description: "Create a file in the knowledge vault",
+            permissions: &["vault_write"],
+        },
+        ToolDefinition {
+            name: "knowledge.vault.create_folder",
+            description: "Create a folder in the knowledge vault",
+            permissions: &["vault_write"],
+        },
+        ToolDefinition {
+            name: "knowledge.vault.move",
+            description: "Move a file or folder within the knowledge vault",
+            permissions: &["vault_write"],
+        },
+        ToolDefinition {
+            name: "knowledge.vault.rename",
+            description: "Rename a file or folder within the knowledge vault",
+            permissions: &["vault_write"],
+        },
+        ToolDefinition {
+            name: "knowledge.vault.delete",
+            description: "Delete a file or folder from the knowledge vault",
+            permissions: &["vault_write"],
+        },
     ]
 }
 

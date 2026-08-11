@@ -816,6 +816,77 @@ No active tasks.
 ];
 
 const TOOL_FILES: &[BootstrapFile] = &[
+    // --- knowledge ---
+    BootstrapFile {
+        relative_path: &["tools", "knowledge", "tool.yaml"],
+        content: r#"id: knowledge
+name: Knowledge
+description: Manage the structure and contents of the Brainstorm knowledge vault.
+version: 0.1.0
+permissions:
+  - workspace.read
+  - workspace.write
+functions:
+  - knowledge.vault.execute
+"#,
+    },
+    BootstrapFile {
+        relative_path: &["tools", "knowledge", "manifest.yaml"],
+        content: r#"# Project-owned Knowledge tool configuration.
+name: knowledge
+version: 0.1.0
+description: Manage the Brainstorm knowledge vault structure
+runtime: native
+
+permissions:
+  vault_read: true
+  vault_write: false
+
+tools:
+  - name: knowledge.vault.list
+    enabled: true
+    description: List files and folders in the knowledge vault
+  - name: knowledge.vault.tree
+    enabled: true
+    description: Get the directory structure of the knowledge vault
+  - name: knowledge.vault.exists
+    enabled: true
+    description: Check whether a path exists in the knowledge vault
+  - name: knowledge.vault.info
+    enabled: true
+    description: Get metadata about a vault file or directory
+  - name: knowledge.vault.create_file
+    enabled: true
+    description: Create a file in the knowledge vault
+  - name: knowledge.vault.create_folder
+    enabled: true
+    description: Create a folder in the knowledge vault
+  - name: knowledge.vault.move
+    enabled: true
+    description: Move a file or folder within the knowledge vault
+  - name: knowledge.vault.rename
+    enabled: true
+    description: Rename a file or folder within the knowledge vault
+  - name: knowledge.vault.delete
+    enabled: true
+    description: Delete a file or folder from the knowledge vault
+"#,
+    },
+    BootstrapFile {
+        relative_path: &["tools", "knowledge", "README.md"],
+        content: r#"# Knowledge Tool
+
+The Knowledge tool owns vault structure: relative paths, files, folders,
+directory listings, metadata, and permission-controlled file operations.
+Document semantics remain in the Markdown tool.
+
+All paths are relative to the active project root. The native Vault Service
+rejects traversal, absolute paths, invalid separators, and symlink escapes.
+Read operations are enabled by default. Write operations require both
+`vault_write: true` in `manifest.yaml` and the native runtime permission.
+Directory deletion additionally requires `recursive: true`.
+"#,
+    },
     // --- filesystem ---
     BootstrapFile {
         relative_path: &["tools", "filesystem", "tool.yaml"],
@@ -2387,6 +2458,7 @@ mod tests {
         assert!(tools_dir.exists());
         for tool in &[
             "filesystem",
+            "knowledge",
             "markdown",
             "graph",
             "search",
@@ -2415,6 +2487,8 @@ mod tests {
         assert!(markdown_tool_dir.join("INPUT_SCHEMA.json").exists());
         assert!(markdown_tool_dir.join("OUTPUT_SCHEMA.json").exists());
         assert!(markdown_tool_dir.join("manifest.yaml").exists());
+        let knowledge_tool_dir = tools_dir.join("knowledge");
+        assert!(knowledge_tool_dir.join("manifest.yaml").exists());
 
         // Verify capability registry
         let registry_file = brainstorm_root
