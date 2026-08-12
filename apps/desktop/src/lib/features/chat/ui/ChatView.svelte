@@ -13,7 +13,6 @@
 
   let draft = '';
   let selectedProviderId = '';
-  let selectedAgent = 'Cerebrum';
   let openConversationMenuId: string | null = null;
   let emptyStatePrompt = 'What’s on your mind?';
   let unlistenChatStream: UnlistenFn | undefined;
@@ -96,6 +95,6 @@
 
   <section class="chat-main-panel" aria-label="Chat workspace">
     <ChatMessageList messages={$chatState.messages} conversationTitle={activeConversation?.title ?? 'Conversation'} {emptyStatePrompt} />
-    <ChatComposer bind:draft bind:selectedProviderId bind:selectedAgent {configuredProviders} {selectedProvider} onSubmit={submitMessage} />
+    <ChatComposer bind:draft bind:selectedProviderId {configuredProviders} {selectedProvider} onSubmit={submitMessage} />
   </section>
 </div>

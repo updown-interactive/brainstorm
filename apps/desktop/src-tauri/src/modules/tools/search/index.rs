@@ -498,13 +498,9 @@ mod tests {
         write(
             &root,
             "Projects/Architecture.md",
-            "---\naliases: [brain]\ntags: [\"#ai\"]\n---\n# Brainstorm Architecture\nAgent Runtime design.\n",
+            "---\naliases: [brain]\ntags: [\"#ai\"]\n---\n# Brainstorm Architecture\nRuntime design.\n",
         );
-        write(
-            &root,
-            "Notes/Other.md",
-            "# Other\nAgent Runtime appears here.\n",
-        );
+        write(&root, "Notes/Other.md", "# Other\nRuntime appears here.\n");
 
         let mut index = SearchIndex::open(&root).unwrap();
         let title_results = index
@@ -535,7 +531,7 @@ mod tests {
 
         let path_results = index
             .query(SearchQuery {
-                query: "agent".into(),
+                query: "runtime".into(),
                 limit: None,
                 path: Some("Projects".into()),
                 tags: None,

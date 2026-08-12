@@ -35,7 +35,7 @@ class ChatController {
 
 	async create(projectId: string): Promise<void> {
 		const conversation = await conversationService.create(projectId);
-		chatState.update((state) => ({ ...state, conversations: [{ id: conversation.id, title: conversation.title, agentId: conversation.agentId, model: conversation.model, createdAt: conversation.createdAt, updatedAt: conversation.updatedAt, lastMessageAt: null, messageCount: 0 }, ...state.conversations], activeConversationId: conversation.id, messages: [] }));
+		chatState.update((state) => ({ ...state, conversations: [{ id: conversation.id, title: conversation.title, model: conversation.model, createdAt: conversation.createdAt, updatedAt: conversation.updatedAt, lastMessageAt: null, messageCount: 0 }, ...state.conversations], activeConversationId: conversation.id, messages: [] }));
 	}
 
 	async send(projectId: string, content: string, providerConfigId?: string, model?: string): Promise<void> {

@@ -95,9 +95,7 @@ pub fn run() {
             modules::tools::web::commands::web_fetch,
             modules::tools::markdown::commands::markdown_execute,
             modules::tools::search::commands::search_execute,
-            modules::tools::vault::vault::vault_execute,
-            modules::tools::commands::tool_list_for_agent,
-            modules::tools::commands::tool_execute
+            modules::tools::vault::vault::vault_execute
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

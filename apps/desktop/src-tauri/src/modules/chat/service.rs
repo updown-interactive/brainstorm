@@ -11,8 +11,6 @@ use crate::modules::{
         db,
         model::{ConversationMessage, MessageRole, MessageStatus},
     },
-    project::db as project_db,
-    tools::{agent, registry},
 };
 use futures_util::StreamExt;
 use sqlx::SqlitePool;
@@ -77,20 +75,6 @@ impl ChatService {
             .execute(pool)
             .await?;
         let history = db::messages(pool, &conversation_id, 100, 0).await?;
-        let project = project_db::get_project(pool, &request.project_id)
-            .await?
-            .ok_or_else(|| AppError::Ai("Project not found".into()))?;
-        let agent_id = request.agent_id.as_deref().unwrap_or("cerebrum");
-        let agent_context = agent::resolve(&project.path, agent_id)?;
-        let tools = registry::list()
-            .into_iter()
-            .filter(|definition| agent::can_use(&agent_context, definition.name))
-            .map(|definition| crate::modules::ai::request::ToolDefinition {
-                name: definition.name.to_string(),
-                description: definition.description.to_string(),
-                parameters: definition.schema(),
-            })
-            .collect();
         let llm_request = LlmRequest {
             model: model.clone(),
             messages: history
@@ -105,7 +89,7 @@ impl ChatService {
                     content: message.content,
                 })
                 .collect(),
-            tools,
+            tools: vec![],
             temperature: None,
             max_tokens: None,
         };
@@ -246,7 +230,7 @@ impl ChatService {
     ) -> Result<String, AppError> {
         let id = uuid::Uuid::new_v4().to_string();
         let timestamp = now();
-        sqlx::query("INSERT INTO conversations (id, project_id, title, agent_id, provider_config_id, model, created_at, updated_at, archived) VALUES (?, ?, 'New conversation', ?, ?, ?, ?, ?, 0)").bind(&id).bind(&request.project_id).bind(&request.agent_id).bind(&request.provider_config_id).bind(&request.model).bind(timestamp).bind(timestamp).execute(pool).await?;
+        sqlx::query("INSERT INTO conversations (id, project_id, title, provider_config_id, model, created_at, updated_at, archived) VALUES (?, ?, 'New conversation', ?, ?, ?, ?, 0)").bind(&id).bind(&request.project_id).bind(&request.provider_config_id).bind(&request.model).bind(timestamp).bind(timestamp).execute(pool).await?;
         Ok(id)
     }
 

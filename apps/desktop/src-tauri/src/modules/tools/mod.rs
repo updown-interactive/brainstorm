@@ -1,5 +1,3 @@
-pub mod agent;
-pub mod commands;
 pub mod markdown;
 pub mod registry;
 pub mod runtime;

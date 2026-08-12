@@ -1,13 +1,11 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { Bot, Braces, Brain, Check, ChevronDown, Database, Edit2, FileJson, FileText, GitBranch, Network, PanelLeft, PanelRight, Plus, RefreshCw, Settings, SlidersHorizontal, Tag, TerminalSquare, Wrench, X } from 'lucide-svelte';
+  import { Braces, Brain, Check, ChevronDown, Database, Edit2, FileJson, FileText, GitBranch, Network, PanelLeft, PanelRight, Plus, RefreshCw, Settings, SlidersHorizontal, Tag, TerminalSquare, Wrench, X } from 'lucide-svelte';
   import { configurationController } from '../controller';
   import JsonInspector from './JsonInspector.svelte';
   import YamlInspector from './YamlInspector.svelte';
   import LiquidGlassPanel from '$lib/shared/ui/LiquidGlassPanel.svelte';
   import type { PropertiesDisplayMode } from '../../markdown/config/editor-config';
-  import AgentPackageInspector from '../../agents/components/AgentPackageInspector.svelte';
-  import { agentRepository, type AgentDocumentKind } from '../../agents';
 
   export let onClose: () => void;
   export let onConfigChange: () => void = () => {};
@@ -77,9 +75,7 @@
                     class:is-selected={file.path === $configurationController.selectedPath}
                     onclick={() => configurationController.selectFile(file)}
                   >
-                    {#if file.kind === 'agent'}
-                      <Bot size={15} />
-                    {:else if file.kind === 'yaml'}
+                    {#if file.kind === 'yaml'}
                       <FileText size={15} />
                     {:else}
                       <FileJson size={15} />
@@ -116,9 +112,7 @@
                     class:is-selected={file.path === $configurationController.selectedPath}
                     onclick={() => configurationController.selectFile(file)}
                   >
-                    {#if file.kind === 'agent'}
-                      <Bot size={15} />
-                    {:else}
+                    {#if file.kind === 'yaml'}
                       <FileJson size={15} />
                     {/if}
                     <span>{file.name}</span>
@@ -593,18 +587,6 @@
             {/if}
           </div>
         </section>
-      </div>
-    {:else if $configurationController.selectedKind === 'agent' && $configurationController.selectedAgentPackage}
-      <div class="config-overview">
-        <AgentPackageInspector
-          agentPackage={$configurationController.selectedAgentPackage}
-          onSaveDocument={async (docKind, content) => {
-            if ($configurationController.selectedAgentPackage) {
-              await agentRepository.saveDocument($configurationController.selectedAgentPackage.packagePath, docKind, content);
-              $configurationController.selectedAgentPackage.documents[docKind] = content;
-            }
-          }}
-        />
       </div>
     {:else}
       <div class="brainstorm-empty large">No structured view for this file.</div>
