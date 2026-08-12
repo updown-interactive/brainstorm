@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Cpu, Key, ShieldCheck, ChevronDown, Check, Sparkles } from 'lucide-svelte';
+  import { Cpu, Key, ShieldCheck, ChevronDown, Check, Pencil, Trash2, X } from 'lucide-svelte';
   import { providersController } from '../controller/providers-controller';
-  import LiquidGlassPanel from '$lib/shared/ui/LiquidGlassPanel.svelte';
+  import type { ProviderConfig } from '../types/providers';
 
   let providerId = 'google';
   let name = '';
@@ -11,6 +11,7 @@
   let baseUrl = '';
   let isSaving = false;
   let showProviderDropdown = false;
+  let editingProviderId: string | null = null;
   let providerDropdownEl: HTMLDivElement;
 
   $: selectedDefinition = $providersController.definitions.find((definition) => definition.id === providerId);
@@ -39,12 +40,40 @@
     showProviderDropdown = false;
   };
 
+  const resetForm = (): void => {
+    editingProviderId = null;
+    providerId = 'google';
+    name = '';
+    model = 'gemini-2.0-flash';
+    apiKey = '';
+    baseUrl = '';
+  };
+
+  const editProvider = (provider: ProviderConfig): void => {
+    editingProviderId = provider.id;
+    providerId = provider.provider_id;
+    name = provider.name;
+    model = provider.model;
+    baseUrl = provider.base_url ?? '';
+    apiKey = '';
+    showProviderDropdown = false;
+  };
+
+  const deleteProvider = async (provider: ProviderConfig): Promise<void> => {
+    if (!window.confirm(`Delete “${provider.name}”? This removes its saved credentials.`)) return;
+    await providersController.remove(provider.id);
+    if (editingProviderId === provider.id) resetForm();
+  };
+
   const saveProvider = async (): Promise<void> => {
     isSaving = true;
     try {
-      await providersController.add({ provider_id: providerId, name: name.trim(), model: model.trim(), api_key: apiKey, base_url: baseUrl.trim() || undefined });
-      apiKey = '';
-      name = '';
+      if (editingProviderId) {
+        await providersController.update({ id: editingProviderId, name: name.trim(), model: model.trim(), api_key: apiKey || undefined, base_url: baseUrl.trim() || undefined });
+      } else {
+        await providersController.add({ provider_id: providerId, name: name.trim(), model: model.trim(), api_key: apiKey, base_url: baseUrl.trim() || undefined });
+      }
+      resetForm();
     } finally {
       isSaving = false;
     }
@@ -67,12 +96,15 @@
     {#each $providersController.configured as provider}
       <div class="settings-card-row">
         <div class="settings-card-label"><strong>{provider.name}</strong><p>{provider.provider_id} · {provider.model}</p></div>
-        <button type="button" onclick={() => providersController.remove(provider.id)}>Remove</button>
+        <div class="provider-actions">
+          <button class="provider-action-button" type="button" onclick={() => editProvider(provider)} aria-label={`Edit ${provider.name}`} title="Edit provider"><Pencil size={14} /> Edit</button>
+          <button class="provider-action-button delete-provider-button" type="button" onclick={() => void deleteProvider(provider)} aria-label={`Delete ${provider.name}`} title="Delete provider"><Trash2 size={14} /> Delete</button>
+        </div>
       </div>
     {/each}
   </div>
 
-  <div class="settings-section-heading">Add Provider</div>
+  <div class="settings-section-heading">{editingProviderId ? 'Edit Provider' : 'Add Provider'}</div>
   <form class="settings-card provider-form-card" onsubmit={(event) => { event.preventDefault(); void saveProvider(); }}>
     <div class="settings-card-row">
       <label for="provider-type">Provider</label>
@@ -93,7 +125,7 @@
         </button>
 
         {#if showProviderDropdown}
-          <LiquidGlassPanel class="provider-dropdown-menu" role="listbox" aria-labelledby="provider-type">
+          <div class="provider-dropdown-menu" role="listbox" aria-labelledby="provider-type">
             <div class="provider-dropdown-label">Choose provider</div>
             {#each $providersController.definitions as definition}
               <button
@@ -111,7 +143,7 @@
                 {#if definition.id === providerId}<Check size={14} class="provider-dropdown-check" />{/if}
               </button>
             {/each}
-          </LiquidGlassPanel>
+          </div>
         {/if}
       </div>
     </div>
@@ -122,10 +154,11 @@
     <div class="provider-form-footer">
       <button class="save-provider-button" type="submit" disabled={isSaving}>
         <span class="save-provider-copy">
-          <span>{isSaving ? 'Securing provider…' : 'Save provider'}</span>
+          <span>{isSaving ? 'Securing provider…' : editingProviderId ? 'Update provider' : 'Save provider'}</span>
         </span>
         <span class="save-provider-arrow">→</span>
       </button>
+      {#if editingProviderId}<button class="cancel-provider-button" type="button" onclick={resetForm}><X size={14} /> Cancel</button>{/if}
     </div>
   </form>
 
@@ -165,6 +198,38 @@
     position: relative;
     min-width: 250px;
     z-index: 20;
+  }
+
+  .provider-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .provider-action-button,
+  .cancel-provider-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--colors-textMuted);
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+  }
+
+  .provider-action-button:hover,
+  .cancel-provider-button:hover {
+    background: var(--colors-hover);
+    color: var(--colors-text);
+  }
+
+  .delete-provider-button:hover {
+    color: var(--colors-error, #ff453a);
   }
 
   .provider-form-card {
@@ -215,7 +280,7 @@
     transform: rotate(180deg);
   }
 
-  :global(.liquid-glass-panel.provider-dropdown-menu) {
+  .provider-dropdown-menu {
     position: absolute;
     top: calc(100% + 8px);
     right: 0;
@@ -223,6 +288,10 @@
     z-index: 1000;
     padding: 6px;
     border-radius: 14px;
+    overflow: visible;
+    background: color-mix(in srgb, var(--colors-surfaceVariant, #242428) 94%, transparent);
+    border: 1px solid color-mix(in srgb, var(--colors-border) 55%, transparent);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
   }
 
   .provider-dropdown-label {
@@ -289,6 +358,7 @@
     padding: 14px 16px 16px;
     background: color-mix(in srgb, var(--colors-background) 35%, transparent);
     border-top: 1px solid color-mix(in srgb, var(--colors-border) 25%, transparent);
+    gap: 8px;
   }
 
   .save-provider-button {
@@ -322,15 +392,6 @@
     cursor: wait;
   }
 
-  .save-provider-icon {
-    display: grid;
-    place-items: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 9px;
-    background: rgba(255, 255, 255, 0.18);
-  }
-
   .save-provider-copy {
     display: flex;
     flex: 1;
@@ -338,12 +399,6 @@
     gap: 1px;
     font-size: 13px;
     font-weight: 600;
-  }
-
-  .save-provider-copy small {
-    font-size: 10px;
-    font-weight: 450;
-    opacity: 0.78;
   }
 
   .save-provider-arrow {

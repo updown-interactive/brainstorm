@@ -232,7 +232,8 @@
 
   .app-content {
     flex: 1;
-    overflow: auto;
+    min-height: 0;
+    overflow: hidden;
     position: relative;
     z-index: 1;
     background-color: transparent;

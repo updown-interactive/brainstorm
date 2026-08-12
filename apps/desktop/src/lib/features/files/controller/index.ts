@@ -199,6 +199,10 @@ class FilesController {
 		editorState.setActiveTab(path, paneId);
 	};
 
+	openFile = (path: string, name: string): void => {
+		editorState.openFile(path, name);
+	};
+
 	closeTab = (path: string, paneId: string, event?: Event): void => {
 		event?.stopPropagation();
 		editorState.closeFile(path, paneId);

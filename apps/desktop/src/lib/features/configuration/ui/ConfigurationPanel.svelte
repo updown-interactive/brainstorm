@@ -21,6 +21,11 @@
   let showPropertiesDropdown = false;
   let dropdownWrapEl: HTMLDivElement;
 
+  const propertyValueSections = [
+    { key: 'type' as const, title: 'Types', description: 'Reusable document types, including custom types.' },
+    { key: 'domain' as const, title: 'Domains', description: 'Reusable document domains, including custom domains.' }
+  ];
+
   function togglePropertiesDropdown(event?: Event) {
     event?.stopPropagation();
     showPropertiesDropdown = !showPropertiesDropdown;
@@ -245,6 +250,99 @@
             </div>
           </div>
         </section>
+
+        {#each propertyValueSections as section}
+          {@const values = section.key === 'type' ? $configurationController.types : $configurationController.domains}
+          <section class="config-section">
+            <div class="config-section-header">
+              <div>
+                <h2>{section.title}</h2>
+                <p>{section.description}</p>
+              </div>
+              <div class="section-actions">
+                <span class="count-pill">{values.length}</span>
+              </div>
+            </div>
+
+            {#if $configurationController.showPropertyValueForm && $configurationController.propertyValueKey === section.key}
+              <div class="tag-editor">
+                <div class="field-row">
+                  <label>
+                    <span>Name</span>
+                    <input
+                      class="settings-input"
+                      placeholder={section.key === 'type' ? 'type name' : 'domain name'}
+                      value={$configurationController.propertyValueForm.name}
+                      oninput={(event) => configurationController.updatePropertyValueForm({ name: event.currentTarget.value })}
+                    />
+                  </label>
+                  <label>
+                    <span>Color</span>
+                    <div class="color-picker-field">
+                      <input
+                        class="tag-color-picker"
+                        type="color"
+                        value={$configurationController.propertyValueForm.color}
+                        oninput={(event) => configurationController.updatePropertyValueForm({ color: event.currentTarget.value })}
+                      />
+                      <span>{$configurationController.propertyValueForm.color}</span>
+                    </div>
+                  </label>
+                </div>
+                <label>
+                  <span>Description</span>
+                  <textarea
+                    class="settings-input settings-textarea"
+                    rows="2"
+                    value={$configurationController.propertyValueForm.description}
+                    oninput={(event) => configurationController.updatePropertyValueForm({ description: event.currentTarget.value })}
+                  ></textarea>
+                </label>
+                <div class="form-actions">
+                  <button class="toolbar-btn primary" onclick={configurationController.savePropertyValue}>
+                    <span>{$configurationController.editingPropertyValueName ? `Save ${section.key}` : `Create ${section.key}`}</span>
+                  </button>
+                  <button class="toolbar-btn" onclick={configurationController.cancelPropertyValueEdit}>Cancel</button>
+                </div>
+              </div>
+            {/if}
+
+            {#if values.length === 0 && !($configurationController.showPropertyValueForm && $configurationController.propertyValueKey === section.key)}
+              <div class="brainstorm-empty large">No shared {section.title.toLocaleLowerCase()} yet.</div>
+            {/if}
+
+            <div class="tag-grid">
+              {#each values as value (value.name)}
+                <article class="tag-card">
+                  <div class="tag-card-header">
+                    <div class="tag-name">
+                      <Tag size={14} />
+                      <span style="color: {value.color}">{value.name}</span>
+                    </div>
+                    <span class="tag-color">
+                      <span class="tag-color-swatch" style="background-color: {value.color}"></span>
+                      {value.color}
+                    </span>
+                  </div>
+                  <p>{value.description || 'No description'}</p>
+                  <div class="tag-card-footer">
+                    <small>Created {value.created || 'unknown'}</small>
+                    <button class="tag-edit-btn" title={`Edit ${section.key}`} onclick={() => configurationController.startEditPropertyValue(section.key, value)}>
+                      <Edit2 size={13} />
+                    </button>
+                  </div>
+                </article>
+              {/each}
+
+              {#if !($configurationController.showPropertyValueForm && $configurationController.propertyValueKey === section.key)}
+                <button class="tag-card add-tag-card" onclick={() => configurationController.startCreatePropertyValue(section.key)}>
+                  <Plus size={20} />
+                  <span>Add {section.key}</span>
+                </button>
+              {/if}
+            </div>
+          </section>
+        {/each}
       </div>
     {:else if $configurationController.selectedName === configurationController.editorConfigFileName}
       <div class="config-overview">

@@ -22,3 +22,11 @@ export type AddProviderRequest = {
 	model: string;
 	base_url?: string;
 };
+
+export type UpdateProviderRequest = {
+	id: string;
+	name?: string;
+	api_key?: string;
+	model?: string;
+	base_url?: string;
+};

@@ -42,6 +42,8 @@ import {
 	normalizeTagName,
 	readPropertyConfig,
 	ensureSharedTags as ensureTags,
+	ensureSharedPropertyValue,
+	listSharedPropertyValues,
 	type SharedTag
 } from '../data/tag-registry';
 import { getCachedEditorConfig } from '../config/editor-config';
@@ -318,6 +320,17 @@ class PropertiesWidget extends WidgetType {
 		}
 
 		if (property.type === 'enum') {
+			if (property.key === 'type' || property.key === 'domain') {
+				return this.createCustomOptionPicker(
+					view,
+					property.key,
+					valueToInputString(property.value),
+					enumOptionsForKey(property.key),
+					'Search or add value',
+					(value) => this.updateValue(view, property.key, value)
+				);
+			}
+
 			return this.createOptionPicker(
 				view,
 				valueToInputString(property.value),
@@ -1050,6 +1063,145 @@ class PropertiesWidget extends WidgetType {
 		this.bindPopoverDismiss(view, button, menu, button);
 
 		wrap.append(button);
+		return wrap;
+	}
+
+	private createCustomOptionPicker(
+		view: EditorView,
+		propertyKey: 'type' | 'domain',
+		value: string,
+		options: string[],
+		placeholder: string,
+		onSelect: (value: string) => void
+	) {
+		const wrap = document.createElement('div');
+		wrap.className = 'cm-property-list-editor cm-property-enum-editor cm-property-popover-host';
+
+		const currentValue = value.trim();
+		const inputRow = document.createElement('div');
+		inputRow.className = 'cm-property-list-input-row';
+		inputRow.hidden = Boolean(currentValue);
+
+		const input = document.createElement('input');
+		input.className = 'cm-property-input';
+		input.placeholder = placeholder;
+
+		const menu = document.createElement('div');
+		menu.className = 'cm-property-menu cm-property-option-menu';
+		menu.hidden = true;
+
+		const chips = document.createElement('div');
+		chips.className = 'cm-property-chips';
+
+		let selectedValue = currentValue;
+		let selectedIndex = 0;
+
+		const render = () => {
+			chips.replaceChildren();
+			if (selectedValue) {
+				const chip = document.createElement('span');
+				chip.className = 'cm-property-chip cm-property-list-chip';
+				const label = document.createElement('span');
+				label.className = 'cm-property-list-chip-label';
+				label.textContent = formatLabel(selectedValue);
+				const remove = document.createElement('button');
+				remove.type = 'button';
+				remove.className = 'cm-property-list-chip-remove';
+				remove.title = `Remove ${formatLabel(selectedValue)}`;
+				remove.textContent = '×';
+				remove.addEventListener('click', () => {
+					selectedValue = '';
+					inputRow.hidden = false;
+					input.focus();
+					onSelect('');
+					render();
+				});
+				chip.append(label, remove);
+				chips.appendChild(chip);
+			}
+
+			const addButton = document.createElement('button');
+			addButton.type = 'button';
+			addButton.className = 'cm-property-chip cm-property-list-add';
+			addButton.textContent = selectedValue ? '+' : 'Select';
+			addButton.addEventListener('click', () => {
+				inputRow.hidden = false;
+				input.value = '';
+				void renderMenu();
+				input.focus();
+			});
+			chips.appendChild(addButton);
+		};
+
+		const selectValue = async (rawValue: string): Promise<void> => {
+			const nextValue = rawValue.trim();
+			if (!nextValue) return;
+			if (!options.some((option) => option.toLocaleLowerCase() === nextValue.toLocaleLowerCase())) {
+				await ensureSharedPropertyValue(propertyKey, nextValue);
+			}
+			selectedValue = nextValue;
+			input.value = '';
+			inputRow.hidden = true;
+			menu.hidden = true;
+			onSelect(nextValue);
+			render();
+		};
+
+		const renderMenu = async (): Promise<void> => {
+			const query = input.value.trim().toLocaleLowerCase();
+			const sharedOptions = await listSharedPropertyValues(propertyKey);
+			const allOptions = uniqueStrings([...options, ...sharedOptions]);
+			const visibleOptions = allOptions
+				.filter((option) => option.toLocaleLowerCase().includes(query))
+				.filter((option) => option.toLocaleLowerCase() !== selectedValue.toLocaleLowerCase());
+			selectedIndex = Math.min(selectedIndex, Math.max(visibleOptions.length - 1, 0));
+			menu.replaceChildren();
+
+			for (const [index, option] of visibleOptions.entries()) {
+				const item = document.createElement('button');
+				item.type = 'button';
+				item.className = index === selectedIndex ? 'cm-property-menu-item is-selected' : 'cm-property-menu-item';
+				item.textContent = formatLabel(option);
+				item.addEventListener('click', () => void selectValue(option));
+				menu.appendChild(item);
+			}
+
+			const hasExactMatch = allOptions.some((option) => option.toLocaleLowerCase() === query);
+			if (input.value.trim() && !hasExactMatch && input.value.trim().toLocaleLowerCase() !== selectedValue.toLocaleLowerCase()) {
+				const create = document.createElement('button');
+				create.type = 'button';
+				create.className = visibleOptions.length === 0 ? 'cm-property-menu-item is-selected' : 'cm-property-menu-item';
+				create.textContent = `Create ${input.value.trim()}`;
+				create.addEventListener('click', () => void selectValue(input.value));
+				menu.appendChild(create);
+			}
+
+			menu.hidden = false;
+		};
+
+		input.addEventListener('input', () => {
+			selectedIndex = 0;
+			void renderMenu();
+		});
+		input.addEventListener('focus', () => void renderMenu());
+		input.addEventListener('keydown', (event) => {
+			if (event.key === 'Enter') {
+				event.preventDefault();
+				const selected = menu.querySelector<HTMLButtonElement>('.cm-property-menu-item.is-selected');
+				if (selected) selected.click();
+				else void selectValue(input.value);
+			}
+			if (event.key === 'Escape') {
+				input.value = '';
+				inputRow.hidden = Boolean(selectedValue);
+				menu.hidden = true;
+			}
+		});
+
+		inputRow.appendChild(input);
+		wrap.append(chips, inputRow);
+		this.bindPopoverDismiss(view, input, menu, input);
+		render();
 		return wrap;
 	}
 

@@ -13,9 +13,11 @@ export const BUILT_IN_PROPERTY_ORDER = [
 	'links',
 	'summary',
 	'icon',
-	'cover',
 	'favorite',
-	'priority'
+	'priority',
+	'description',
+	'published',
+	'cover'
 ] as const;
 
 export const ADD_PROPERTY_OPTIONS = [
@@ -317,7 +319,8 @@ export function validateProperty(property: { key: string; value: unknown; type: 
 
 	if (property.type === 'enum') {
 		const options = enumOptionsForKey(property.key);
-		if (options.length > 0 && property.value && !options.includes(`${property.value}`)) {
+		const allowsCustomValue = property.key === 'type' || property.key === 'domain';
+		if (!allowsCustomValue && options.length > 0 && property.value && !options.includes(`${property.value}`)) {
 			return `Expected one of: ${options.join(', ')}.`;
 		}
 	}

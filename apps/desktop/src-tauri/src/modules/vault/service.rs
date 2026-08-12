@@ -209,6 +209,25 @@ impl VaultService {
         fs::write(path, content.unwrap_or_default()).map_err(|_| VaultError::Io)
     }
 
+    pub fn create_file_recursive(
+        &self,
+        relative_path: &str,
+        content: Option<&str>,
+    ) -> Result<(), VaultError> {
+        let relative = validate_relative_path(relative_path)?;
+        let path = self.root.join(relative);
+        if path.exists() {
+            return Err(VaultError::AlreadyExists(relative_path.to_string()));
+        }
+        let parent = path.parent().ok_or(VaultError::InvalidPath)?;
+        fs::create_dir_all(parent).map_err(|_| VaultError::Io)?;
+        let canonical_parent = parent.canonicalize().map_err(|_| VaultError::Io)?;
+        if !canonical_parent.starts_with(&self.root) {
+            return Err(VaultError::PathOutsideVault);
+        }
+        fs::write(path, content.unwrap_or_default()).map_err(|_| VaultError::Io)
+    }
+
     pub fn create_folder(&self, relative_path: &str) -> Result<(), VaultError> {
         let path = self.resolve_for_create(relative_path)?;
         if path.exists() {
@@ -366,6 +385,19 @@ mod tests {
         assert!(vault.create_file("Notes/a.md", None).is_err());
         assert_eq!(vault.list(Some("Notes")).unwrap().len(), 1);
         assert_eq!(vault.info("Notes/a.md").unwrap().size, 5);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn creates_file_with_missing_parent_directories_when_recursive() {
+        let (vault, root) = service();
+        vault
+            .create_file_recursive("notes/rust-tool-calling.md", Some("content"))
+            .unwrap();
+        assert_eq!(
+            vault.read_file("notes/rust-tool-calling.md").unwrap(),
+            "content"
+        );
         fs::remove_dir_all(root).unwrap();
     }
 }

@@ -141,12 +141,22 @@ fn execute_blocking(
             Ok(serde_json::to_value(info).unwrap_or_else(|_| json!({ "success": false })))
         }
         "vault.create_file" => {
-            let path = request
+            let requested_path = request
                 .path
                 .as_deref()
                 .ok_or(crate::modules::vault::error::VaultError::InvalidPath)?;
-            service.create_file(path, request.content.as_deref())?;
-            Ok(json!({ "success": true, "path": path }))
+            let path = resolve_create_file_path(
+                requested_path,
+                request.name.as_deref(),
+                request.content.as_deref(),
+            );
+            validate_markdown_frontmatter(&path, request.content.as_deref())?;
+            if request.recursive {
+                service.create_file_recursive(&path, request.content.as_deref())?;
+            } else {
+                service.create_file(&path, request.content.as_deref())?;
+            }
+            Ok(json!({ "success": true, "path": path, "name": request.name }))
         }
         "vault.create_folder" => {
             let path = request
@@ -192,6 +202,78 @@ fn execute_blocking(
             operation.into(),
         )),
     }
+}
+
+fn validate_markdown_frontmatter(
+    path: &str,
+    content: Option<&str>,
+) -> Result<(), crate::modules::vault::error::VaultError> {
+    if !path.to_ascii_lowercase().ends_with(".md") {
+        return Ok(());
+    }
+
+    let content = content.ok_or_else(|| {
+        crate::modules::vault::error::VaultError::InvalidOperation(
+            "Markdown files require YAML frontmatter with name, author, created, and updated."
+                .into(),
+        )
+    })?;
+    let (frontmatter, _) = crate::modules::tools::markdown::frontmatter::split_frontmatter(content)
+        .map_err(|error| {
+            crate::modules::vault::error::VaultError::InvalidOperation(format!(
+                "invalid Markdown frontmatter: {error}"
+            ))
+        })?;
+
+    for key in ["name", "author", "created", "updated"] {
+        let is_present = frontmatter
+            .get(key)
+            .and_then(serde_json::Value::as_str)
+            .is_some_and(|value| !value.trim().is_empty());
+        if !is_present {
+            return Err(crate::modules::vault::error::VaultError::InvalidOperation(
+                format!("Markdown frontmatter requires a non-empty {key} property"),
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+fn resolve_create_file_path(path: &str, name: Option<&str>, content: Option<&str>) -> String {
+    let frontmatter_name = content
+        .and_then(|content| content.strip_prefix("---\n"))
+        .and_then(|frontmatter| frontmatter.split("\n---").next())
+        .and_then(|frontmatter| serde_yaml::from_str::<serde_yaml::Value>(frontmatter).ok())
+        .and_then(|frontmatter| {
+            frontmatter
+                .get("name")
+                .and_then(|value| value.as_str())
+                .map(str::to_owned)
+        });
+    let name = name.or(frontmatter_name.as_deref());
+    let Some(name) = name.map(str::trim).filter(|name| !name.is_empty()) else {
+        return path.to_owned();
+    };
+    let filename = std::path::Path::new(name)
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or(name);
+    let extension = std::path::Path::new(path)
+        .extension()
+        .and_then(|value| value.to_str())
+        .filter(|value| !value.is_empty())
+        .unwrap_or("md");
+    let filename = if std::path::Path::new(filename).extension().is_some() {
+        filename.to_owned()
+    } else {
+        format!("{filename}.{extension}")
+    };
+    std::path::Path::new(path)
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .map(|parent| parent.join(&filename).to_string_lossy().into_owned())
+        .unwrap_or(filename)
 }
 
 fn default_enabled() -> bool {

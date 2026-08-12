@@ -10,9 +10,15 @@ export interface SharedTag {
 	created: string;
 }
 
+export type SharedPropertyValue = SharedTag;
+
 export interface PropertyConfig {
 	tags?: SharedTag[];
+	types?: SharedPropertyValue[] | string[];
+	domains?: SharedPropertyValue[] | string[];
 }
+
+export type SharedPropertyKey = 'type' | 'domain';
 
 const configFileName = 'config.json';
 const propertyConfigFileName = 'property-config.json';
@@ -51,6 +57,42 @@ export async function ensureSharedTags(names: string[], rootPathOverride?: strin
 	tagCache = nextTags;
 	await writePropertyConfig({ ...config, tags: nextTags }, rootPathOverride);
 	return tagCache;
+}
+
+export async function listSharedPropertyValues(key: SharedPropertyKey, rootPathOverride?: string | null): Promise<string[]> {
+	const config = await readPropertyConfig(rootPathOverride);
+	return normalizeSharedPropertyValues(config[key === 'type' ? 'types' : 'domains']).map((value) => value.name);
+}
+
+export async function ensureSharedPropertyValue(
+	key: SharedPropertyKey,
+	value: string,
+	rootPathOverride?: string | null
+): Promise<string[]> {
+	const normalizedValue = value.trim();
+	if (!normalizedValue) return listSharedPropertyValues(key, rootPathOverride);
+
+	const config = await readPropertyConfig(rootPathOverride);
+	const configKey = key === 'type' ? 'types' : 'domains';
+	const values = normalizeSharedPropertyValues(config[configKey]);
+	if (!values.some((item) => item.name.toLocaleLowerCase() === normalizedValue.toLocaleLowerCase())) {
+		values.push({ name: normalizedValue, color: defaultTagColor(), description: '', created: todayString() });
+		await writePropertyConfig({ ...config, [configKey]: values }, rootPathOverride);
+	}
+
+	return values.map((value) => value.name);
+}
+
+export async function saveSharedPropertyValues(
+	key: SharedPropertyKey,
+	values: SharedPropertyValue[],
+	rootPathOverride?: string | null
+): Promise<SharedPropertyValue[]> {
+	const config = await readPropertyConfig(rootPathOverride);
+	const configKey = key === 'type' ? 'types' : 'domains';
+	const normalizedValues = normalizeSharedPropertyValues(values);
+	await writePropertyConfig({ ...config, [configKey]: normalizedValues }, rootPathOverride);
+	return normalizedValues;
 }
 
 export async function saveSharedTags(tags: SharedTag[], rootPathOverride?: string | null) {
@@ -95,6 +137,27 @@ function uniqueTagNames(names: string[]) {
 	return result;
 }
 
+function normalizeSharedPropertyValues(values: unknown): SharedPropertyValue[] {
+	if (!Array.isArray(values)) return [];
+	const entries = values.map((value) => {
+		if (typeof value === 'string') {
+			return { name: value, color: defaultTagColor(), description: '', created: todayString() };
+		}
+		if (!value || typeof value !== 'object' || !('name' in value)) return null;
+		const entry = value as Partial<SharedPropertyValue>;
+		return {
+			name: `${entry.name ?? ''}`,
+			color: normalizeTagColor(entry.color),
+			description: `${entry.description ?? ''}`,
+			created: `${entry.created ?? todayString()}`
+		};
+	}).filter((value): value is SharedPropertyValue => Boolean(value?.name.trim()));
+
+	return uniqueTagNames(entries.map((value) => value.name.trim()))
+		.map((name) => entries.find((value) => value.name.trim().toLocaleLowerCase() === name.toLocaleLowerCase()))
+		.filter((value): value is SharedPropertyValue => Boolean(value));
+}
+
 function normalizeSharedTags(tags: SharedTag[]) {
 	return uniqueTagNames(tags.map((tag) => normalizeTagName(tag.name)).filter(Boolean))
 		.map((name) => {
@@ -130,7 +193,12 @@ export async function writePropertyConfig(config: PropertyConfig, rootPathOverri
 	if (!schemaPath) return;
 	await invoke('write_file', {
 		path: schemaPath,
-		content: `${JSON.stringify({ ...config, tags: normalizeSharedTags(config.tags ?? []) }, null, 2)}\n`
+		content: `${JSON.stringify({
+			...config,
+			tags: normalizeSharedTags(config.tags ?? []),
+			types: normalizeSharedPropertyValues(config.types),
+			domains: normalizeSharedPropertyValues(config.domains)
+		}, null, 2)}\n`
 	});
 }
 

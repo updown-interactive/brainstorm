@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import type { ConversationMessage, ConversationSummary } from '../types';
+import type { ChatFile, ChatProgress, ChatRun, ConversationMessage, ConversationSummary } from '../types';
 
 export type ChatState = {
 	conversations: ConversationSummary[];
@@ -8,6 +8,9 @@ export type ChatState = {
 	isLoadingHistory: boolean;
 	isLoadingMessages: boolean;
 	error: string;
+	activeProgress: ChatProgress | null;
+	runStatus: ChatRun | null;
+	createdFilesByMessage: Record<string, ChatFile[]>;
 };
 
-export const chatState = writable<ChatState>({ conversations: [], activeConversationId: null, messages: [], isLoadingHistory: false, isLoadingMessages: false, error: '' });
+export const chatState = writable<ChatState>({ conversations: [], activeConversationId: null, messages: [], isLoadingHistory: false, isLoadingMessages: false, error: '', activeProgress: null, runStatus: null, createdFilesByMessage: {} });

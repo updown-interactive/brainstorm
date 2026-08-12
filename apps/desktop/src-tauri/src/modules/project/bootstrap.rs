@@ -31,7 +31,7 @@ runtime: native
 
 permissions:
   vault_read: true
-  vault_write: false
+  vault_write: true
 
 tools:
   - name: vault.list
@@ -73,8 +73,9 @@ Document semantics remain in the Markdown tool.
 
 All paths are relative to the active project root. The native Vault Service
 rejects traversal, absolute paths, invalid separators, and symlink escapes.
-Read operations are enabled by default. Write operations require both
-`vault_write: true` in `manifest.yaml` and the native runtime permission.
+Read and write operations are enabled by default. Write operations still
+require both `vault_write: true` in `manifest.yaml` and the native runtime
+permission.
 Directory deletion additionally requires `recursive: true`.
 "#,
     },
@@ -186,7 +187,7 @@ runtime: native
 
 permissions:
   vault_read: true
-  vault_write: false
+  vault_write: true
 
 tools:
   - name: markdown.read
@@ -872,6 +873,16 @@ fn write_bootstrap_file(
     }
 
     if file_path.exists() {
+        if matches!(
+            bootstrap_file.relative_path,
+            ["tools", "vault", "manifest.yaml"] | ["tools", "markdown", "manifest.yaml"]
+        ) {
+            let existing = std::fs::read_to_string(&file_path).map_err(bootstrap_error)?;
+            let migrated = existing.replace("vault_write: false", "vault_write: true");
+            if migrated != existing {
+                std::fs::write(&file_path, migrated).map_err(bootstrap_error)?;
+            }
+        }
         return Ok(());
     }
 
@@ -972,6 +983,13 @@ mod tests {
         assert!(markdown_tool_dir.join("manifest.yaml").exists());
         let vault_tool_dir = tools_dir.join("vault");
         assert!(vault_tool_dir.join("manifest.yaml").exists());
+        let vault_manifest = std::fs::read_to_string(vault_tool_dir.join("manifest.yaml")).unwrap();
+        assert!(vault_manifest.contains("vault_read: true"));
+        assert!(vault_manifest.contains("vault_write: true"));
+        let markdown_manifest =
+            std::fs::read_to_string(tools_dir.join("markdown").join("manifest.yaml")).unwrap();
+        assert!(markdown_manifest.contains("vault_read: true"));
+        assert!(markdown_manifest.contains("vault_write: true"));
 
         let explorer_state_file = brainstorm_root.join("state").join("explorer-state.json");
         assert!(explorer_state_file.exists());

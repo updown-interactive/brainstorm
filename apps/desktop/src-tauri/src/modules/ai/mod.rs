@@ -12,5 +12,5 @@ pub use config::{ProviderConfig, ProviderConfigResponse};
 pub use error::LlmError;
 pub use factory::ProviderFactory;
 pub use provider::{AuthenticationType, LlmProvider, ProviderDefinition};
-pub use request::{LlmMessage, LlmRequest, LlmRole, ToolDefinition};
-pub use response::{ConnectionTestResult, LlmModel, LlmResponse, SafeProviderError};
+pub use request::{LlmMessage, LlmRequest, LlmRole, ToolCall, ToolDefinition, ToolResult};
+pub use response::{ConnectionTestResult, FinishReason, LlmModel, LlmResponse, SafeProviderError};

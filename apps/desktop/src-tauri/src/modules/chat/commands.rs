@@ -34,6 +34,22 @@ pub struct ChatStreamEvent {
     pub delta: String,
     pub done: bool,
     pub message: Option<ConversationMessage>,
+    pub progress: Option<ChatProgress>,
+    pub created_files: Option<Vec<CreatedFile>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreatedFile {
+    pub path: String,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatProgress {
+    pub phase: String,
+    pub tool_name: Option<String>,
 }
 
 #[tauri::command]

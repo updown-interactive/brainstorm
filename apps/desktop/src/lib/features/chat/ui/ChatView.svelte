@@ -38,7 +38,10 @@
     void providersController.load();
     if (projectId) void chatController.loadForProject(projectId);
     let disposed = false;
-    void listen<ChatStreamEvent>('chat-stream', (event) => chatController.applyStreamEvent(event.payload)).then((unlisten) => {
+    void listen<ChatStreamEvent>('chat-stream', (event) => {
+      if (event.payload.progress) chatController.applyProgress(event.payload.progress, event.payload.conversationId);
+      else chatController.applyStreamEvent(event.payload);
+    }).then((unlisten) => {
       if (disposed) unlisten();
       else unlistenChatStream = unlisten;
     });
@@ -94,7 +97,8 @@
   />
 
   <section class="chat-main-panel" aria-label="Chat workspace">
-    <ChatMessageList messages={$chatState.messages} conversationTitle={activeConversation?.title ?? 'Conversation'} {emptyStatePrompt} />
+    <ChatMessageList messages={$chatState.messages} conversationTitle={activeConversation?.title ?? 'Conversation'} runStatus={$chatState.runStatus} createdFilesByMessage={$chatState.createdFilesByMessage} {emptyStatePrompt} />
+    {#if $chatState.error}<div class="chat-error" role="alert">{$chatState.error}</div>{/if}
     <ChatComposer bind:draft bind:selectedProviderId {configuredProviders} {selectedProvider} onSubmit={submitMessage} />
   </section>
 </div>

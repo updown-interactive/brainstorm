@@ -9,7 +9,11 @@ pub async fn init(pool: &SqlitePool) -> Result<(), AppError> {
 }
 
 pub async fn get_projects(pool: &SqlitePool) -> Result<Vec<Project>, AppError> {
-    db::get_all_projects(pool).await
+    let projects = db::get_all_projects(pool).await?;
+    for project in &projects {
+        bootstrap::ensure_project_bootstrap(&project.path)?;
+    }
+    Ok(projects)
 }
 
 pub async fn create_project(

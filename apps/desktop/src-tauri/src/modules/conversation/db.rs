@@ -31,7 +31,7 @@ pub async fn messages(
     limit: u32,
     offset: u32,
 ) -> Result<Vec<MessageRow>, AppError> {
-    Ok(sqlx::query_as("SELECT id, conversation_id, role, content, status, provider, model, created_at, updated_at FROM conversation_messages WHERE conversation_id = ? ORDER BY created_at ASC LIMIT ? OFFSET ?").bind(conversation_id).bind(limit).bind(offset).fetch_all(pool).await?)
+    Ok(sqlx::query_as("SELECT id, conversation_id, role, content, status, provider, model, created_at, updated_at, metadata FROM conversation_messages WHERE conversation_id = ? ORDER BY created_at ASC LIMIT ? OFFSET ?").bind(conversation_id).bind(limit).bind(offset).fetch_all(pool).await?)
 }
 pub async fn summaries(
     pool: &SqlitePool,

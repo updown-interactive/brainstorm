@@ -141,6 +141,7 @@ pub async fn add_conversation_message(
         model: request.model,
         created_at: timestamp,
         updated_at: None,
+        metadata: None,
     })
 }
 

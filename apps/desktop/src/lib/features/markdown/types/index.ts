@@ -78,6 +78,8 @@ export interface SharedTag {
 
 export interface PropertyConfig {
 	tags?: SharedTag[];
+	types?: SharedTag[] | string[];
+	domains?: SharedTag[] | string[];
 }
 
 export interface MarkdownState {

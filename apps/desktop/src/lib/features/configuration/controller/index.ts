@@ -22,6 +22,10 @@ import {
 	normalizeTagName,
 	readPropertyConfig,
 	saveSharedTags,
+	saveSharedPropertyValues,
+	type PropertyConfig,
+	type SharedPropertyKey,
+	type SharedPropertyValue,
 	type SharedTag
 } from '../../markdown/data/tag-registry';
 import { todayString } from '../../markdown/engine/frontmatter';
@@ -72,12 +76,18 @@ export interface ConfigurationState {
 	showTagForm: boolean;
 	editingTagName: string | null;
 	tagForm: TagFormState;
+	showPropertyValueForm: boolean;
+	editingPropertyValueName: string | null;
+	propertyValueKey: SharedPropertyKey | null;
+	propertyValueForm: TagFormState;
 	jsonEditorError: string;
-	propertyConfig: { tags?: SharedTag[] } | null;
+	propertyConfig: PropertyConfig | null;
 	explorerConfig: ExplorerConfig;
 	graphConfig: GraphConfig;
 	editorConfig: EditorConfig;
 	tags: SharedTag[];
+	types: SharedPropertyValue[];
+	domains: SharedPropertyValue[];
 }
 
 const propertyConfigFileName = 'property-config.json';
@@ -266,7 +276,7 @@ class ConfigurationController {
 		this.patchState({
 			showTagForm: true,
 			editingTagName: tag.name,
-			tagForm: {
+			 tagForm: {
 				name: tag.name,
 				color: normalizeTagColor(tag.color),
 				description: tag.description || ''
@@ -321,6 +331,77 @@ class ConfigurationController {
 		await saveSharedTags(nextTags, this.projectRootPath());
 		await this.selectFile({ name: propertyConfigFileName, path: state.selectedPath, kind: 'configuration' });
 		this.cancelTagEdit();
+		this.patchState({ parseError: '' });
+	};
+
+	startCreatePropertyValue = (key: SharedPropertyKey): void => {
+		this.patchState({
+			showPropertyValueForm: true,
+			editingPropertyValueName: null,
+			propertyValueKey: key,
+			propertyValueForm: this.createEmptyTagForm()
+		});
+	};
+
+	startEditPropertyValue = (key: SharedPropertyKey, value: SharedPropertyValue): void => {
+		this.patchState({
+			showPropertyValueForm: true,
+			editingPropertyValueName: value.name,
+			propertyValueKey: key,
+			propertyValueForm: {
+				name: value.name,
+				color: normalizeTagColor(value.color),
+				description: value.description || ''
+			}
+		});
+	};
+
+	cancelPropertyValueEdit = (): void => {
+		this.patchState({
+			showPropertyValueForm: false,
+			editingPropertyValueName: null,
+			propertyValueKey: null,
+			propertyValueForm: this.createEmptyTagForm()
+		});
+	};
+
+	updatePropertyValueForm(patch: Partial<TagFormState>): void {
+		const propertyValueForm = { ...this.snapshot().propertyValueForm, ...patch };
+		if (patch.color) propertyValueForm.color = normalizeTagColor(patch.color);
+		this.patchState({ propertyValueForm });
+	}
+
+	savePropertyValue = async (): Promise<void> => {
+		const state = this.snapshot();
+		const key = state.propertyValueKey;
+		if (!key) return;
+		const name = state.propertyValueForm.name.trim();
+		if (!name) {
+			this.patchState({ parseError: `${key === 'type' ? 'Type' : 'Domain'} name is required.` });
+			return;
+		}
+
+		const values = key === 'type' ? state.types : state.domains;
+		const editingName = state.editingPropertyValueName?.toLocaleLowerCase();
+		if (values.some((value) => value.name.toLocaleLowerCase() === name.toLocaleLowerCase() && value.name.toLocaleLowerCase() !== editingName)) {
+			this.patchState({ parseError: `${name} already exists.` });
+			return;
+		}
+
+		const existing = values.find((value) => value.name.toLocaleLowerCase() === editingName);
+		const nextValue: SharedPropertyValue = {
+			name,
+			color: normalizeTagColor(state.propertyValueForm.color),
+			description: state.propertyValueForm.description.trim(),
+			created: existing?.created || todayString()
+		};
+		const nextValues = state.editingPropertyValueName
+			? values.map((value) => value.name === state.editingPropertyValueName ? nextValue : value)
+			: [...values, nextValue];
+
+		await saveSharedPropertyValues(key, nextValues, this.projectRootPath());
+		await this.selectFile({ name: propertyConfigFileName, path: state.selectedPath, kind: 'configuration' });
+		this.cancelPropertyValueEdit();
 		this.patchState({ parseError: '' });
 	};
 
@@ -480,16 +561,18 @@ class ConfigurationController {
 			explorerConfig,
 			graphConfig,
 			editorConfig,
-			tags: this.normalizeTags(propertyConfig?.tags)
+			tags: this.normalizeTags(propertyConfig?.tags),
+			types: this.normalizePropertyValues(propertyConfig?.types),
+			domains: this.normalizePropertyValues(propertyConfig?.domains)
 		});
 	}
 
-	private parsePropertyConfig(content: string, selectedName: string, showJson: boolean): { tags?: SharedTag[] } | null {
+	private parsePropertyConfig(content: string, selectedName: string, showJson: boolean): PropertyConfig | null {
 		if (selectedName !== propertyConfigFileName) return null;
 		try {
 			const parsed = JSON.parse(content || '{}');
 			return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-				? parsed as { tags?: SharedTag[] }
+				? parsed as PropertyConfig
 				: null;
 		} catch (error) {
 			const message = error instanceof Error ? error.message : 'Invalid JSON.';
@@ -556,6 +639,22 @@ class ConfigurationController {
 				description: `${tag.description ?? ''}`,
 				created: `${tag.created ?? ''}`
 			}));
+	}
+
+	private normalizePropertyValues(value: unknown): SharedPropertyValue[] {
+		if (!Array.isArray(value)) return [];
+		return value
+			.map((item) => typeof item === 'string'
+				? { name: item, color: this.getDefaultTagColor(), description: '', created: todayString() }
+				: item && typeof item === 'object' && 'name' in item
+					? {
+						name: `${item.name ?? ''}`,
+						color: normalizeTagColor(item.color),
+						description: `${item.description ?? ''}`,
+						created: `${item.created ?? ''}`
+					}
+					: null)
+			.filter((item): item is SharedPropertyValue => Boolean(item?.name.trim()));
 	}
 
 	private validateJson(content: string): string {
@@ -733,12 +832,22 @@ class ConfigurationController {
 				color: '#007ACC',
 				description: ''
 			},
+			showPropertyValueForm: false,
+			editingPropertyValueName: null,
+			propertyValueKey: null,
+			propertyValueForm: {
+				name: '',
+				color: '#007ACC',
+				description: ''
+			},
 			jsonEditorError: '',
 			propertyConfig: null,
 			explorerConfig,
 			graphConfig,
 			editorConfig,
 			tags: [],
+			types: [],
+			domains: [],
 		};
 	}
 
