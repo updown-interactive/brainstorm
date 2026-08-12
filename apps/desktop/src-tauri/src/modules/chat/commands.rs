@@ -15,7 +15,6 @@ pub struct SendMessageRequest {
     pub project_id: String,
     pub conversation_id: Option<String>,
     pub content: String,
-    pub agent_id: Option<String>,
     pub provider_config_id: Option<String>,
     pub model: Option<String>,
 }

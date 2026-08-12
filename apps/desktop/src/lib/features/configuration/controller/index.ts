@@ -30,7 +30,6 @@ import { shellState } from '../../shell/state/state';
 import { ensureGraphConfigPath, normalizeGraphConfig, readGraphConfig, writeGraphConfig } from '../../graph/config/graph-config';
 import { graphConfigFileName, legacyGraphStateFileName } from '../../graph/config/constants';
 import type { DisplayRangeKey, ForceRangeKey, GraphConfig } from '../../graph/types';
-import { agentRepository, type AgentPackage } from '../../agents';
 import {
 	defaultEditorConfig,
 	editorConfigFileName,
@@ -45,7 +44,7 @@ import {
 export interface ConfigurationFile {
 	name: string;
 	path: string;
-	kind: 'configuration' | 'agent' | 'yaml';
+	kind: 'configuration' | 'yaml';
 }
 
 export interface ConfigurationSection {
@@ -58,27 +57,6 @@ export interface TagFormState {
 	name: string;
 	color: string;
 	description: string;
-}
-
-export interface AgentToolGroup {
-	name: string;
-	tools: string[];
-}
-
-export interface AgentView {
-	id: string;
-	name: string;
-	version: string;
-	role: string;
-	description: string;
-	priority: string;
-	canDelegate: boolean;
-	delegates: string[];
-	memoryType: string;
-	skills: string[];
-	memoryItems: string[];
-	toolGroups: AgentToolGroup[];
-	systemPrompt: string;
 }
 
 export interface ConfigurationState {
@@ -100,18 +78,11 @@ export interface ConfigurationState {
 	graphConfig: GraphConfig;
 	editorConfig: EditorConfig;
 	tags: SharedTag[];
-	selectedAgent: AgentView | null;
-	selectedAgentPackage: AgentPackage | null;
 }
 
 const propertyConfigFileName = 'property-config.json';
 const legacyPropertiesSchemaFileName = 'properties-schema.json';
 const explorerStateFileName = 'explorer-state.json';
-const agentsFolderName = 'agents';
-const agentManifestFileName = 'agent.yaml';
-const agentSkillFileName = 'SKILL.md';
-const agentMemoryFileName = 'MEMORY.md';
-const agentToolsFileName = 'TOOLS.md';
 
 class ConfigurationController {
 	private readonly state = writable<ConfigurationState>(this.createInitialState());
@@ -224,7 +195,6 @@ class ConfigurationController {
 			sections = this.buildSectionsFromFiles(configurationFolderPath, files, sections);
 			sections = this.compactSections([
 				...sections,
-				await this.buildAgentSection(brainstormFolderPath),
 				...(await this.buildToolSections(toolsFolderPath))
 			]);
 			files = this.flattenSections(sections);
@@ -255,19 +225,12 @@ class ConfigurationController {
 			selectedKind: file.kind,
 			parseError: '',
 			jsonEditorError: '',
-			selectedAgent: null,
-			selectedAgentPackage: null,
 			showJson: file.kind === 'configuration' ? this.snapshot().showJson : false
 		});
 
 		const rootPath = this.projectRootPath();
 		try {
-			if (file.kind === 'agent') {
-				const agentPkg = await agentRepository.loadAgentPackage(file.path);
-				const rawContent = await this.readAgentContent(file.path);
-				this.patchState({ selectedAgentPackage: agentPkg });
-				this.patchContent(rawContent);
-			} else {
+			{
 				const rawContent = file.name === explorerConfigFileName
 					? `${JSON.stringify(await readExplorerConfig(rootPath), null, 2)}\n`
 					: file.name === propertyConfigFileName
@@ -512,16 +475,12 @@ class ConfigurationController {
 		const explorerConfig = this.parseExplorerConfig(rawContent, state.selectedName, state.showJson);
 		const graphConfig = this.parseGraphConfig(rawContent, state.selectedName, state.showJson);
 		const editorConfig = this.parseEditorConfig(rawContent, state.selectedName, state.showJson);
-		const selectedAgent = state.selectedKind === 'agent'
-			? this.parseAgentView(rawContent)
-			: null;
 		this.patchState({
 			propertyConfig,
 			explorerConfig,
 			graphConfig,
 			editorConfig,
-			tags: this.normalizeTags(propertyConfig?.tags),
-			selectedAgent
+			tags: this.normalizeTags(propertyConfig?.tags)
 		});
 	}
 
@@ -713,176 +672,6 @@ class ConfigurationController {
 		}
 	}
 
-	private async buildAgentSection(brainstormFolderPath: string): Promise<ConfigurationSection> {
-		const agentsFolderPath = `${brainstormFolderPath}/${agentsFolderName}`;
-		try {
-			const folderExists = await invoke<boolean>('path_exists', { path: agentsFolderPath });
-			if (!folderExists) return { name: 'Agents', path: agentsFolderPath, files: [] };
-
-			const entries = await invoke<FileEntry[]>('read_dir_entries', { path: agentsFolderPath });
-			const files = entries
-				.filter((entry) => entry.is_dir)
-				.map((entry) => ({ name: this.sectionName(entry.name), path: entry.path, kind: 'agent' as const }))
-				.sort((left, right) => left.name.localeCompare(right.name));
-
-			return { name: 'Agents', path: agentsFolderPath, files };
-		} catch {
-			return { name: 'Agents', path: agentsFolderPath, files: [] };
-		}
-	}
-
-	private async readAgentContent(agentPath: string): Promise<string> {
-		const [manifest, skills, memory, tools] = await Promise.all([
-			this.readOptionalFile(`${agentPath}/${agentManifestFileName}`),
-			this.readOptionalFile(`${agentPath}/${agentSkillFileName}`),
-			this.readOptionalFile(`${agentPath}/${agentMemoryFileName}`),
-			this.readOptionalFile(`${agentPath}/${agentToolsFileName}`)
-		]);
-
-		return [
-			`--- ${agentManifestFileName} ---`,
-			manifest,
-			`--- ${agentSkillFileName} ---`,
-			skills,
-			`--- ${agentMemoryFileName} ---`,
-			memory,
-			`--- ${agentToolsFileName} ---`,
-			tools
-		].join('\n');
-	}
-
-	private async readOptionalFile(path: string): Promise<string> {
-		try {
-			const exists = await invoke<boolean>('path_exists', { path });
-			if (!exists) return '';
-			return await invoke<string>('read_file', { path });
-		} catch {
-			return '';
-		}
-	}
-
-	private parseAgentView(content: string): AgentView {
-		const manifest = this.extractAgentSection(content, agentManifestFileName);
-		const skills = this.extractAgentSection(content, agentSkillFileName);
-		const memory = this.extractAgentSection(content, agentMemoryFileName);
-		const tools = this.extractAgentSection(content, agentToolsFileName);
-
-		return {
-			id: this.yamlScalar(manifest, 'id'),
-			name: this.yamlScalar(manifest, 'name'),
-			version: this.yamlScalar(manifest, 'version'),
-			role: this.yamlScalar(manifest, 'role'),
-			description: this.yamlBlock(manifest, 'description'),
-			priority: this.yamlScalar(manifest, 'priority'),
-			canDelegate: this.yamlScalar(manifest, 'can_delegate') === 'true',
-			delegates: this.yamlList(manifest, 'delegates'),
-			memoryType: this.yamlNestedScalar(manifest, 'memory', 'type'),
-			skills: this.markdownListItems(skills),
-			memoryItems: this.markdownListItems(memory),
-			toolGroups: this.markdownToolGroups(tools),
-			systemPrompt: this.yamlBlock(manifest, 'system_prompt')
-		};
-	}
-
-	private extractAgentSection(content: string, fileName: string): string {
-		const marker = `--- ${fileName} ---`;
-		const start = content.indexOf(marker);
-		if (start === -1) return '';
-
-		const bodyStart = start + marker.length;
-		const nextMarker = content.indexOf('\n--- ', bodyStart);
-		return content.slice(bodyStart, nextMarker === -1 ? undefined : nextMarker).trim();
-	}
-
-	private yamlScalar(content: string, key: string): string {
-		const line = content.split('\n').find((item) => item.trimStart().startsWith(`${key}:`));
-		if (!line) return '';
-		return line.slice(line.indexOf(':') + 1).trim().replace(/^["']|["']$/g, '');
-	}
-
-	private yamlNestedScalar(content: string, parentKey: string, childKey: string): string {
-		const lines = content.split('\n');
-		const parentIndex = lines.findIndex((line) => line.trim() === `${parentKey}:`);
-		if (parentIndex === -1) return '';
-
-		for (const line of lines.slice(parentIndex + 1)) {
-			if (line.trim() === '') continue;
-			if (!line.startsWith(' ')) break;
-			const trimmed = line.trim();
-			if (trimmed.startsWith(`${childKey}:`)) {
-				return trimmed.slice(trimmed.indexOf(':') + 1).trim().replace(/^["']|["']$/g, '');
-			}
-		}
-
-		return '';
-	}
-
-	private yamlList(content: string, key: string): string[] {
-		const lines = content.split('\n');
-		const keyIndex = lines.findIndex((line) => line.trim() === `${key}:`);
-		if (keyIndex === -1) return [];
-
-		const items: string[] = [];
-		for (const line of lines.slice(keyIndex + 1)) {
-			if (line.trim() === '') continue;
-			if (!line.startsWith(' ')) break;
-			const trimmed = line.trim();
-			if (trimmed.startsWith('- ')) items.push(trimmed.slice(2).trim());
-		}
-
-		return items;
-	}
-
-	private yamlBlock(content: string, key: string): string {
-		const lines = content.split('\n');
-		const keyIndex = lines.findIndex((line) => line.trimStart().startsWith(`${key}:`));
-		if (keyIndex === -1 || (!lines[keyIndex].includes('|') && !lines[keyIndex].includes('>'))) return this.yamlScalar(content, key);
-
-		const blockLines: string[] = [];
-		for (const line of lines.slice(keyIndex + 1)) {
-			if (line.trim() === '') {
-				blockLines.push('');
-				continue;
-			}
-			if (!line.startsWith(' ')) break;
-			blockLines.push(line.trim());
-		}
-
-		return blockLines.join('\n').trim();
-	}
-
-	private markdownListItems(content: string): string[] {
-		return content
-			.split('\n')
-			.map((line) => line.trim())
-			.filter((line) => line.startsWith('- '))
-			.map((line) => line.slice(2).trim())
-			.filter(Boolean);
-	}
-
-	private markdownToolGroups(content: string): AgentToolGroup[] {
-		const groups: AgentToolGroup[] = [];
-		let currentGroup: AgentToolGroup | null = null;
-
-		for (const line of content.split('\n')) {
-			const trimmed = line.trim();
-			if (trimmed.startsWith('## ')) {
-				currentGroup = { name: trimmed.slice(3).trim(), tools: [] };
-				groups.push(currentGroup);
-				continue;
-			}
-			if (trimmed.startsWith('- ')) {
-				if (!currentGroup) {
-					currentGroup = { name: 'Tools', tools: [] };
-					groups.push(currentGroup);
-				}
-				currentGroup.tools.push(trimmed.slice(2).trim());
-			}
-		}
-
-		return groups;
-	}
-
 	private compactSections(sections: ConfigurationSection[]): ConfigurationSection[] {
 		return sections
 			.filter((section) => section.files.length > 0)
@@ -950,8 +739,6 @@ class ConfigurationController {
 			graphConfig,
 			editorConfig,
 			tags: [],
-			selectedAgent: null,
-			selectedAgentPackage: null
 		};
 	}
 

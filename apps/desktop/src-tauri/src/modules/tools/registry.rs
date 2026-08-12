@@ -1,60 +1,10 @@
 use serde::Serialize;
-use serde_json::{json, Value};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ToolDefinition {
     pub name: &'static str,
     pub description: &'static str,
     pub permissions: &'static [&'static str],
-}
-
-impl ToolDefinition {
-    pub fn schema(&self) -> Value {
-        match self.name {
-            "web.fetch" => json!({
-                "type": "object",
-                "required": ["url"],
-                "properties": {
-                    "url": { "type": "string", "description": "HTTP or HTTPS URL to fetch" }
-                },
-                "additionalProperties": false
-            }),
-            "search.query" => json!({
-                "type": "object",
-                "required": ["query"],
-                "properties": {
-                    "query": { "type": "string" },
-                    "limit": { "type": "integer", "minimum": 1, "maximum": 50 },
-                    "path": { "type": ["string", "null"] },
-                    "tags": { "type": ["array", "null"], "items": { "type": "string" } }
-                },
-                "additionalProperties": false
-            }),
-            name if name.starts_with("markdown.") => json!({
-                "type": "object",
-                "required": ["path"],
-                "properties": {
-                    "path": { "type": "string" }
-                },
-                "additionalProperties": false
-            }),
-            name if name.starts_with("vault.") => json!({
-                "type": "object",
-                "required": [],
-                "properties": {
-                    "path": { "type": ["string", "null"] },
-                    "depth": { "type": ["integer", "null"] },
-                    "source": { "type": ["string", "null"] },
-                    "destination": { "type": ["string", "null"] },
-                    "name": { "type": ["string", "null"] },
-                    "content": { "type": ["string", "null"] },
-                    "recursive": { "type": "boolean" }
-                },
-                "additionalProperties": false
-            }),
-            _ => json!({ "type": "object", "additionalProperties": false }),
-        }
-    }
 }
 
 pub fn definitions() -> Vec<ToolDefinition> {
@@ -143,30 +93,13 @@ pub fn contains(name: &str) -> bool {
         .any(|definition| definition.name == name)
 }
 
-pub fn get(name: &str) -> Option<ToolDefinition> {
-    definitions()
-        .into_iter()
-        .find(|definition| definition.name == name)
-}
-
-pub fn list() -> Vec<ToolDefinition> {
-    definitions()
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{contains, get};
+    use super::contains;
 
     #[test]
     fn registry_exposes_only_the_initial_fetch_operation() {
         assert!(contains("web.fetch"));
         assert!(!contains("web.search"));
-    }
-
-    #[test]
-    fn registry_exposes_schemas_for_registered_tools() {
-        let definition = get("search.query").expect("search.query is registered");
-        assert_eq!(definition.schema()["type"], "object");
-        assert!(definition.schema()["required"].as_array().is_some());
     }
 }

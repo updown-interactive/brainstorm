@@ -5,7 +5,6 @@ pub struct ConversationRow {
     pub id: String,
     pub project_id: String,
     pub title: String,
-    pub agent_id: Option<String>,
     pub provider_config_id: Option<String>,
     pub model: Option<String>,
     pub created_at: i64,
@@ -20,7 +19,6 @@ pub struct Conversation {
     pub id: String,
     pub project_id: String,
     pub title: String,
-    pub agent_id: Option<String>,
     pub provider_config_id: Option<String>,
     pub model: Option<String>,
     pub created_at: i64,
@@ -80,7 +78,6 @@ pub struct ConversationMessage {
 pub struct ConversationSummary {
     pub id: String,
     pub title: String,
-    pub agent_id: Option<String>,
     pub model: Option<String>,
     pub created_at: i64,
     pub updated_at: i64,
@@ -100,7 +97,6 @@ pub struct ConversationHistory {
 pub struct CreateConversationRequest {
     pub project_id: String,
     pub title: Option<String>,
-    pub agent_id: Option<String>,
     pub provider_config_id: Option<String>,
     pub model: Option<String>,
 }
@@ -156,7 +152,6 @@ impl From<ConversationRow> for Conversation {
             id: row.id,
             project_id: row.project_id,
             title: row.title,
-            agent_id: row.agent_id,
             provider_config_id: row.provider_config_id,
             model: row.model,
             created_at: row.created_at,

@@ -33,12 +33,11 @@ pub async fn create_conversation(
             "Conversation title cannot be empty".into(),
         ));
     }
-    sqlx::query("INSERT INTO conversations (id, project_id, title, agent_id, provider_config_id, model, created_at, updated_at, archived) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)").bind(&id).bind(&request.project_id).bind(&title).bind(&request.agent_id).bind(&request.provider_config_id).bind(&request.model).bind(timestamp).bind(timestamp).execute(&state.pool).await?;
+    sqlx::query("INSERT INTO conversations (id, project_id, title, provider_config_id, model, created_at, updated_at, archived) VALUES (?, ?, ?, ?, ?, ?, ?, 0)").bind(&id).bind(&request.project_id).bind(&title).bind(&request.provider_config_id).bind(&request.model).bind(timestamp).bind(timestamp).execute(&state.pool).await?;
     Ok(Conversation {
         id,
         project_id: request.project_id,
         title,
-        agent_id: request.agent_id,
         provider_config_id: request.provider_config_id,
         model: request.model,
         created_at: timestamp,

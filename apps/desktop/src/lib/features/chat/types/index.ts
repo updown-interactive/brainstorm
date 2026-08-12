@@ -5,7 +5,6 @@ export type Conversation = {
 	id: string;
 	projectId: string;
 	title: string;
-	agentId: string | null;
 	providerConfigId: string | null;
 	model: string | null;
 	createdAt: number;
@@ -17,7 +16,6 @@ export type Conversation = {
 export type ConversationSummary = {
 	id: string;
 	title: string;
-	agentId: string | null;
 	model: string | null;
 	createdAt: number;
 	updatedAt: number;

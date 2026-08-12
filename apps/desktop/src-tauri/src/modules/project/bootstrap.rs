@@ -6,811 +6,6 @@ struct BootstrapFile {
     content: &'static str,
 }
 
-const AGENT_FILES: &[BootstrapFile] = &[
-    // --- Cerebrum (@cerebrum, @cereb) ---
-    BootstrapFile {
-        relative_path: &["agents", "cerebrum", "agent.yaml"],
-        content: r##"id: cerebrum
-name: cerebrum
-display_name: Cerebrum
-version: 2.0.0
-description: Central orchestration intelligence responsible for coordinating conversations and agent execution workflows.
-
-type: orchestrator
-role: Orchestrator
-
-aliases:
-  - "@cerebrum"
-  - "@cereb"
-
-capabilities:
-  - orchestration
-  - workflow-coordination
-
-allowed_tools:
-  - vault.*
-  - markdown.*
-  - search.*
-  - web.*
-
-color: "#8E44AD"
-avatar: assets/avatar.png
-banner: assets/banner.png
-icon: brain
-
-enabled: true
-priority: 100
-can_delegate: true
-parallel_execution: true
-max_concurrent_tasks: 10
-default_status: idle
-
-delegates:
-  - reflex
-  - hippocampus
-  - cortex
-
-memory:
-  type: shared
-  persistence: session
-  writable: true
-  searchable: true
-
-communication:
-  protocol: internal
-  accepts_tasks: true
-  broadcasts_events: true
-
-permissions:
-  - read_workspace
-  - write_workspace
-  - read_memory
-  - write_memory
-  - workspace.read
-  - workspace.write
-  - memory.read
-  - memory.write
-  - llm.invoke
-  - delegate_tasks
-  - launch_agents
-  - create_tasks
-
-documents:
-  system: SYSTEM.md
-  role: ROLE.md
-  workflow: WORKFLOW.md
-  rules: RULES.md
-  communication: COMMUNICATION.md
-  memory: MEMORY.md
-  prompts: PROMPTS.md
-  skills: SKILLS.md
-  tools: TOOLS.md
-  knowledge: KNOWLEDGE.md
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "cerebrum", "SYSTEM.md"],
-        content: r##"# SYSTEM
-
-You are Cerebrum (@cerebrum, @cereb), the central orchestration intelligence of Brainstorm.
-
-- Role: Orchestrator.
-- Purpose: Coordinate every conversation and manage the execution lifecycle of all other agents.
-- Core Responsibility: Decide WHO should perform the work.
-- Execution Model: Understand user intent, determine strategy, launch Reflex/Hippocampus/Cortex as appropriate, execute in parallel when independent, merge outputs, and stream responses back to the user.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "cerebrum", "ROLE.md"],
-        content: r##"# ROLE
-
-## Responsibilities
-- Receive every user request
-- Understand user intent and determine execution strategy
-- Launch one or more agents (Reflex, Hippocampus, Cortex)
-- Execute independent tasks in parallel
-- Merge agent outputs and stream responses back to the user
-- Maintain execution state, handling retries, failures, and cancellations
-- Coordinate multi-agent workflows
-
-## Restrictions
-- Cerebrum must NEVER perform deep research directly (delegate to Cortex @tex).
-- Cerebrum must NEVER modify the knowledge graph directly (delegate to Hippocampus @hippo).
-- Cerebrum must NEVER answer using direct retrieval logic (delegate to Reflex @flex).
-- Responsible for orchestration ONLY.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "cerebrum", "RULES.md"],
-        content: r##"# RULES
-
-1. Orchestrate only — never perform specialized work directly.
-2. Route immediate retrieval queries to Reflex (@flex).
-3. Schedule Hippocampus (@hippo) in the background for durable knowledge ingestion.
-4. Launch Cortex (@tex) only for complex reasoning, multi-step investigations, or deep research.
-5. Bypassed automatically when users invoke direct agent mentions (@flex, @hippo, @tex, @cereb).
-6. Always maintain task execution state and handle cancellations or failures gracefully.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "cerebrum", "WORKFLOW.md"],
-        content: r##"# WORKFLOW
-
-Receive User Request -> Parse Intent & Check Direct Mentions -> Formulate Strategy -> Launch Agents (Reflex / Hippocampus / Cortex) -> Parallel Execution & State Tracking -> Merge Outputs -> Stream Response to User
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "cerebrum", "COMMUNICATION.md"],
-        content: r##"# COMMUNICATION
-
-- Incoming: User messages, agent status updates, event streams.
-- Outgoing: Delegated task payloads to Reflex, Hippocampus, Cortex; progress streams and merged responses to User.
-- Mentions: Listens on @cerebrum and @cereb.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "cerebrum", "MEMORY.md"],
-        content: r##"# MEMORY
-
-- Scope: Shared workspace memory with session-level persistence.
-- Content: Active execution graph, running agent task states, multi-agent output buffers.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "cerebrum", "PROMPTS.md"],
-        content: r##"# PROMPTS
-
-## Intent Decomposition & Routing
-Purpose: Parse user prompt, select execution strategy (Reflex only, Reflex+Hippocampus, Cortex+Hippocampus), and format task delegation payload.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "cerebrum", "SKILLS.md"],
-        content: r##"# SKILLS
-
-## Intent Parsing
-Deconstructs user input to identify required agent capabilities.
-
-## Parallel Delegation
-Dispatches independent execution tasks concurrently to specialized agents.
-
-## Response Synthesis
-Merges structured outputs from multiple agents into a coherent user response.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "cerebrum", "TOOLS.md"],
-        content: r##"# TOOLS
-
-## launch_agent
-Purpose: Instantiates and executes a target agent package.
-
-## merge_outputs
-Purpose: Combines parallel agent outputs into unified response payload.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "cerebrum", "KNOWLEDGE.md"],
-        content: r##"# KNOWLEDGE
-
-- Workspace agent package architecture.
-- Agent capability matrix and alias routing rules.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "cerebrum", "STATUS.md"],
-        content: r##"# STATUS
-
-- Status: idle
-- Active Tasks: 0
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "cerebrum", "TASKS.md"],
-        content: r##"# TASKS
-
-No active tasks.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "cerebrum", "HISTORY.md"],
-        content: r##"# HISTORY
-
-- [Initialized] Cerebrum (@cerebrum, @cereb) bootstrapped.
-"##,
-    },
-    // --- Reflex (@reflex, @flex) ---
-    BootstrapFile {
-        relative_path: &["agents", "reflex", "agent.yaml"],
-        content: r##"id: reflex
-name: reflex
-display_name: Reflex
-version: 2.0.0
-description: Immediate response intelligence using local workspace knowledge, optimized for fast retrieval and low latency.
-
-type: retrieval
-role: Quick Response
-
-aliases:
-  - "@reflex"
-  - "@flex"
-
-capabilities:
-  - retrieval
-  - search
-  - workspace-indexing
-
-allowed_tools:
-  - search.*
-  - markdown.*
-  - vault.*
-
-color: "#2ECC71"
-avatar: assets/avatar.png
-banner: assets/banner.png
-icon: zap
-
-enabled: true
-priority: 90
-can_delegate: false
-parallel_execution: true
-max_concurrent_tasks: 10
-default_status: idle
-
-delegates: []
-
-memory:
-  type: shared
-  persistence: session
-  writable: false
-  searchable: true
-
-communication:
-  protocol: internal
-  accepts_tasks: true
-  broadcasts_events: true
-
-permissions:
-  - read_workspace
-  - read_memory
-  - workspace.read
-  - workspace.write
-  - memory.read
-
-documents:
-  system: SYSTEM.md
-  role: ROLE.md
-  workflow: WORKFLOW.md
-  rules: RULES.md
-  communication: COMMUNICATION.md
-  memory: MEMORY.md
-  prompts: PROMPTS.md
-  skills: SKILLS.md
-  tools: TOOLS.md
-  knowledge: KNOWLEDGE.md
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "reflex", "SYSTEM.md"],
-        content: r##"# SYSTEM
-
-You are Reflex (@reflex, @flex), the low-latency retrieval agent of Brainstorm.
-
-- Purpose: Provide immediate responses using only local Brainstorm knowledge.
-- Mindset: Fast, direct, concise, factual, and strictly local.
-- Execution Mode: Synchronous, highest priority, lowest latency.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "reflex", "ROLE.md"],
-        content: r##"# ROLE
-
-## Responsibilities
-- Search Markdown files in workspace
-- Search Knowledge Graph nodes & edges
-- Search Embeddings index
-- Retrieve related notes and context
-- Traverse relationships
-- Generate concise responses
-- Cite workspace knowledge sources accurately
-
-## Restrictions
-- Reflex must NEVER modify knowledge or create nodes (delegate to Hippocampus).
-- Reflex must NEVER browse the Internet.
-- Reflex must NEVER perform expensive multi-step reasoning (delegate to Cortex).
-- Reflex must NEVER rewrite workspace documents.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "reflex", "RULES.md"],
-        content: r##"# RULES
-
-1. Use local workspace knowledge only — no external search.
-2. Keep responses concise, direct, and well-cited.
-3. Perform read-only operations — never mutate files or knowledge graph nodes.
-4. Execute synchronously with top priority for immediate feedback.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "reflex", "WORKFLOW.md"],
-        content: r##"# WORKFLOW
-
-Receive Query -> Perform Vector & Markdown Search -> Traverse Context Graph -> Format Citations -> Return Immediate Response
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "reflex", "COMMUNICATION.md"],
-        content: r##"# COMMUNICATION
-
-- Incoming: Queries from Cerebrum or direct user mentions (@reflex, @flex).
-- Outgoing: Fast Markdown/JSON responses with exact source citations.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "reflex", "MEMORY.md"],
-        content: r##"# MEMORY
-
-- Scope: Shared workspace index cache.
-- Mode: Read-only searchable index.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "reflex", "PROMPTS.md"],
-        content: r##"# PROMPTS
-
-## Workspace Retrieval Summary
-Purpose: Synthesizes local search hits into a concise response with precise citations.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "reflex", "SKILLS.md"],
-        content: r##"# SKILLS
-
-## Fast Hybrid Search
-Combines full-text markdown search with vector embedding similarity retrieval.
-
-## Graph Traversal
-Follows bidirectional backlinks and concept relationships for context resolution.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "reflex", "TOOLS.md"],
-        content: r##"# TOOLS
-
-## search_markdown
-Purpose: Scans workspace markdown files for exact and fuzzy term matches.
-
-## search_embeddings
-Purpose: Performs vector semantic search over stored node chunk embeddings.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "reflex", "KNOWLEDGE.md"],
-        content: r##"# KNOWLEDGE
-
-- Local workspace indexing structures and vector store schemas.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "reflex", "STATUS.md"],
-        content: r##"# STATUS
-
-- Status: idle
-- Active Tasks: 0
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "reflex", "TASKS.md"],
-        content: r##"# TASKS
-
-No active tasks.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "reflex", "HISTORY.md"],
-        content: r##"# HISTORY
-
-- [Initialized] Reflex (@reflex, @flex) bootstrapped.
-"##,
-    },
-    // --- Hippocampus (@hippocampus, @hippo) ---
-    BootstrapFile {
-        relative_path: &["agents", "hippocampus", "agent.yaml"],
-        content: r##"id: hippocampus
-name: hippocampus
-display_name: Hippocampus
-version: 2.0.0
-description: Continuous background intelligence that converts conversations into durable knowledge nodes and maintains the knowledge graph.
-
-type: knowledge
-role: Knowledge Builder
-
-aliases:
-  - "@hippocampus"
-  - "@hippo"
-
-capabilities:
-  - knowledge
-  - graph-maintenance
-  - embedding-generation
-
-allowed_tools:
-  - vault.*
-  - markdown.*
-  - search.*
-
-color: "#3498DB"
-avatar: assets/avatar.png
-banner: assets/banner.png
-icon: database
-
-enabled: true
-priority: 70
-can_delegate: false
-parallel_execution: true
-max_concurrent_tasks: 5
-default_status: idle
-
-delegates: []
-
-memory:
-  type: shared
-  persistence: persistent
-  writable: true
-  searchable: true
-
-communication:
-  protocol: internal
-  accepts_tasks: true
-  broadcasts_events: true
-
-permissions:
-  - read_workspace
-  - write_workspace
-  - read_memory
-  - write_memory
-  - workspace.read
-  - workspace.write
-  - memory.read
-  - memory.write
-
-documents:
-  system: SYSTEM.md
-  role: ROLE.md
-  workflow: WORKFLOW.md
-  rules: RULES.md
-  communication: COMMUNICATION.md
-  memory: MEMORY.md
-  prompts: PROMPTS.md
-  skills: SKILLS.md
-  tools: TOOLS.md
-  knowledge: KNOWLEDGE.md
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "hippocampus", "SYSTEM.md"],
-        content: r##"# SYSTEM
-
-You are Hippocampus (@hippocampus, @hippo), the background knowledge intelligence of Brainstorm.
-
-- Purpose: Continuously evolve the Brainstorm knowledge base asynchronously.
-- Mindset: Systematic, durable, unobtrusive, background builder.
-- Execution Model: Asynchronous, event-driven background worker.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "hippocampus", "ROLE.md"],
-        content: r##"# ROLE
-
-## Responsibilities
-- Observe workspace conversations and user activity
-- Extract durable facts, concepts, and relationships
-- Detect entity references across notes
-- Create and link knowledge graph nodes
-- Merge duplicate entities and resolve aliases
-- Update workspace summaries and frontmatter metadata
-- Generate embeddings for new and modified content
-- Review research proposals submitted by Cortex (@tex)
-
-## Restrictions
-- Hippocampus must NEVER respond directly to users in active chat flows.
-- Hippocampus must NEVER interrupt active user conversations.
-- Hippocampus must NEVER overwrite user-written source documents without explicit authorization.
-- Hippocampus must NEVER fabricate information.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "hippocampus", "RULES.md"],
-        content: r##"# RULES
-
-1. Operate strictly in the background unless explicitly invoked via @hippo.
-2. Ensure all extracted facts are backed by workspace evidence before graph insertion.
-3. Merge duplicate concept nodes continuously to prevent graph fragmentation.
-4. Update embeddings asynchronously without blocking UI operations.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "hippocampus", "WORKFLOW.md"],
-        content: r##"# WORKFLOW
-
-Observe Conversation Stream -> Extract Entities & Facts -> Resolve Concept Graph Duplicates -> Create/Update Graph Nodes & Links -> Refresh Embeddings
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "hippocampus", "COMMUNICATION.md"],
-        content: r##"# COMMUNICATION
-
-- Incoming: Event stream notifications from Cerebrum, research proposals from Cortex, or direct @hippo requests.
-- Outgoing: Knowledge graph mutation logs, entity insertion events.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "hippocampus", "MEMORY.md"],
-        content: r##"# MEMORY
-
-- Scope: Persistent workspace knowledge graph, canonical concept maps, vector indexes.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "hippocampus", "PROMPTS.md"],
-        content: r##"# PROMPTS
-
-## Fact & Entity Extraction
-Purpose: Parses conversation text and markdown notes into structured node and edge definitions.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "hippocampus", "SKILLS.md"],
-        content: r##"# SKILLS
-
-## Entity Resolution
-Identifies and merges duplicate concept names, aliases, and tags.
-
-## Graph Mutation
-Safely adds nodes and links to `.brainstorm/knowledge/graph/` indexes.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "hippocampus", "TOOLS.md"],
-        content: r##"# TOOLS
-
-## create_node
-Purpose: Adds a new node entry to the knowledge graph index.
-
-## link_nodes
-Purpose: Establishes a directed semantic edge between two knowledge nodes.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "hippocampus", "KNOWLEDGE.md"],
-        content: r##"# KNOWLEDGE
-
-- Brainstorm knowledge graph schemas, entity taxonomy, and persistent store formats.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "hippocampus", "STATUS.md"],
-        content: r##"# STATUS
-
-- Status: idle
-- Active Tasks: 0
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "hippocampus", "TASKS.md"],
-        content: r##"# TASKS
-
-No active tasks.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "hippocampus", "HISTORY.md"],
-        content: r##"# HISTORY
-
-- [Initialized] Hippocampus (@hippocampus, @hippo) bootstrapped.
-"##,
-    },
-    // --- Cortex (@cortex, @tex) ---
-    BootstrapFile {
-        relative_path: &["agents", "cortex", "agent.yaml"],
-        content: r##"id: cortex
-name: cortex
-display_name: Cortex
-version: 2.0.0
-description: Computational reasoning and deep research specialist for long-running investigations exceeding local retrieval.
-
-type: research
-role: Deep Research & Reasoning
-
-aliases:
-  - "@cortex"
-  - "@tex"
-
-capabilities:
-  - research
-  - reasoning
-  - planning
-  - deep-investigation
-
-allowed_tools:
-  - web.*
-  - search.*
-  - markdown.*
-  - vault.*
-
-color: "#E74C3C"
-avatar: assets/avatar.png
-banner: assets/banner.png
-icon: cpu
-
-enabled: true
-priority: 60
-can_delegate: false
-parallel_execution: true
-max_concurrent_tasks: 5
-default_status: idle
-
-delegates: []
-
-memory:
-  type: hybrid
-  persistence: session
-  writable: true
-  searchable: true
-
-communication:
-  protocol: internal
-  accepts_tasks: true
-  broadcasts_events: true
-
-permissions:
-  - read_workspace
-  - write_workspace
-  - read_memory
-  - web_search
-  - workspace.read
-  - workspace.write
-  - terminal.execute
-  - network
-  - internet.access
-  - memory.read
-
-documents:
-  system: SYSTEM.md
-  role: ROLE.md
-  workflow: WORKFLOW.md
-  rules: RULES.md
-  communication: COMMUNICATION.md
-  memory: MEMORY.md
-  prompts: PROMPTS.md
-  skills: SKILLS.md
-  tools: TOOLS.md
-  knowledge: KNOWLEDGE.md
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "cortex", "SYSTEM.md"],
-        content: r##"# SYSTEM
-
-You are Cortex (@cortex, @tex), the deep research and complex reasoning specialist of Brainstorm.
-
-- Purpose: Perform computationally expensive reasoning, architecture investigations, and deep research.
-- Mindset: Thorough, analytical, rigorous, multi-step reasoner.
-- Execution Model: On-demand, long-running, background capable. Uses highest-capability reasoning model.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "cortex", "ROLE.md"],
-        content: r##"# ROLE
-
-## Responsibilities
-- Internet research and external data gathering
-- Architecture analysis and code pattern evaluation
-- Deep technical investigations
-- Multi-step reasoning and strategic planning
-- Documentation generation and long-form reports
-- Comparative analysis across multiple sources
-- Generate structured knowledge proposals for Hippocampus review
-
-## Restrictions
-- Cortex must NEVER execute for ordinary lightweight conversations (Reflex handles these).
-- Cortex must NEVER modify the knowledge graph directly.
-- All knowledge updates must be emitted as structured proposals for Hippocampus (@hippo) to validate and ingest.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "cortex", "RULES.md"],
-        content: r##"# RULES
-
-1. Reserved for complex investigations, web research, and deep reasoning tasks.
-2. Produce structured proposals for knowledge graph changes — do not mutate graph directly.
-3. Always verify external search findings against workspace context before drawing conclusions.
-4. Support background execution for long-running investigations.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "cortex", "WORKFLOW.md"],
-        content: r##"# WORKFLOW
-
-Analyze Complex Goal -> Formulate Investigation Plan -> External & Internal Research -> Multi-step Reasoning & Synthesis -> Generate Structured Proposal -> Submit Report to User & Knowledge Proposal to Hippocampus
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "cortex", "COMMUNICATION.md"],
-        content: r##"# COMMUNICATION
-
-- Incoming: Task assignments from Cerebrum or direct user mentions (@cortex, @tex).
-- Outgoing: Detailed Markdown research reports and structured proposals for Hippocampus (@hippo).
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "cortex", "MEMORY.md"],
-        content: r##"# MEMORY
-
-- Scope: Session-level research buffers, source context notes, task execution hypotheses.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "cortex", "PROMPTS.md"],
-        content: r##"# PROMPTS
-
-## Deep Research Synthesis
-Purpose: Structures multi-source research findings into comprehensive markdown reports with explicit evidence backing.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "cortex", "SKILLS.md"],
-        content: r##"# SKILLS
-
-## Web & Workspace Investigation
-Combines external web queries with local workspace documentation to synthesize complete technical domain maps.
-
-## Structural Proposal Formatting
-Formats research findings into standard schema proposals for background graph ingestion by Hippocampus.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "cortex", "TOOLS.md"],
-        content: r##"# TOOLS
-
-## web_search
-Purpose: Queries external search engines for up-to-date documentation and technical data.
-
-## generate_proposal
-Purpose: Produces structured knowledge proposal payload for Hippocampus review.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "cortex", "KNOWLEDGE.md"],
-        content: r##"# KNOWLEDGE
-
-- Research methodologies, technical architecture patterns, and structured proposal formats.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "cortex", "STATUS.md"],
-        content: r##"# STATUS
-
-- Status: idle
-- Active Tasks: 0
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "cortex", "TASKS.md"],
-        content: r##"# TASKS
-
-No active tasks.
-"##,
-    },
-    BootstrapFile {
-        relative_path: &["agents", "cortex", "HISTORY.md"],
-        content: r##"# HISTORY
-
-- [Initialized] Cortex (@cortex, @tex) bootstrapped.
-"##,
-    },
-];
-
 const TOOL_FILES: &[BootstrapFile] = &[
     // --- vault ---
     BootstrapFile {
@@ -953,12 +148,12 @@ operations:
         relative_path: &["tools", "markdown", "README.md"],
         content: r#"# Markdown Tool (`tools/markdown`)
 
-The **Markdown Tool** is a standalone, agent-independent runtime capability for reading and analyzing Brainstorm Markdown documents.
+The **Markdown Tool** is a standalone runtime capability for reading and analyzing Brainstorm Markdown documents.
 
 ## Architecture
 
 ```text
-Agent (Cerebrum / Reflex / Hippocampus / Cortex / User Agent)
+Application
   ↓ requests operation
 Markdown Tool (.brainstorm/tools/markdown/)
   ↓ validates permissions & workspace boundaries
@@ -1038,7 +233,7 @@ Extracts task list states, code blocks, tables, math formulas, mermaid diagrams,
         relative_path: &["tools", "markdown", "RULES.md"],
         content: r#"# RULES
 
-1. **Agent Decoupling**: The Markdown tool is strictly standalone. Never hardcode agent-specific execution checks.
+1. **Standalone Runtime**: The Markdown tool is strictly standalone and does not hardcode caller-specific execution checks.
 2. **Formatting Preservation**: Perform targeted edits. Never reformat unrelated YAML frontmatter or Markdown body content unnecessarily.
 3. **Top-level Frontmatter Fence**: Recognize frontmatter `---` fences ONLY when starting at index 0 of the document. Ignore horizontal rules or body `---` blocks.
 4. **Bidirectional Name Sync**: Renaming `name` property renames the file on disk. Renaming the file updates `name` property. Avoid recursive loop triggers.
@@ -1260,8 +455,8 @@ response limits, redirect behavior, user-agent, and readable-content selection.
 Changes are read when an operation runs, so the runtime does not need to be
 rebuilt when a project owner changes these settings.
 
-`permissions.network` must be enabled both here and in the invoking agent's
-permissions. The runtime always enforces HTTP/HTTPS-only URLs and blocks local,
+`permissions.network` must be enabled here and by the invoking application
+runtime. The runtime always enforces HTTP/HTTPS-only URLs and blocks local,
 private, loopback, and link-local addresses; project configuration cannot
 weaken those protections.
 
@@ -1398,22 +593,19 @@ impl<'a> BootstrapEngine<'a> {
         // Stage 2 — Prepare configuration
         self.stage_2_prepare_configuration()?;
 
-        // Stage 3 — Install Core Agents & Tools
-        self.stage_3_install_core_agents()?;
+        // Stage 3 — Install Core Tools
+        self.stage_3_remove_legacy_workspace_data()?;
         self.stage_3_b_install_tool_packages()?;
 
         // Stage 4 — Create Workspace Metadata
         let workspace_id = self.stage_4_create_workspace_metadata()?;
 
-        // Stage 5 — Register Agents
-        let installed_agents = self.stage_5_register_agents()?;
-
-        // Stage 6 — Build Capability & Tool Registries
+        // Stage 6 — Build Tool Registries
         self.stage_6_build_capability_registry()?;
         self.stage_6_b_build_tool_registry()?;
 
         // Stage 7 — Validate & Generate bootstrap.yaml
-        self.stage_10_validate_and_finalize(&workspace_id, &installed_agents)?;
+        self.stage_10_validate_and_finalize(&workspace_id)?;
 
         // Install UI Configuration files
         self.install_configuration_files()?;
@@ -1445,17 +637,10 @@ impl<'a> BootstrapEngine<'a> {
         Ok(())
     }
 
-    fn stage_3_install_core_agents(&self) -> Result<(), AppError> {
+    fn stage_3_remove_legacy_workspace_data(&self) -> Result<(), AppError> {
         let agents_dir = self.brainstorm_root.join("agents");
-        for old_agent in &["main-agent", "planning-agent", "knowledge-agent"] {
-            let old_path = agents_dir.join(old_agent);
-            if old_path.exists() {
-                let _ = std::fs::remove_dir_all(old_path);
-            }
-        }
-
-        for file in AGENT_FILES {
-            write_bootstrap_file(&self.brainstorm_root, file)?;
+        if agents_dir.exists() {
+            std::fs::remove_dir_all(agents_dir).map_err(bootstrap_error)?;
         }
         Ok(())
     }
@@ -1472,107 +657,19 @@ impl<'a> BootstrapEngine<'a> {
         Ok(workspace_id)
     }
 
-    fn stage_5_register_agents(&self) -> Result<Vec<String>, AppError> {
-        let agents_dir = self.brainstorm_root.join("agents");
-        let mut installed = Vec::new();
-
-        if agents_dir.exists() {
-            if let Ok(entries) = std::fs::read_dir(&agents_dir) {
-                for entry in entries.flatten() {
-                    if entry.path().is_dir() {
-                        let manifest = entry.path().join("agent.yaml");
-                        if manifest.exists() {
-                            if let Some(name) = entry.file_name().to_str() {
-                                installed.push(name.to_string());
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        installed.sort();
-        Ok(installed)
-    }
-
     fn stage_6_build_capability_registry(&self) -> Result<(), AppError> {
         let registry_file = self
             .brainstorm_root
             .join("configuration")
             .join("capability-registry.json");
-        let agents_dir = self.brainstorm_root.join("agents");
-
-        let mut capabilities_map: std::collections::BTreeMap<String, Vec<String>> =
-            std::collections::BTreeMap::new();
-        let mut aliases_map: std::collections::BTreeMap<String, String> =
-            std::collections::BTreeMap::new();
-        let mut primary_capability_map: std::collections::BTreeMap<String, String> =
-            std::collections::BTreeMap::new();
-
-        if agents_dir.exists() {
-            if let Ok(entries) = std::fs::read_dir(&agents_dir) {
-                for entry in entries.flatten() {
-                    if entry.path().is_dir() {
-                        let manifest_path = entry.path().join("agent.yaml");
-                        if manifest_path.exists() {
-                            if let Ok(content) = std::fs::read_to_string(&manifest_path) {
-                                let agent_id =
-                                    parse_yaml_scalar(&content, "id").unwrap_or_else(|| {
-                                        entry.file_name().to_string_lossy().to_string()
-                                    });
-
-                                let capabilities = parse_yaml_list(&content, "capabilities");
-                                for cap in capabilities {
-                                    capabilities_map
-                                        .entry(cap.clone())
-                                        .or_default()
-                                        .push(agent_id.clone());
-                                    if !primary_capability_map.contains_key(&cap) {
-                                        primary_capability_map.insert(cap, agent_id.clone());
-                                    }
-                                }
-
-                                let aliases = parse_yaml_list(&content, "aliases");
-                                for alias in aliases {
-                                    aliases_map.insert(alias, agent_id.clone());
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        let mut json_obj = serde_json::Map::new();
-        for (cap, agent_id) in primary_capability_map {
-            json_obj.insert(cap, serde_json::Value::String(agent_id));
-        }
-
-        let mut caps_val = serde_json::Map::new();
-        for (cap, agents) in capabilities_map {
-            let arr = agents.into_iter().map(serde_json::Value::String).collect();
-            caps_val.insert(cap, serde_json::Value::Array(arr));
-        }
-        json_obj.insert(
-            "capabilities".to_string(),
-            serde_json::Value::Object(caps_val),
-        );
-
-        let mut alias_val = serde_json::Map::new();
-        for (alias, agent_id) in aliases_map {
-            alias_val.insert(alias, serde_json::Value::String(agent_id));
-        }
-        json_obj.insert("aliases".to_string(), serde_json::Value::Object(alias_val));
-
-        let json_str =
-            serde_json::to_string_pretty(&serde_json::Value::Object(json_obj)).map_err(|e| {
-                AppError::Internal(format!("Failed to serialize capability registry: {}", e))
-            })?;
-
         if let Some(parent) = registry_file.parent() {
             std::fs::create_dir_all(parent).map_err(bootstrap_error)?;
         }
-        std::fs::write(registry_file, json_str).map_err(bootstrap_error)?;
+        std::fs::write(
+            registry_file,
+            "{\n  \"capabilities\": {},\n  \"aliases\": {}\n}\n",
+        )
+        .map_err(bootstrap_error)?;
         Ok(())
     }
 
@@ -1582,11 +679,7 @@ impl<'a> BootstrapEngine<'a> {
             .join("configuration")
             .join("tool-registry.json");
         let tools_dir = self.brainstorm_root.join("tools");
-        let agents_dir = self.brainstorm_root.join("agents");
-
         let mut installed_tools: std::collections::BTreeMap<String, serde_json::Value> =
-            std::collections::BTreeMap::new();
-        let mut tool_permissions_map: std::collections::BTreeMap<String, Vec<String>> =
             std::collections::BTreeMap::new();
 
         if tools_dir.exists() {
@@ -1608,8 +701,6 @@ impl<'a> BootstrapEngine<'a> {
                                     .unwrap_or_else(|| "1.0.0".to_string());
                                 let permissions = parse_yaml_list(&content, "permissions");
                                 let functions = parse_yaml_list(&content, "functions");
-
-                                tool_permissions_map.insert(tool_id.clone(), permissions.clone());
 
                                 let mut tool_obj = serde_json::Map::new();
                                 tool_obj.insert(
@@ -1656,80 +747,6 @@ impl<'a> BootstrapEngine<'a> {
             }
         }
 
-        let mut agent_tool_mappings: std::collections::BTreeMap<String, serde_json::Value> =
-            std::collections::BTreeMap::new();
-
-        if agents_dir.exists() {
-            if let Ok(entries) = std::fs::read_dir(&agents_dir) {
-                for entry in entries.flatten() {
-                    if entry.path().is_dir() {
-                        let manifest_path = entry.path().join("agent.yaml");
-                        if manifest_path.exists() {
-                            if let Ok(content) = std::fs::read_to_string(&manifest_path) {
-                                let agent_id =
-                                    parse_yaml_scalar(&content, "id").unwrap_or_else(|| {
-                                        entry.file_name().to_string_lossy().to_string()
-                                    });
-
-                                let agent_perms = parse_yaml_list(&content, "permissions");
-                                let requested_tools = parse_yaml_list(&content, "allowed_tools");
-
-                                let mut granted_tools = Vec::new();
-                                let mut denied_tools = Vec::new();
-
-                                for req_tool in &requested_tools {
-                                    let tool_id = req_tool.trim_end_matches(".*");
-                                    if let Some(req_perms) = tool_permissions_map.get(tool_id) {
-                                        let perms_satisfied =
-                                            req_perms.iter().all(|p| agent_perms.contains(p));
-                                        if perms_satisfied {
-                                            granted_tools.push(req_tool.clone());
-                                        } else {
-                                            denied_tools.push(req_tool.clone());
-                                        }
-                                    } else {
-                                        denied_tools.push(req_tool.clone());
-                                    }
-                                }
-
-                                let mut map_obj = serde_json::Map::new();
-                                map_obj.insert(
-                                    "requested_tools".to_string(),
-                                    serde_json::Value::Array(
-                                        requested_tools
-                                            .into_iter()
-                                            .map(serde_json::Value::String)
-                                            .collect(),
-                                    ),
-                                );
-                                map_obj.insert(
-                                    "granted_tools".to_string(),
-                                    serde_json::Value::Array(
-                                        granted_tools
-                                            .into_iter()
-                                            .map(serde_json::Value::String)
-                                            .collect(),
-                                    ),
-                                );
-                                map_obj.insert(
-                                    "denied_tools".to_string(),
-                                    serde_json::Value::Array(
-                                        denied_tools
-                                            .into_iter()
-                                            .map(serde_json::Value::String)
-                                            .collect(),
-                                    ),
-                                );
-
-                                agent_tool_mappings
-                                    .insert(agent_id, serde_json::Value::Object(map_obj));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
         let mut root_obj = serde_json::Map::new();
         let mut tools_val = serde_json::Map::new();
         for (id, val) in installed_tools {
@@ -1738,15 +755,6 @@ impl<'a> BootstrapEngine<'a> {
         root_obj.insert(
             "installed_tools".to_string(),
             serde_json::Value::Object(tools_val),
-        );
-
-        let mut mappings_val = serde_json::Map::new();
-        for (agent_id, val) in agent_tool_mappings {
-            mappings_val.insert(agent_id, val);
-        }
-        root_obj.insert(
-            "agent_tool_mappings".to_string(),
-            serde_json::Value::Object(mappings_val),
         );
 
         let json_str = serde_json::to_string_pretty(&serde_json::Value::Object(root_obj))
@@ -1759,19 +767,9 @@ impl<'a> BootstrapEngine<'a> {
         Ok(())
     }
 
-    fn stage_10_validate_and_finalize(
-        &self,
-        workspace_id: &str,
-        installed_agents: &[String],
-    ) -> Result<(), AppError> {
+    fn stage_10_validate_and_finalize(&self, workspace_id: &str) -> Result<(), AppError> {
         let bootstrap_manifest_file = self.brainstorm_root.join("bootstrap.yaml");
         if !bootstrap_manifest_file.exists() {
-            let agents_yaml = installed_agents
-                .iter()
-                .map(|a| format!("  - {}", a))
-                .collect::<Vec<_>>()
-                .join("\n");
-
             let now_secs = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map(|d| d.as_secs())
@@ -1783,14 +781,11 @@ bootstrap_version: 1.0.0
 brainstorm_version: 0.1.0
 completed_at: {}
 installed:
-  agents: true
   tools: true
   settings: true
-installed_agents:
-{}
 schema_version: 1
 "#,
-                workspace_id, now_secs, agents_yaml
+                workspace_id, now_secs
             );
 
             std::fs::write(bootstrap_manifest_file, manifest_content).map_err(bootstrap_error)?;
@@ -1940,7 +935,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_bootstrap_core_agents_and_capabilities() {
+    fn test_bootstrap_core_tools_without_agents() {
         let temp_dir =
             std::env::temp_dir().join(format!("brainstorm_test_{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&temp_dir).unwrap();
@@ -1951,34 +946,7 @@ mod tests {
         let brainstorm_root = temp_dir.join(".brainstorm");
         assert!(brainstorm_root.exists());
 
-        let agents_dir = brainstorm_root.join("agents");
-        for agent in &["cerebrum", "reflex", "hippocampus", "cortex"] {
-            let agent_dir = agents_dir.join(agent);
-            assert!(agent_dir.exists(), "Agent dir {} should exist", agent);
-            assert!(agent_dir.join("agent.yaml").exists());
-            assert!(agent_dir.join("SYSTEM.md").exists());
-            assert!(agent_dir.join("ROLE.md").exists());
-            assert!(agent_dir.join("RULES.md").exists());
-            assert!(agent_dir.join("WORKFLOW.md").exists());
-            assert!(agent_dir.join("COMMUNICATION.md").exists());
-            assert!(agent_dir.join("MEMORY.md").exists());
-            assert!(agent_dir.join("PROMPTS.md").exists());
-            assert!(agent_dir.join("SKILLS.md").exists());
-            assert!(agent_dir.join("TOOLS.md").exists());
-            assert!(agent_dir.join("KNOWLEDGE.md").exists());
-            assert!(agent_dir.join("STATUS.md").exists());
-            assert!(agent_dir.join("TASKS.md").exists());
-            assert!(agent_dir.join("HISTORY.md").exists());
-        }
-
-        // Verify old agents are removed
-        for old_agent in &["main-agent", "planning-agent", "knowledge-agent"] {
-            assert!(
-                !agents_dir.join(old_agent).exists(),
-                "Old agent {} should not exist",
-                old_agent
-            );
-        }
+        assert!(!brainstorm_root.join("agents").exists());
 
         // Verify standalone tools installation
         let tools_dir = brainstorm_root.join("tools");
@@ -2025,23 +993,7 @@ mod tests {
         let registry_json: serde_json::Value = serde_json::from_str(&registry_raw).unwrap();
 
         let aliases = registry_json.get("aliases").unwrap();
-        assert_eq!(
-            aliases.get("@cerebrum").unwrap().as_str().unwrap(),
-            "cerebrum"
-        );
-        assert_eq!(aliases.get("@cereb").unwrap().as_str().unwrap(), "cerebrum");
-        assert_eq!(aliases.get("@reflex").unwrap().as_str().unwrap(), "reflex");
-        assert_eq!(aliases.get("@flex").unwrap().as_str().unwrap(), "reflex");
-        assert_eq!(
-            aliases.get("@hippocampus").unwrap().as_str().unwrap(),
-            "hippocampus"
-        );
-        assert_eq!(
-            aliases.get("@hippo").unwrap().as_str().unwrap(),
-            "hippocampus"
-        );
-        assert_eq!(aliases.get("@cortex").unwrap().as_str().unwrap(), "cortex");
-        assert_eq!(aliases.get("@tex").unwrap().as_str().unwrap(), "cortex");
+        assert!(aliases.as_object().unwrap().is_empty());
 
         // Verify tool registry
         let tool_registry_file = brainstorm_root
@@ -2056,13 +1008,6 @@ mod tests {
         assert!(installed_tools.get("markdown").is_some());
         assert!(installed_tools.get("search").is_some());
         assert!(installed_tools.get("web").is_some());
-
-        let mappings = tool_reg_json.get("agent_tool_mappings").unwrap();
-        let reflex_map = mappings.get("reflex").unwrap();
-        let reflex_granted = reflex_map.get("granted_tools").unwrap().as_array().unwrap();
-        assert!(reflex_granted
-            .iter()
-            .any(|v| v.as_str() == Some("markdown.*")));
 
         let _ = std::fs::remove_dir_all(temp_dir);
     }

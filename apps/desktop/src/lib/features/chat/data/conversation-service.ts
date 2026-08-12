@@ -12,5 +12,5 @@ export const conversationService = {
 	rename: (request: ProjectRequest & { title: string }): Promise<Conversation> => invoke('rename_conversation', { request }),
 	remove: (request: ProjectRequest): Promise<void> => invoke('delete_conversation', { request })
 ,
-	sendMessage: (request: { projectId: string; conversationId?: string; content: string; agentId?: string; providerConfigId?: string; model?: string }): Promise<{ conversationId: string; message: ConversationMessage }> => invoke('chat_send_message', { request })
+	sendMessage: (request: { projectId: string; conversationId?: string; content: string; providerConfigId?: string; model?: string }): Promise<{ conversationId: string; message: ConversationMessage }> => invoke('chat_send_message', { request })
 };
