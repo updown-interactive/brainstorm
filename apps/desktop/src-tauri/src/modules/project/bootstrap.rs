@@ -6,7 +6,9 @@ struct BootstrapFile {
     content: &'static str,
 }
 
-const AGENT_FILES: &[BootstrapFile] = &[
+// Legacy agent bootstrap definitions are retained only for migration compatibility.
+// New workspaces do not install or register these files.
+const _AGENT_FILES: &[BootstrapFile] = &[
     // --- Cerebrum (@cerebrum, @cereb) ---
     BootstrapFile {
         relative_path: &["agents", "cerebrum", "agent.yaml"],
@@ -840,7 +842,7 @@ runtime: native
 
 permissions:
   vault_read: true
-  vault_write: false
+vault_write: false
 
 tools:
   - name: vault.list
@@ -857,7 +859,7 @@ tools:
     description: Get metadata about a vault file or directory
   - name: vault.create_file
     enabled: true
-    description: Create a file in the vault
+    description: Create a non-Markdown file in the vault; use markdown.create for Markdown documents
   - name: vault.create_folder
     enabled: true
     description: Create a folder in the vault
@@ -940,14 +942,17 @@ description: Read Brainstorm Markdown documents and return structured content.
 category: document
 enabled: true
 capabilities:
+  - markdown.create
   - markdown.read
   - markdown.metadata
   - markdown.links
   - markdown.headings
 permissions:
   - workspace.read
+  - workspace.write
 operations:
   - read
+  - create
   - metadata
   - links
   - headings
@@ -957,7 +962,7 @@ operations:
         relative_path: &["tools", "markdown", "README.md"],
         content: r#"# Markdown Tool (`tools/markdown`)
 
-The **Markdown Tool** is a standalone, agent-independent runtime capability for reading and analyzing Brainstorm Markdown documents.
+The **Markdown Tool** is a standalone, agent-independent runtime capability for creating, formatting, reading, and analyzing Brainstorm Markdown documents.
 
 ## Architecture
 
@@ -967,7 +972,7 @@ Agent (Cerebrum / Reflex / Hippocampus / Cortex / User Agent)
 Markdown Tool (.brainstorm/tools/markdown/)
   ↓ validates permissions & workspace boundaries
 Parser & Frontmatter Property Engine
-  ↓ parses a read-only document request
+  ↓ formats, validates, and parses a document request
 Workspace Files (.md / .mdx)
 ```
 
@@ -982,7 +987,7 @@ Every Brainstorm Markdown document consists of two distinct components:
 - **Workspace Boundary Safety**: Enforces strict workspace path validation, blocking traversal escapes (`../`, absolute paths, symlinks).
 - **AST Structural Extraction**: Parses headings, sections, wiki links (`[[Target]]`), tags (`#tag`), task lists (`- [x]`), callouts (`> [!NOTE]`), math (`$E=mc^2$`), tables, and code blocks (`mermaid`, `rust`, etc.).
 
-Only `markdown.read`, `markdown.metadata`, `markdown.links`, and `markdown.headings` are enabled in this version. Write operations are intentionally not available.
+Markdown owns Markdown document formatting and creation. Use `markdown.create` for new `.md` and `.mdx` documents. Vault owns generic filesystem structure and must not create Markdown documents.
 "#,
     },
     BootstrapFile {
@@ -995,9 +1000,12 @@ runtime: native
 
 permissions:
   vault_read: true
-  vault_write: false
+  vault_write: true
 
 tools:
+  - name: markdown.create
+    enabled: true
+    description: Create a formatted Markdown document with optional YAML frontmatter
   - name: markdown.read
     enabled: true
     description: Read a Markdown document and return its structured representation
@@ -1083,85 +1091,309 @@ Output: Structured payload matching operation results.
     },
     BootstrapFile {
         relative_path: &["tools", "markdown", "EXAMPLES.md"],
-        content: r##"# EXAMPLES & TEST FIXTURES
-
-## Primary Test Fixture (`Homes.md`)
-
-```markdown
----
-name: Homes
+        content: r##"---
+name: Example
+author: Brainstorm
 created: 2026-07-22
 updated: 2026-08-07
 type: documentation
 domain: personal
 status: active
 tags:
-  - "#herbivores"
+- "#brainstorm"
+- "#brainstorm_example"
 aliases:
-  - house
-  - building
+- example
+- demo_example
 links:
-  - "[[Test]]"
-summary: This section holds the summary
-icon: rocket
+- "[[OtherFileLink]]"
+summary: This section holds the summery
+icon: flame
 favorite: true
 priority: 2
-author: Siva
-description: This is the description
+description: This is the dscription
 published: 2026-08-08
-contributors:
-  - siva
 ---
 
 # Markdown Preview Test
 
-Welcome to the comprehensive Markdown preview test document.
+Welcome to this **Markdown demonstration** document. It contains most commonly used syntax to verify rendering and editing behavior.
 
-> [!NOTE]
-> Callout note block for important information.
+---
 
 ## Text Formatting
 
-*Italic text*, **Bold text**, ***Bold Italic***, ~Strikethrough~, and `Inline Code`.
+This is **bold** text.
+
+This is *italic* text.
+
+This is ***bold italic*** text.
+
+This is ~~strikethrough~~ text.
+
+This is ==highlighted== text.
+
+This is `inline code`.
+
+This is H~2~O.
+
+This is E = mc^2^.
+
+---
+
+## Blockquote
+
+> This is a blockquote.
+>
+> It can span multiple lines.
+>
+> > Nested blockquote.
+
+---
 
 ## Lists
 
 ### Unordered
-- Item 1
-- Item 2
-  - Subitem 2.1
 
-### Task List
-- [x] Completed task
-- [ ] Pending task
+- Apple
+- Banana
+- Orange
+  - Mango
+  - Pineapple
+    - Watermelon
 
-## Code Blocks
+### Ordered
 
-```rust
-fn main() {
-    println!("Hello Brainstorm!");
+1. First Item
+2. Second Item
+3. Third Item
+   1. Nested Item
+   2. Another Nested Item
+
+---
+
+## Task List
+
+- [x] Design UI
+- [x] Implement Editor
+- [ ] Add Plugins
+- [ ] Write Documentation
+
+---
+
+## Links
+
+Visit the [OpenAI Website](https://openai.com).
+
+Automatic URL:
+
+https://example.com
+
+Email:
+
+developer@example.com
+
+---
+
+## Images
+
+![Sample Image](https://picsum.photos/600/300)
+
+---
+
+## Table
+
+| Name | Role | Experience |
+|------|------|-----------:|
+| Alice | Designer | 5 Years |
+| Bob | Developer | 8 Years |
+| Charlie | Manager | 12 Years |
+
+---
+
+## Horizontal Rule
+
+---
+---
+---
+
+---
+
+## Code
+
+Inline:
+
+`print("Hello World")`
+
+### Dart
+
+```dart
+void main() {
+  print("Hello Markdown!");
 }
 ```
 
-```mermaid
-graph TD
-  A[Start] --> B(Process)
-  B --> C{Decision}
+### JavaScript
+
+```javascript
+function greet(name) {
+  console.log(`Hello ${name}`);
+}
+
+greet("World");
 ```
+
+### JSON
+
+```json
+{
+  "name": "Markdown",
+  "version": 1,
+  "enabled": true
+}
+```
+
+---
 
 ## Math
 
-Inline math: $E = mc^2$
+Inline:
 
-Display math:
+$E = mc^2$
+
+Block:
+
 $$
-\sum_{i=1}^{n} i = \frac{n(n+1)}{2}
+\int_0^\infty e^{-x}dx = 1
 $$
 
-## Wiki Links & Tags
+---
 
-See [[Project Roadmap|Roadmap]] and #markdown #testing.
+## Mermaid Diagram
+
+```mermaid
+graph TD
+    A[Start]
+    A --> B{Decision}
+    B -->|Yes| C[Continue]
+    B -->|No| D[Stop]
 ```
+
+---
+
+## Callouts
+
+> [!NOTE]
+> This is a note.
+
+> [!TIP]
+> Helpful information goes here.
+
+> [!WARNING]
+> Be careful before proceeding.
+
+> [!IMPORTANT]
+> This section is important.
+
+> [!CAUTION]
+> Use with caution.
+
+> [!SUCCESS]
+> Operation completed successfully.
+
+> [!BUG]
+> A bug has been identified.
+
+> [!QUESTION]
+> Why is this useful?
+
+> [!QUOTE]
+> "Simplicity is the ultimate sophistication."
+
+---
+
+## Wiki Links
+
+[[Home]]
+
+[[Project Roadmap]]
+
+[[Project Roadmap|Roadmap]]
+
+[[Project Roadmap#Milestones]]
+
+![[Embedded Note]]
+
+---
+
+## Tags
+
+#markdown #editor #demo #testing #documentation
+
+---
+
+## Footnote
+
+Here is a statement with a footnote.[^1]
+
+[^1]: This is the footnote text.
+
+---
+
+## Definition List
+
+Markdown
+: A lightweight markup language.
+
+Flutter
+: Google's UI toolkit.
+
+---
+
+## HTML
+
+<div style="padding:10px;border:1px solid #ccc;">
+This is raw HTML.
+</div>
+
+---
+
+## Escaping Characters
+
+\*Not Bold\*
+
+\# Not a Heading
+
+\`Not Code\`
+
+---
+
+## Mixed Formatting
+
+This sentence contains **bold**, *italic*, `code`, ==highlight==, and ~~strikethrough~~ all together.
+
+---
+
+## Final Checklist
+
+- [x] Headings
+- [x] Formatting
+- [x] Lists
+- [x] Tables
+- [x] Images
+- [x] Links
+- [x] Code Blocks
+- [x] Math
+- [x] Mermaid
+- [x] Callouts
+- [x] Wiki Links
+- [x] Tags
+- [x] HTML
+- [x] Footnotes
+
+---
+
+**End of Markdown Demo**
 "##,
     },
     BootstrapFile {
@@ -1402,22 +1634,19 @@ impl<'a> BootstrapEngine<'a> {
         // Stage 2 — Prepare configuration
         self.stage_2_prepare_configuration()?;
 
-        // Stage 3 — Install Core Agents & Tools
+        // Stage 3 — Install Tools
         self.stage_3_install_core_agents()?;
         self.stage_3_b_install_tool_packages()?;
 
         // Stage 4 — Create Workspace Metadata
         let workspace_id = self.stage_4_create_workspace_metadata()?;
 
-        // Stage 5 — Register Agents
-        let installed_agents = self.stage_5_register_agents()?;
-
         // Stage 6 — Build Capability & Tool Registries
         self.stage_6_build_capability_registry()?;
         self.stage_6_b_build_tool_registry()?;
 
         // Stage 7 — Validate & Generate bootstrap.yaml
-        self.stage_10_validate_and_finalize(&workspace_id, &installed_agents)?;
+        self.stage_10_validate_and_finalize(&workspace_id)?;
 
         // Install UI Configuration files
         self.install_configuration_files()?;
@@ -1451,15 +1680,8 @@ impl<'a> BootstrapEngine<'a> {
 
     fn stage_3_install_core_agents(&self) -> Result<(), AppError> {
         let agents_dir = self.brainstorm_root.join("agents");
-        for old_agent in &["main-agent", "planning-agent", "knowledge-agent"] {
-            let old_path = agents_dir.join(old_agent);
-            if old_path.exists() {
-                let _ = std::fs::remove_dir_all(old_path);
-            }
-        }
-
-        for file in AGENT_FILES {
-            write_bootstrap_file(&self.brainstorm_root, file)?;
+        if agents_dir.exists() {
+            std::fs::remove_dir_all(agents_dir).map_err(bootstrap_error)?;
         }
         Ok(())
     }
@@ -1476,76 +1698,18 @@ impl<'a> BootstrapEngine<'a> {
         Ok(workspace_id)
     }
 
-    fn stage_5_register_agents(&self) -> Result<Vec<String>, AppError> {
-        let agents_dir = self.brainstorm_root.join("agents");
-        let mut installed = Vec::new();
-
-        if agents_dir.exists() {
-            if let Ok(entries) = std::fs::read_dir(&agents_dir) {
-                for entry in entries.flatten() {
-                    if entry.path().is_dir() {
-                        let manifest = entry.path().join("agent.yaml");
-                        if manifest.exists() {
-                            if let Some(name) = entry.file_name().to_str() {
-                                installed.push(name.to_string());
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        installed.sort();
-        Ok(installed)
-    }
-
     fn stage_6_build_capability_registry(&self) -> Result<(), AppError> {
         let registry_file = self
             .brainstorm_root
             .join("configuration")
             .join("capability-registry.json");
-        let agents_dir = self.brainstorm_root.join("agents");
 
-        let mut capabilities_map: std::collections::BTreeMap<String, Vec<String>> =
+        let capabilities_map: std::collections::BTreeMap<String, Vec<String>> =
             std::collections::BTreeMap::new();
-        let mut aliases_map: std::collections::BTreeMap<String, String> =
+        let aliases_map: std::collections::BTreeMap<String, String> =
             std::collections::BTreeMap::new();
-        let mut primary_capability_map: std::collections::BTreeMap<String, String> =
+        let primary_capability_map: std::collections::BTreeMap<String, String> =
             std::collections::BTreeMap::new();
-
-        if agents_dir.exists() {
-            if let Ok(entries) = std::fs::read_dir(&agents_dir) {
-                for entry in entries.flatten() {
-                    if entry.path().is_dir() {
-                        let manifest_path = entry.path().join("agent.yaml");
-                        if manifest_path.exists() {
-                            if let Ok(content) = std::fs::read_to_string(&manifest_path) {
-                                let agent_id =
-                                    parse_yaml_scalar(&content, "id").unwrap_or_else(|| {
-                                        entry.file_name().to_string_lossy().to_string()
-                                    });
-
-                                let capabilities = parse_yaml_list(&content, "capabilities");
-                                for cap in capabilities {
-                                    capabilities_map
-                                        .entry(cap.clone())
-                                        .or_default()
-                                        .push(agent_id.clone());
-                                    if !primary_capability_map.contains_key(&cap) {
-                                        primary_capability_map.insert(cap, agent_id.clone());
-                                    }
-                                }
-
-                                let aliases = parse_yaml_list(&content, "aliases");
-                                for alias in aliases {
-                                    aliases_map.insert(alias, agent_id.clone());
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
 
         let mut json_obj = serde_json::Map::new();
         for (cap, agent_id) in primary_capability_map {
@@ -1586,8 +1750,6 @@ impl<'a> BootstrapEngine<'a> {
             .join("configuration")
             .join("tool-registry.json");
         let tools_dir = self.brainstorm_root.join("tools");
-        let agents_dir = self.brainstorm_root.join("agents");
-
         let mut installed_tools: std::collections::BTreeMap<String, serde_json::Value> =
             std::collections::BTreeMap::new();
         let mut tool_permissions_map: std::collections::BTreeMap<String, Vec<String>> =
@@ -1660,79 +1822,6 @@ impl<'a> BootstrapEngine<'a> {
             }
         }
 
-        let mut agent_tool_mappings: std::collections::BTreeMap<String, serde_json::Value> =
-            std::collections::BTreeMap::new();
-
-        if agents_dir.exists() {
-            if let Ok(entries) = std::fs::read_dir(&agents_dir) {
-                for entry in entries.flatten() {
-                    if entry.path().is_dir() {
-                        let manifest_path = entry.path().join("agent.yaml");
-                        if manifest_path.exists() {
-                            if let Ok(content) = std::fs::read_to_string(&manifest_path) {
-                                let agent_id =
-                                    parse_yaml_scalar(&content, "id").unwrap_or_else(|| {
-                                        entry.file_name().to_string_lossy().to_string()
-                                    });
-
-                                let agent_perms = parse_yaml_list(&content, "permissions");
-                                let requested_tools = parse_yaml_list(&content, "allowed_tools");
-
-                                let mut granted_tools = Vec::new();
-                                let mut denied_tools = Vec::new();
-
-                                for req_tool in &requested_tools {
-                                    if let Some(req_perms) = tool_permissions_map.get(req_tool) {
-                                        let perms_satisfied =
-                                            req_perms.iter().all(|p| agent_perms.contains(p));
-                                        if perms_satisfied {
-                                            granted_tools.push(req_tool.clone());
-                                        } else {
-                                            denied_tools.push(req_tool.clone());
-                                        }
-                                    } else {
-                                        denied_tools.push(req_tool.clone());
-                                    }
-                                }
-
-                                let mut map_obj = serde_json::Map::new();
-                                map_obj.insert(
-                                    "requested_tools".to_string(),
-                                    serde_json::Value::Array(
-                                        requested_tools
-                                            .into_iter()
-                                            .map(serde_json::Value::String)
-                                            .collect(),
-                                    ),
-                                );
-                                map_obj.insert(
-                                    "granted_tools".to_string(),
-                                    serde_json::Value::Array(
-                                        granted_tools
-                                            .into_iter()
-                                            .map(serde_json::Value::String)
-                                            .collect(),
-                                    ),
-                                );
-                                map_obj.insert(
-                                    "denied_tools".to_string(),
-                                    serde_json::Value::Array(
-                                        denied_tools
-                                            .into_iter()
-                                            .map(serde_json::Value::String)
-                                            .collect(),
-                                    ),
-                                );
-
-                                agent_tool_mappings
-                                    .insert(agent_id, serde_json::Value::Object(map_obj));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
         let mut root_obj = serde_json::Map::new();
         let mut tools_val = serde_json::Map::new();
         for (id, val) in installed_tools {
@@ -1741,15 +1830,6 @@ impl<'a> BootstrapEngine<'a> {
         root_obj.insert(
             "installed_tools".to_string(),
             serde_json::Value::Object(tools_val),
-        );
-
-        let mut mappings_val = serde_json::Map::new();
-        for (agent_id, val) in agent_tool_mappings {
-            mappings_val.insert(agent_id, val);
-        }
-        root_obj.insert(
-            "agent_tool_mappings".to_string(),
-            serde_json::Value::Object(mappings_val),
         );
 
         let json_str = serde_json::to_string_pretty(&serde_json::Value::Object(root_obj))
@@ -1762,19 +1842,9 @@ impl<'a> BootstrapEngine<'a> {
         Ok(())
     }
 
-    fn stage_10_validate_and_finalize(
-        &self,
-        workspace_id: &str,
-        installed_agents: &[String],
-    ) -> Result<(), AppError> {
+    fn stage_10_validate_and_finalize(&self, workspace_id: &str) -> Result<(), AppError> {
         let bootstrap_manifest_file = self.brainstorm_root.join("bootstrap.yaml");
         if !bootstrap_manifest_file.exists() {
-            let agents_yaml = installed_agents
-                .iter()
-                .map(|a| format!("  - {}", a))
-                .collect::<Vec<_>>()
-                .join("\n");
-
             let now_secs = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map(|d| d.as_secs())
@@ -1786,14 +1856,11 @@ bootstrap_version: 1.0.0
 brainstorm_version: 0.1.0
 completed_at: {}
 installed:
-  agents: true
   tools: true
   settings: true
-installed_agents:
-{}
 schema_version: 1
 "#,
-                workspace_id, now_secs, agents_yaml
+                workspace_id, now_secs
             );
 
             std::fs::write(bootstrap_manifest_file, manifest_content).map_err(bootstrap_error)?;
@@ -1955,24 +2022,10 @@ mod tests {
         assert!(brainstorm_root.exists());
 
         let agents_dir = brainstorm_root.join("agents");
-        for agent in &["cerebrum", "reflex", "hippocampus", "cortex"] {
-            let agent_dir = agents_dir.join(agent);
-            assert!(agent_dir.exists(), "Agent dir {} should exist", agent);
-            assert!(agent_dir.join("agent.yaml").exists());
-            assert!(agent_dir.join("SYSTEM.md").exists());
-            assert!(agent_dir.join("ROLE.md").exists());
-            assert!(agent_dir.join("RULES.md").exists());
-            assert!(agent_dir.join("WORKFLOW.md").exists());
-            assert!(agent_dir.join("COMMUNICATION.md").exists());
-            assert!(agent_dir.join("MEMORY.md").exists());
-            assert!(agent_dir.join("PROMPTS.md").exists());
-            assert!(agent_dir.join("SKILLS.md").exists());
-            assert!(agent_dir.join("TOOLS.md").exists());
-            assert!(agent_dir.join("KNOWLEDGE.md").exists());
-            assert!(agent_dir.join("STATUS.md").exists());
-            assert!(agent_dir.join("TASKS.md").exists());
-            assert!(agent_dir.join("HISTORY.md").exists());
-        }
+        assert!(
+            !agents_dir.exists(),
+            "Legacy agents directory should not exist"
+        );
 
         // Verify old agents are removed
         for old_agent in &["main-agent", "planning-agent", "knowledge-agent"] {
@@ -2027,24 +2080,7 @@ mod tests {
         let registry_raw = std::fs::read_to_string(registry_file).unwrap();
         let registry_json: serde_json::Value = serde_json::from_str(&registry_raw).unwrap();
 
-        let aliases = registry_json.get("aliases").unwrap();
-        assert_eq!(
-            aliases.get("@cerebrum").unwrap().as_str().unwrap(),
-            "cerebrum"
-        );
-        assert_eq!(aliases.get("@cereb").unwrap().as_str().unwrap(), "cerebrum");
-        assert_eq!(aliases.get("@reflex").unwrap().as_str().unwrap(), "reflex");
-        assert_eq!(aliases.get("@flex").unwrap().as_str().unwrap(), "reflex");
-        assert_eq!(
-            aliases.get("@hippocampus").unwrap().as_str().unwrap(),
-            "hippocampus"
-        );
-        assert_eq!(
-            aliases.get("@hippo").unwrap().as_str().unwrap(),
-            "hippocampus"
-        );
-        assert_eq!(aliases.get("@cortex").unwrap().as_str().unwrap(), "cortex");
-        assert_eq!(aliases.get("@tex").unwrap().as_str().unwrap(), "cortex");
+        assert_eq!(registry_json["aliases"], serde_json::json!({}));
 
         // Verify tool registry
         let tool_registry_file = brainstorm_root
@@ -2060,12 +2096,7 @@ mod tests {
         assert!(installed_tools.get("search").is_some());
         assert!(installed_tools.get("web").is_some());
 
-        let mappings = tool_reg_json.get("agent_tool_mappings").unwrap();
-        let reflex_map = mappings.get("reflex").unwrap();
-        let reflex_granted = reflex_map.get("granted_tools").unwrap().as_array().unwrap();
-        assert!(reflex_granted
-            .iter()
-            .any(|v| v.as_str() == Some("markdown")));
+        assert!(tool_reg_json.get("agent_tool_mappings").is_none());
 
         let _ = std::fs::remove_dir_all(temp_dir);
     }

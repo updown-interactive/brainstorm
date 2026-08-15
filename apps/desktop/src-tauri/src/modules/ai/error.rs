@@ -14,8 +14,8 @@ pub enum LlmError {
     Credential(#[from] crate::modules::credentials::CredentialError),
     #[error("provider request failed")]
     Request(#[source] reqwest::Error),
-    #[error("provider returned an invalid response")]
-    Response,
+    #[error("provider returned an invalid response: {0}")]
+    Response(String),
 }
 
 impl LlmError {

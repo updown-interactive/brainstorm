@@ -2,56 +2,76 @@
   import { onDestroy } from 'svelte';
   import { shellState } from '../../shell/state/state';
   import { filesController } from '../controller';
+  import { fileTreeController } from '../controller/file-tree-controller';
+  import { contextMenuState, fileTreeState, inlineEditState } from '../state';
+  import type { FileNode } from '../types';
   import FileTreeNode from './FileTreeNode.svelte';
   import ContextMenu from './ContextMenu.svelte';
   import InlineInput from './InlineInput.svelte';
 
+  export let directorySelection = false;
+  export let onDirectorySelect: ((path: string) => void) | undefined = undefined;
+  export let manageLifecycle = true;
+  export let rootPath = '';
+
   $: {
-    const projectPath = $shellState.currentProject?.path;
+    const projectPath = rootPath || $shellState.currentProject?.path;
     filesController.initFileTree(projectPath);
   }
 
   onDestroy(() => {
-    filesController.destroyFileTree();
+    if (manageLifecycle) filesController.destroyFileTree();
   });
 
-  $: flatNodes = $filesController.fileTreeState && filesController.getFlatNodes();
-  $: dropTargetPath = $filesController.fileTreeState.dropTargetPath;
+  $: flatNodes = $fileTreeState && fileTreeController.getFlatNodes();
+  $: dropTargetPath = $fileTreeState.dropTargetPath;
 
   function isInDropSection(path: string): boolean {
     return Boolean(dropTargetPath && (path === dropTargetPath || path.startsWith(`${dropTargetPath}/`)));
   }
+
+  const handleNodeClick = (node: FileNode): void => {
+    if (!directorySelection) {
+      filesController.handleNodeClick(node);
+      return;
+    }
+    if (!node.isDir) return;
+    void fileTreeController.toggleExpand(node.path);
+    fileTreeController.setFocusedPath(node.path);
+    onDirectorySelect?.(node.path);
+  };
 </script>
 
-<div class="file-tree-container" class:is-dragging={$filesController.fileTreeState.isDragging}>
-  {#if $filesController.fileTreeState.rootPath}
+<div class="file-tree-container" class:is-dragging={$fileTreeState.isDragging}>
+  {#if $fileTreeState.rootPath}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div
       class="file-list"
-      data-file-tree-root-path={$filesController.fileTreeState.rootPath}
+      data-file-tree-root-path={$fileTreeState.rootPath}
       oncontextmenu={filesController.handleRootContextMenu}
     >
       {#each flatNodes as node (node.path)}
-        {#if $filesController.inlineEditState.show && !$filesController.inlineEditState.isNew && $filesController.inlineEditState.path === node.path}
+        {#if $inlineEditState.show && !$inlineEditState.isNew && $inlineEditState.path === node.path}
           <InlineInput
-            initialValue={$filesController.inlineEditState.initialValue}
+            initialValue={$inlineEditState.initialValue}
             depth={node.depth}
           />
         {:else}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div oncontextmenu={(event: MouseEvent) => filesController.handleNodeContextMenu(event, node)}>
-            <FileTreeNode
-              {node}
-              gitStatus={$filesController.fileTreeState.gitStatus.get(node.path)}
-              isDragging={$filesController.fileTreeState.draggedPath === node.path}
-              isDropTarget={$filesController.fileTreeState.dropTargetPath === node.path}
+              <FileTreeNode
+                {node}
+                onNodeClick={handleNodeClick}
+              gitStatus={$fileTreeState.gitStatus.get(node.path)}
+              isDragging={$fileTreeState.draggedPath === node.path}
+              isDropTarget={$fileTreeState.dropTargetPath === node.path}
               isDropSection={isInDropSection(node.path)}
             />
           </div>
         {/if}
         
-        {#if $filesController.inlineEditState.show && $filesController.inlineEditState.isNew && $filesController.inlineEditState.parentPath === node.path}
+        {#if $inlineEditState.show && $inlineEditState.isNew && $inlineEditState.parentPath === node.path}
           <InlineInput
             initialValue=""
             depth={node.depth + 1}
@@ -60,7 +80,7 @@
       {/each}
       
 
-      {#if flatNodes.length === 0 && (!$filesController.inlineEditState.show || $filesController.inlineEditState.parentPath !== $filesController.fileTreeState.rootPath)}
+      {#if flatNodes.length === 0 && (!$inlineEditState.show || $inlineEditState.parentPath !== $fileTreeState.rootPath)}
         <div class="empty-state">No files found.</div>
       {/if}
     </div>
@@ -68,21 +88,21 @@
     <div class="empty-state">No project selected.</div>
   {/if}
   
-  {#if $filesController.contextMenuState.show}
+  {#if $contextMenuState.show}
     <ContextMenu
-      x={$filesController.contextMenuState.x}
-      y={$filesController.contextMenuState.y}
-      isDir={$filesController.contextMenuState.isDir}
-      isRoot={$filesController.contextMenuState.nodePath === $filesController.fileTreeState.rootPath}
+      x={$contextMenuState.x}
+      y={$contextMenuState.y}
+      isDir={$contextMenuState.isDir}
+      isRoot={$contextMenuState.nodePath === $fileTreeState.rootPath}
     />
   {/if}
 
-  {#if $filesController.fileTreeState.isDragging}
+  {#if $fileTreeState.isDragging}
     <div
       class="drag-preview"
-      style="left: {$filesController.fileTreeState.dragClientX}px; top: {$filesController.fileTreeState.dragClientY}px"
+      style="left: {$fileTreeState.dragClientX}px; top: {$fileTreeState.dragClientY}px"
     >
-      {$filesController.fileTreeState.dragPreviewName}
+      {$fileTreeState.dragPreviewName}
     </div>
   {/if}
 </div>

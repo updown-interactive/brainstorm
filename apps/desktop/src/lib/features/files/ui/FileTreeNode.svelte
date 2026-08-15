@@ -10,6 +10,7 @@
   export let isDragging = false;
   export let isDropTarget = false;
   export let isDropSection = false;
+  export let onNodeClick: ((node: FileNode) => void) | undefined = undefined;
 
   let isNativeDragOver = false;
 </script>
@@ -30,7 +31,7 @@
   onpointermove={(event) => filesController.handleNodePointerMove(node, event)}
   onpointerup={(event) => filesController.handleNodePointerUp(node, event)}
   onpointercancel={(event) => filesController.handleNodePointerCancel(event)}
-  onclick={() => filesController.handleNodeClick(node)}
+  onclick={() => onNodeClick ? onNodeClick(node) : filesController.handleNodeClick(node)}
   draggable="false"
   ondragstart={(event) => filesController.handleDragStart(node, event)}
   ondragover={(event) => { isNativeDragOver = filesController.handleDragOver(node, event); }}

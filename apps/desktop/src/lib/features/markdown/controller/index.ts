@@ -34,6 +34,9 @@ export interface MarkdownControllerMountTarget {
 	editorContainer: HTMLDivElement;
 	markdownContainer: HTMLDivElement;
 	path: string;
+	initialContent?: string;
+	persist?: boolean;
+	onContentChange?: (content: string) => void;
 }
 
 export class MarkdownController {
@@ -54,6 +57,8 @@ export class MarkdownController {
 	private path = '';
 	private loadedPath = '';
 	private content = '';
+	private persist = true;
+	private onContentChange: ((content: string) => void) | undefined;
 	private isApplyingLifecycleFrontmatter = false;
 	private tagColorRequest = 0;
 	private updateTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -67,6 +72,8 @@ export class MarkdownController {
 		this.editorContainer = target.editorContainer;
 		this.markdownContainer = target.markdownContainer;
 		this.path = target.path;
+		this.persist = target.persist ?? true;
+		this.onContentChange = target.onContentChange;
 		this.view = new EditorView({
 			state: EditorState.create({
 				doc: '',
@@ -77,8 +84,14 @@ export class MarkdownController {
 		this.patchState({ view: this.view, isMarkdown: isMarkdownPath(target.path) });
 		this.view.focus();
 
-		void this.setupFsWatcher();
-		void this.loadPath(target.path);
+		if (target.initialContent !== undefined) {
+			this.content = target.initialContent;
+			this.loadedPath = target.path;
+			this.renderLoadedContent(target.path, target.initialContent);
+		} else {
+			void this.setupFsWatcher();
+			void this.loadPath(target.path);
+		}
 	}
 
 	private async setupFsWatcher(): Promise<void> {
@@ -465,7 +478,8 @@ export class MarkdownController {
 		if (!update.docChanged || this.loadedPath !== this.path) return;
 		const content = update.state.doc.toString();
 
-		this.triggerSave(content);
+		if (this.persist) this.triggerSave(content);
+		this.onContentChange?.(content);
 		if (isMarkdown) {
 			void this.updateTagAccentColor(content);
 		}
@@ -487,7 +501,7 @@ export class MarkdownController {
 	}
 
 	private async save(): Promise<void> {
-		if (!this.path) return;
+		if (!this.path || !this.persist) return;
 		if (this.currentSavePromise) {
 			await this.currentSavePromise;
 		}

@@ -4,6 +4,7 @@ use serde_json::Value;
 #[derive(Debug, Clone, Serialize)]
 pub struct MarkdownDocument {
     pub path: String,
+    pub content: String,
     pub frontmatter: Value,
     pub body: String,
     pub headings: Vec<Heading>,

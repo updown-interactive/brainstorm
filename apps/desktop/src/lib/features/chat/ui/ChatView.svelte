@@ -8,12 +8,12 @@
   import ChatSidebar from './ChatSidebar.svelte';
   import { chatController } from '../controller';
   import { chatState } from '../state';
-  import type { ChatStreamEvent } from '../types';
+  import type { ChatMode, ChatStreamEvent, PlanOption } from '../types';
   import './chat.css';
 
   let draft = '';
   let selectedProviderId = '';
-  let selectedAgent = 'Cerebrum';
+  let selectedMode: ChatMode = 'normal';
   let openConversationMenuId: string | null = null;
   let emptyStatePrompt = 'What’s on your mind?';
   let unlistenChatStream: UnlistenFn | undefined;
@@ -31,8 +31,11 @@
   $: configuredProviders = $providersController.configured;
   $: selectedProvider = configuredProviders.find((provider) => provider.id === selectedProviderId) ?? configuredProviders[0];
   $: projectId = $shellState.currentProject?.id ?? '';
+  $: projectPath = $shellState.currentProject?.path ?? '';
   $: conversations = $chatState.conversations;
   $: activeConversation = conversations.find((conversation) => conversation.id === $chatState.activeConversationId);
+  $: planResponse = selectedMode === 'plan' ? chatController.getPlanResponse($chatState.messages) : null;
+  $: planOptions = planResponse?.options ?? [];
 
   onMount(() => {
     emptyStatePrompt = emptyStatePrompts[Math.floor(Math.random() * emptyStatePrompts.length)];
@@ -52,6 +55,7 @@
       disposed = true;
       unlistenChatStream?.();
       document.removeEventListener('pointerdown', closeConversationMenu, true);
+      chatController.resetSession();
     };
   });
 
@@ -78,7 +82,14 @@
     const content = draft.trim();
     if (!content || !projectId) return;
     draft = '';
-    void chatController.send(projectId, content, selectedProvider?.id, selectedProvider?.model);
+    void chatController.send(projectId, content, selectedMode, selectedProvider?.id, selectedProvider?.model);
+  };
+
+  const submitPlanOption = (option: PlanOption): void => {
+    const content = option.prompt.trim();
+    if (!content || !projectId) return;
+    draft = '';
+    void chatController.send(projectId, content, selectedMode, selectedProvider?.id, selectedProvider?.model);
   };
 </script>
 
@@ -94,8 +105,21 @@
     onDeleteConversation={deleteConversation}
   />
 
-  <section class="chat-main-panel" aria-label="Chat workspace">
-    <ChatMessageList messages={$chatState.messages} conversationTitle={activeConversation?.title ?? 'Conversation'} {emptyStatePrompt} />
-    <ChatComposer bind:draft bind:selectedProviderId bind:selectedAgent {configuredProviders} {selectedProvider} onSubmit={submitMessage} />
+  <section class="chat-main-panel" class:is-empty-chat={$chatState.messages.length === 0} aria-label="Chat workspace">
+    <ChatMessageList
+      messages={$chatState.messages}
+      conversationTitle={activeConversation?.title ?? 'Conversation'}
+      {emptyStatePrompt}
+      {projectPath}
+      providerConfigId={selectedProvider?.id ?? ''}
+      model={selectedProvider?.model ?? ''}
+      onCreateKnowledgeFolder={(relativePath) => chatController.createKnowledgeFolder(projectPath, relativePath)}
+      onCreateKnowledgeDraft={({ title, response, messageId, providerConfigId, model }) => chatController.createKnowledgeDraft({ projectPath, title, response, conversationTitle: activeConversation?.title ?? 'Conversation', messageId, providerConfigId, model })}
+      onCreateKnowledgeResponse={({ response, messageId, providerConfigId, model }) => chatController.createKnowledgeResponse({ projectId, projectPath, title: activeConversation?.title ?? 'Conversation', response, messageId, providerConfigId, model })}
+      onPreviewKnowledge={({ message }) => chatController.previewKnowledgeMessage(projectPath, message)}
+      onFinalizeKnowledgeNote={({ sourcePath, folderPath, title, content }) => chatController.finalizeKnowledgeNote(projectPath, sourcePath, folderPath, title, content)}
+      onDeleteKnowledgeDraft={(path) => chatController.deleteKnowledgeDraft(projectPath, path)}
+    />
+    <ChatComposer bind:draft bind:selectedProviderId bind:selectedMode {configuredProviders} {selectedProvider} {planOptions} onSelectPlanOption={submitPlanOption} onSubmit={submitMessage} />
   </section>
 </div>

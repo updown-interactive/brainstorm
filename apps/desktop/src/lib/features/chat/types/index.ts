@@ -1,5 +1,22 @@
 export type MessageRole = 'user' | 'assistant' | 'system' | 'tool';
 export type MessageStatus = 'pending' | 'streaming' | 'completed' | 'failed' | 'cancelled';
+export type ChatMode = 'normal' | 'plan' | 'research';
+
+export type PlanOption = {
+	id: string;
+	title: string;
+	description: string;
+	prompt: string;
+};
+
+export type PlanSelectionMode = 'single' | 'multiple';
+
+export type PlanResponse = {
+	options: PlanOption[];
+	selectionMode: PlanSelectionMode;
+};
+
+export const CHAT_MODES: readonly ChatMode[] = ['normal', 'plan', 'research'];
 
 export type Conversation = {
 	id: string;

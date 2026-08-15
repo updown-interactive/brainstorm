@@ -67,6 +67,7 @@ pub fn run() {
             modules::conversation::commands::unarchive_conversation,
             modules::conversation::commands::set_active_conversation,
             modules::chat::commands::chat_send_message,
+            modules::chat::commands::chat_generate_knowledge,
             modules::project::commands::get_projects,
             modules::project::commands::create_project,
             modules::project::commands::update_project,

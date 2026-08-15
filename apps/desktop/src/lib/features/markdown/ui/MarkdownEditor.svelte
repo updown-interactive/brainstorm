@@ -5,6 +5,9 @@
 	import MarkdownToolbar from './MarkdownToolbar.svelte';
 
 	export let path: string;
+	export let initialContent: string | undefined = undefined;
+	export let persist = true;
+	export let onContentChange: ((content: string) => void) | undefined = undefined;
 
 	const controller = createMarkdownController();
 
@@ -17,7 +20,10 @@
 		controller.mount({
 			editorContainer,
 			markdownContainer,
-			path
+			path,
+			initialContent,
+			persist,
+			onContentChange
 		});
 	});
 
