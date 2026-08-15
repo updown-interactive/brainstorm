@@ -20,6 +20,11 @@ pub fn definitions() -> Vec<ToolDefinition> {
             permissions: &["vault_read"],
         },
         ToolDefinition {
+            name: "markdown.create",
+            description: "Create a formatted Markdown document in the Brainstorm vault",
+            permissions: &["vault_write"],
+        },
+        ToolDefinition {
             name: "markdown.metadata",
             description: "Extract document metadata and YAML frontmatter",
             permissions: &["vault_read"],

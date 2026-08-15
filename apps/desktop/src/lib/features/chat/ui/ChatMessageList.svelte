@@ -1,24 +1,66 @@
 <script lang="ts">
   import { afterUpdate } from 'svelte';
-  import { Check, Copy, Sparkles } from 'lucide-svelte';
+  import { Check, Copy, FilePlus, Sparkles } from 'lucide-svelte';
   import mermaid from 'mermaid';
   import 'katex/dist/katex.min.css';
   import { escapeMessageText, renderMarkdown } from '../engine/markdown';
+  import { parseFrontmatter } from '../../markdown';
   import type { ConversationMessage } from '../types';
+  import KnowledgeCreateDialog from './KnowledgeCreateDialog.svelte';
 
   export let messages: ConversationMessage[] = [];
   export let conversationTitle = 'Conversation';
   export let emptyStatePrompt = 'What’s on your mind?';
+  export let projectPath = '';
+  export let onCreateKnowledgeFolder: (relativePath: string) => Promise<void>;
+  export let providerConfigId = '';
+  export let model = '';
+  export let onCreateKnowledgeDraft: (args: { title: string; response: string; messageId: string; providerConfigId?: string; model?: string }) => Promise<{ absolutePath: string; relativePath: string; title: string; content: string; properties: Record<string, unknown> }>;
+  export let onCreateKnowledgeResponse: (args: { response: string; messageId: string; providerConfigId?: string; model?: string }) => Promise<{ message: ConversationMessage; draft: { absolutePath: string; relativePath: string; content: string; properties: Record<string, unknown> }; title: string }>;
+  export let onPreviewKnowledge: (args: { message: ConversationMessage }) => Promise<{ absolutePath: string; relativePath: string; content: string; properties: Record<string, unknown> }>;
+  export let onFinalizeKnowledgeNote: (args: { sourcePath: string; folderPath: string; title: string; content: string }) => Promise<void>;
+  export let onDeleteKnowledgeDraft: (path: string) => Promise<void>;
   let messageScroll: HTMLDivElement | undefined;
+  let messageColumn: HTMLDivElement | undefined;
   let copiedMessageId: string | null = null;
   let previousMessageSnapshot = '';
+  let knowledgeMessage: ConversationMessage | null = null;
+  let knowledgeDraft: { absolutePath: string; relativePath: string; content: string; properties: Record<string, unknown> } | null = null;
+  let knowledgePreview: { message: ConversationMessage; draft: { absolutePath: string; relativePath: string; content: string; properties: Record<string, unknown> }; title: string } | null = null;
+  let creatingKnowledgeMessageId: string | null = null;
+  let preserveScrollTop: number | null = null;
+  let restoreScrollFrames = 0;
+
+  const preserveChatScroll = (): void => {
+    preserveScrollTop = Math.max(messageScroll?.scrollTop ?? 0, messageColumn?.scrollTop ?? 0);
+    restoreScrollFrames = 4;
+  };
+
+  const restoreChatScroll = (): void => {
+    if (preserveScrollTop === null) return;
+    if (messageScroll) messageScroll.scrollTop = preserveScrollTop;
+    if (messageColumn) messageColumn.scrollTop = preserveScrollTop;
+    restoreScrollFrames -= 1;
+    if (restoreScrollFrames > 0) {
+      requestAnimationFrame(restoreChatScroll);
+    } else {
+      preserveScrollTop = null;
+    }
+  };
 
   afterUpdate(() => {
     if (!messageScroll) return;
+    if (preserveScrollTop !== null) {
+      requestAnimationFrame(restoreChatScroll);
+      return;
+    }
     const messageSnapshot = messages.map((message) => `${message.id}:${message.status}:${message.content}`).join('|');
     if (messageSnapshot === previousMessageSnapshot) return;
     previousMessageSnapshot = messageSnapshot;
-    requestAnimationFrame(() => { messageScroll?.scrollTo({ top: messageScroll.scrollHeight, behavior: 'auto' }); });
+    requestAnimationFrame(() => {
+      const scroller = knowledgeMessage ? messageColumn : messageScroll;
+      scroller?.scrollTo({ top: scroller.scrollHeight, behavior: 'auto' });
+    });
     void renderMermaidDiagrams();
   });
 
@@ -46,7 +88,8 @@
 
   const copyMessage = async (messageId: string, content: string): Promise<void> => {
     try {
-      await navigator.clipboard.writeText(content);
+      const readableContent = displayMessageContent(content);
+      await navigator.clipboard.writeText(readableContent);
       copiedMessageId = messageId;
       window.setTimeout(() => {
         if (copiedMessageId === messageId) copiedMessageId = null;
@@ -55,23 +98,116 @@
       copiedMessageId = null;
     }
   };
+
+  const displayMessageContent = (content: string): string => {
+    const withoutStructuredOptions = content.replace(/<!--\s*brainstorm-plan-data\s*[\s\S]*?-->/gi, '').trim();
+    const optionsHeading = withoutStructuredOptions.search(/(?:^|\n)#{0,6}\s*options\s*:?\s*(?:\n|$)/i);
+    return optionsHeading === -1
+      ? withoutStructuredOptions
+      : withoutStructuredOptions.slice(0, optionsHeading).trim();
+  };
+
+  const createKnowledgeResponse = async (message: ConversationMessage): Promise<void> => {
+    if (creatingKnowledgeMessageId) return;
+    creatingKnowledgeMessageId = message.id;
+    try {
+      const result = await onCreateKnowledgeResponse({ response: message.content, messageId: message.id, providerConfigId, model });
+      knowledgePreview = result;
+    } catch (error) {
+      console.error('[Chat knowledge] response generation failed', error);
+    } finally {
+      creatingKnowledgeMessageId = null;
+    }
+  };
+
+  const openKnowledgePreview = (): void => {
+    if (!knowledgePreview) return;
+    preserveChatScroll();
+    knowledgeMessage = knowledgePreview.message;
+    knowledgeDraft = knowledgePreview.draft;
+  };
+
+  const closeKnowledgePreview = (): void => {
+    preserveChatScroll();
+    knowledgeMessage = null;
+  };
+
+  const isKnowledgeResponse = (message: ConversationMessage): boolean => {
+    if (message.id === knowledgePreview?.message.id || message.id === knowledgeMessage?.id) return true;
+    const parsed = parseFrontmatter(message.content);
+    if (parsed.range && parsed.data.author === 'BrainStorm' && parsed.data.created && parsed.data.updated && parsed.data.type && parsed.data.domain && parsed.data.status) return true;
+    return hasUnfencedKnowledgeProperties(message.content);
+  };
+
+  const knowledgeBody = (content: string): string => {
+    if (!content.trimStart().startsWith('---')) {
+      if (!hasUnfencedKnowledgeProperties(content)) return content;
+      const lines = content.trimStart().split(/\r?\n/);
+      const bodyStart = lines.findIndex((line) => /^(?:#{1,6}\s|\*\*[^*]+\*\*)/.test(line.trim()));
+      return bodyStart === -1 ? content : lines.slice(bodyStart).join('\n').trim();
+    }
+    const lines = content.trimStart().split(/\r?\n/);
+    const closingFence = lines.findIndex((line, index) => index > 0 && line.trim() === '---');
+    return closingFence === -1 ? content : lines.slice(closingFence + 1).join('\n').trim();
+  };
+
+  const hasUnfencedKnowledgeProperties = (content: string): boolean => {
+    const header = content.trimStart().split(/\r?\n/).slice(0, 30).join('\n');
+    return /(?:^|\n)author:\s*BrainStorm\b/i.test(header)
+      && /(?:^|\n)created:\s*\d{4}-\d{2}-\d{2}/i.test(header)
+      && /(?:^|\n)updated:\s*\d{4}-\d{2}-\d{2}/i.test(header)
+      && /(?:^|\n)(?:name|type|domain|status):\s*\S+/i.test(header);
+  };
+
+  const previewPersistedKnowledge = async (message: ConversationMessage): Promise<void> => {
+    try {
+      preserveChatScroll();
+      const draft = await onPreviewKnowledge({ message });
+      knowledgePreview = { message, draft, title: parseFrontmatter(message.content).data.name?.toString() ?? 'Knowledge note' };
+      knowledgeMessage = message;
+      knowledgeDraft = draft;
+    } catch (error) {
+      console.error('[Chat knowledge] persisted preview failed', error);
+    }
+  };
 </script>
 
-<div class="chat-message-scroll" bind:this={messageScroll}>
-  <div class="chat-message-column">
+<div class:has-knowledge-preview={knowledgeMessage !== null} class="chat-message-scroll" bind:this={messageScroll}>
+  <div class="chat-message-column" bind:this={messageColumn}>
     {#if messages.length === 0}
       <div class="chat-empty-state">
-        <div class="chat-empty-mark"><Sparkles size={24} /></div>
         <h2>{emptyStatePrompt}</h2>
       </div>
     {:else}
-      <div class="chat-date-divider"><span>{conversationTitle}</span></div>
+      <div class="chat-date-divider"><span class="conversation-title-markdown">{@html renderMarkdown(conversationTitle)}</span></div>
       {#each messages as message}
         <article class="chat-message {message.role === 'assistant' ? 'assistant-message' : 'user-message'}">
-          <div class="message-body"><div class="message-markdown">{@html message.role === 'assistant' ? renderMarkdown(message.content) : `<p>${escapeMessageText(message.content)}</p>`}</div>{#if message.role === 'assistant'}<span class="message-status">{message.status}</span>{/if}</div>
-          <button class="message-copy-button" type="button" aria-label="Copy message" title="Copy message" onclick={() => void copyMessage(message.id, message.content)}>{#if copiedMessageId === message.id}<Check size={12} />{:else}<Copy size={12} />{/if}</button>
+          <div class="message-body"><div class="message-markdown">{@html message.role === 'assistant' ? renderMarkdown(isKnowledgeResponse(message) ? knowledgeBody(message.content) : displayMessageContent(message.content)) : `<p>${escapeMessageText(message.content)}</p>`}</div>{#if message.role === 'assistant'}<span class="message-status">{message.status}</span>{/if}</div>
+          <div class="message-actions">
+            {#if message.role === 'assistant' && isKnowledgeResponse(message) && message.id !== knowledgeMessage?.id}{#if message.id === knowledgePreview?.message.id}<button class="knowledge-preview-button knowledge-response-preview-button" type="button" onclick={openKnowledgePreview}>Preview knowledge</button>{:else}<button class="knowledge-preview-button knowledge-response-preview-button" type="button" onclick={() => void previewPersistedKnowledge(message)}>Preview knowledge</button>{/if}{:else if message.role === 'assistant' && message.id !== knowledgeMessage?.id}<button class="knowledge-action-button" type="button" aria-label="Create knowledge note" title={creatingKnowledgeMessageId === message.id ? 'Creating knowledge note' : 'Create knowledge note'} disabled={creatingKnowledgeMessageId === message.id} onclick={() => void createKnowledgeResponse(message)}><FilePlus size={13} /></button>{/if}<button class="message-copy-button" type="button" aria-label="Copy message" title="Copy message" onclick={() => void copyMessage(message.id, message.content)}>{#if copiedMessageId === message.id}<Check size={12} />{:else}<Copy size={12} />{/if}</button>
+          </div>
         </article>
       {/each}
+      {#if creatingKnowledgeMessageId}
+        <article class="chat-message assistant-message knowledge-work-status">
+          <div class="message-body"><div class="knowledge-work-indicator"><span class="knowledge-work-dot"></span><span>Working on your knowledge note…</span></div><span class="message-status">Creating and formatting the Markdown file</span></div>
+        </article>
+      {/if}
     {/if}
   </div>
+  {#if knowledgeMessage}
+    <aside class="knowledge-side-pane" aria-label="Knowledge preview">
+      <KnowledgeCreateDialog
+        {projectPath}
+        inline
+        existingDraft={knowledgeDraft}
+        initialTitle={knowledgePreview?.title ?? conversationTitle}
+        onCreateFolder={(relativePath) => onCreateKnowledgeFolder(relativePath)}
+        onCreateKnowledgeDraft={(title) => onCreateKnowledgeDraft({ title, response: knowledgeMessage?.content ?? '', messageId: knowledgeMessage?.id ?? '', providerConfigId, model })}
+        onFinalizeKnowledge={(sourcePath, folderPath, title, content) => onFinalizeKnowledgeNote({ sourcePath, folderPath, title, content })}
+        onDeleteKnowledgeDraft={onDeleteKnowledgeDraft}
+        onClose={closeKnowledgePreview}
+      />
+    </aside>
+  {/if}
 </div>

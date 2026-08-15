@@ -23,6 +23,7 @@ pub fn parse_document(
     }));
     Ok(MarkdownDocument {
         path: path.to_string(),
+        content: content.to_string(),
         frontmatter,
         body: body.to_string(),
         headings: extract_headings(body),

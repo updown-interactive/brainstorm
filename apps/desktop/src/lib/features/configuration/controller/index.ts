@@ -30,7 +30,6 @@ import { shellState } from '../../shell/state/state';
 import { ensureGraphConfigPath, normalizeGraphConfig, readGraphConfig, writeGraphConfig } from '../../graph/config/graph-config';
 import { graphConfigFileName, legacyGraphStateFileName } from '../../graph/config/constants';
 import type { DisplayRangeKey, ForceRangeKey, GraphConfig } from '../../graph/types';
-import { agentRepository, type AgentPackage } from '../../agents';
 import {
 	defaultEditorConfig,
 	editorConfigFileName,
@@ -100,8 +99,6 @@ export interface ConfigurationState {
 	graphConfig: GraphConfig;
 	editorConfig: EditorConfig;
 	tags: SharedTag[];
-	selectedAgent: AgentView | null;
-	selectedAgentPackage: AgentPackage | null;
 }
 
 const propertyConfigFileName = 'property-config.json';
@@ -224,7 +221,6 @@ class ConfigurationController {
 			sections = this.buildSectionsFromFiles(configurationFolderPath, files, sections);
 			sections = this.compactSections([
 				...sections,
-				await this.buildAgentSection(brainstormFolderPath),
 				...(await this.buildToolSections(toolsFolderPath))
 			]);
 			files = this.flattenSections(sections);
@@ -255,20 +251,12 @@ class ConfigurationController {
 			selectedKind: file.kind,
 			parseError: '',
 			jsonEditorError: '',
-			selectedAgent: null,
-			selectedAgentPackage: null,
 			showJson: file.kind === 'configuration' ? this.snapshot().showJson : false
 		});
 
 		const rootPath = this.projectRootPath();
 		try {
-			if (file.kind === 'agent') {
-				const agentPkg = await agentRepository.loadAgentPackage(file.path);
-				const rawContent = await this.readAgentContent(file.path);
-				this.patchState({ selectedAgentPackage: agentPkg });
-				this.patchContent(rawContent);
-			} else {
-				const rawContent = file.name === explorerConfigFileName
+			const rawContent = file.name === explorerConfigFileName
 					? `${JSON.stringify(await readExplorerConfig(rootPath), null, 2)}\n`
 					: file.name === propertyConfigFileName
 						? `${JSON.stringify(await readPropertyConfig(rootPath), null, 2)}\n`
@@ -277,8 +265,7 @@ class ConfigurationController {
 							: file.name === editorConfigFileName
 								? `${JSON.stringify(await readEditorConfig(rootPath), null, 2)}\n`
 								: await invoke<string>('read_file', { path: file.path });
-				this.patchContent(rawContent);
-			}
+			this.patchContent(rawContent);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : `Failed to read ${file.name}.`;
 			this.patchContent('');
@@ -512,16 +499,12 @@ class ConfigurationController {
 		const explorerConfig = this.parseExplorerConfig(rawContent, state.selectedName, state.showJson);
 		const graphConfig = this.parseGraphConfig(rawContent, state.selectedName, state.showJson);
 		const editorConfig = this.parseEditorConfig(rawContent, state.selectedName, state.showJson);
-		const selectedAgent = state.selectedKind === 'agent'
-			? this.parseAgentView(rawContent)
-			: null;
 		this.patchState({
 			propertyConfig,
 			explorerConfig,
 			graphConfig,
 			editorConfig,
-			tags: this.normalizeTags(propertyConfig?.tags),
-			selectedAgent
+			tags: this.normalizeTags(propertyConfig?.tags)
 		});
 	}
 
@@ -950,8 +933,6 @@ class ConfigurationController {
 			graphConfig,
 			editorConfig,
 			tags: [],
-			selectedAgent: null,
-			selectedAgentPackage: null
 		};
 	}
 

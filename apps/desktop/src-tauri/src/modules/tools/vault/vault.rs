@@ -32,6 +32,7 @@ impl Default for VaultState {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct VaultRequest {
     pub operation: String,
     pub project_path: String,
@@ -141,6 +142,9 @@ fn execute_blocking(
                 .path
                 .as_deref()
                 .ok_or(crate::modules::vault::error::VaultError::InvalidPath)?;
+            if path.ends_with(".md") || path.ends_with(".mdx") {
+                return Err(crate::modules::vault::error::VaultError::InvalidPath);
+            }
             service.create_file(path, request.content.as_deref())?;
             Ok(json!({ "success": true, "path": path }))
         }

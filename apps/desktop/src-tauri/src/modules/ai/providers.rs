@@ -9,6 +9,20 @@ use reqwest::Client;
 use serde_json::{json, Value};
 use std::sync::Arc;
 
+fn format_provider_detail(status: reqwest::StatusCode, body: &str) -> String {
+    let detail = body.trim().replace(['\n', '\r'], " ");
+    let detail = if detail.chars().count() > 300 {
+        format!("{}…", detail.chars().take(300).collect::<String>())
+    } else {
+        detail
+    };
+    if detail.is_empty() {
+        status.to_string()
+    } else {
+        format!("HTTP {status}: {detail}")
+    }
+}
+
 pub struct HttpProvider {
     pub id: String,
     pub base_url: String,
@@ -39,12 +53,14 @@ impl HttpProvider {
             .await
             .map_err(LlmError::Request)?;
         if !response.status().is_success() {
-            return Err(LlmError::Response);
+            let status = response.status();
+            let detail = response.text().await.unwrap_or_default();
+            return Err(LlmError::Response(format_provider_detail(status, &detail)));
         }
         let value: Value = response.json().await.map_err(LlmError::Request)?;
         let content = value["choices"][0]["message"]["content"]
             .as_str()
-            .ok_or(LlmError::Response)?
+            .ok_or_else(|| LlmError::Response("missing choices[0].message.content".into()))?
             .to_string();
         Ok(LlmResponse {
             content,
@@ -71,7 +87,9 @@ impl HttpProvider {
             .await
             .map_err(LlmError::Request)?;
         if !response.status().is_success() {
-            return Err(LlmError::Response);
+            let status = response.status();
+            let detail = response.text().await.unwrap_or_default();
+            return Err(LlmError::Response(format_provider_detail(status, &detail)));
         }
 
         let bytes = response.bytes_stream();
@@ -154,7 +172,9 @@ impl super::provider::LlmProvider for HttpProvider {
             .await
             .map_err(LlmError::Request)?;
         if !response.status().is_success() {
-            return Err(LlmError::Response);
+            let status = response.status();
+            let detail = response.text().await.unwrap_or_default();
+            return Err(LlmError::Response(format_provider_detail(status, &detail)));
         }
         let value: Value = response.json().await.map_err(LlmError::Request)?;
         Ok(value["data"]
@@ -211,12 +231,16 @@ impl super::provider::LlmProvider for GeminiProvider {
             .await
             .map_err(LlmError::Request)?;
         if !response.status().is_success() {
-            return Err(LlmError::Response);
+            let status = response.status();
+            let detail = response.text().await.unwrap_or_default();
+            return Err(LlmError::Response(format_provider_detail(status, &detail)));
         }
         let value: Value = response.json().await.map_err(LlmError::Request)?;
         let content = value["candidates"][0]["content"]["parts"][0]["text"]
             .as_str()
-            .ok_or(LlmError::Response)?
+            .ok_or_else(|| {
+                LlmError::Response("missing candidates[0].content.parts[0].text".into())
+            })?
             .to_string();
         Ok(LlmResponse {
             content,

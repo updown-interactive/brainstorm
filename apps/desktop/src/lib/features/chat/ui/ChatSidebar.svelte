@@ -2,6 +2,7 @@
   import { Archive, Menu, MessageSquare, MoreHorizontal, Plus, Search, Settings2, Trash2 } from 'lucide-svelte';
   import LiquidGlassPanel from '$lib/shared/ui/LiquidGlassPanel.svelte';
   import type { ConversationSummary } from '../types';
+  import { renderMarkdown } from '../engine/markdown';
 
   export let conversations: ConversationSummary[] = [];
   export let activeConversationId: string | null = null;
@@ -38,7 +39,7 @@
         <div class="conversation-item-row">
           <button class="conversation-item" class:is-active={conversation.id === activeConversationId} type="button" onclick={() => onSelectConversation(conversation.id)}>
             <MessageSquare size={14} />
-            <span class="conversation-item-copy"><span>{conversation.title}</span></span>
+            <span class="conversation-item-copy"><span class="conversation-title-markdown">{@html renderMarkdown(conversation.title)}</span></span>
           </button>
           <div class="conversation-menu-wrap">
             <button class="conversation-menu-button" type="button" aria-label={`More options for ${conversation.title}`} title="Conversation options" aria-expanded={openConversationMenuId === conversation.id} onclick={(event) => onToggleConversationMenu(conversation.id, event)}><MoreHorizontal size={14} /></button>
