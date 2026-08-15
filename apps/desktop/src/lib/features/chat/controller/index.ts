@@ -98,7 +98,7 @@ class ChatController {
 		model?: string;
 	}): Promise<{ message: ConversationMessage; draft: { absolutePath: string; relativePath: string; content: string; properties: Record<string, unknown> }; title: string }> {
 		const activeConversationId = get(chatState).activeConversationId ?? '';
-		const userMessage = await conversationService.addMessage({ projectId, conversationId: activeConversationId, role: 'user', content: 'Create notes', status: 'completed', provider: providerConfigId, model });
+		const userMessage = await conversationService.addMessage({ projectId, conversationId: activeConversationId, role: 'user', content: `Create notes @${title}`, status: 'completed', provider: providerConfigId, model });
 		chatState.update((state) => ({ ...state, messages: [...state.messages, userMessage] }));
 		const draft = await this.createKnowledgeDraft({
 			projectPath,

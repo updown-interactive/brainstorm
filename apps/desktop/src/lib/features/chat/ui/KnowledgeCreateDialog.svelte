@@ -4,6 +4,8 @@
   import { MarkdownEditor } from '../../markdown';
 
   export let projectPath = '';
+  export let conversationTitle = 'Conversation';
+  export let sourceResponse = '';
   export let initialTitle = 'Brainstorm note';
   export let onCreateFolder: (relativePath: string) => Promise<void>;
   export let onCreateKnowledgeDraft: (title: string) => Promise<{ absolutePath: string; relativePath: string; title: string; content: string; properties: Record<string, unknown> }>;
@@ -105,9 +107,10 @@
 <div class:knowledge-inline-backdrop={inline} class="knowledge-dialog-backdrop" role="presentation" onclick={(event) => { if (!inline && event.target === event.currentTarget) void closeDialog(); }}>
   <div class:knowledge-inline-response={inline} class="knowledge-dialog" role="dialog" aria-modal={!inline} aria-labelledby="knowledge-dialog-title">
     <header class="knowledge-dialog-header">
-      <div><h2 id="knowledge-dialog-title">Brainstorm note</h2><p>{phase === 'location' ? 'Choose where this edited response should be saved.' : 'Generated from the response and ready to edit.'}</p></div>
+      <div><h2 id="knowledge-dialog-title">Create note</h2><p>{phase === 'location' ? 'Choose where this edited response should be saved.' : 'Generated from the response and ready to edit.'}</p></div>
       <button class="chat-icon-button" type="button" aria-label="Close" onclick={() => void closeDialog()}><X size={16} /></button>
     </header>
+
 
     {#if phase === 'generating'}
       {#if error}<p class="knowledge-error">{error}</p><footer class="knowledge-dialog-footer"><button type="button" class="knowledge-cancel-button" onclick={() => void closeDialog()}>Close</button><button type="button" class="knowledge-save-button" onclick={() => { error = ''; void generatePreview(); }}>Retry</button></footer>{:else}<div class="knowledge-generating"><LoaderCircle class="knowledge-spinner" size={20} /><span>Preparing knowledge preview…</span></div>{/if}
