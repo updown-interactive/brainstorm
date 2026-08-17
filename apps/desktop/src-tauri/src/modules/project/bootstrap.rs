@@ -1664,17 +1664,13 @@ impl<'a> BootstrapEngine<'a> {
         let state_dir = self.brainstorm_root.join("state");
         let legacy_explorer_state = self.brainstorm_root.join("explorer-state.json");
 
-        // Clean up legacy `config` directory to avoid confusion with `configuration`
-        let legacy_config_dir = self.brainstorm_root.join("config");
-        if legacy_config_dir.exists() {
-            let _ = std::fs::remove_dir_all(legacy_config_dir);
-        }
         if legacy_explorer_state.exists() {
             let _ = std::fs::remove_file(legacy_explorer_state);
         }
 
         std::fs::create_dir_all(&configuration_dir).map_err(bootstrap_error)?;
         std::fs::create_dir_all(&state_dir).map_err(bootstrap_error)?;
+
         Ok(())
     }
 

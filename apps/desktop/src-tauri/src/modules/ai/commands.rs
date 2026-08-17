@@ -81,6 +81,16 @@ pub async fn ai_add_provider(
     if request.model.trim().is_empty() || request.name.trim().is_empty() {
         return Err(AppError::Ai("provider configuration is invalid".into()));
     }
+    if !definition.models.is_empty()
+        && !definition
+            .models
+            .iter()
+            .any(|model| model == request.model.trim())
+    {
+        return Err(AppError::Ai(
+            "model is not available for this provider".into(),
+        ));
+    }
     let id = uuid::Uuid::new_v4().to_string();
     let credential_id = format!("brainstorm.llm.{}.{}", definition.id, id);
     if matches!(
@@ -98,7 +108,7 @@ pub async fn ai_add_provider(
         provider_id: definition.id,
         name: request.name,
         model: request.model,
-        base_url: request.base_url.or(definition.default_base_url),
+        base_url: definition.default_base_url.or(request.base_url),
         credential_id,
         created_at: timestamp,
         updated_at: timestamp,
@@ -114,6 +124,10 @@ pub async fn ai_update_provider(
     ai: State<'_, AiState>,
 ) -> Result<ProviderConfigResponse, AppError> {
     let mut config = get_config(&db.pool, &request.id).await?;
+    let definition = registry::definitions()
+        .into_iter()
+        .find(|item| item.id == config.provider_id)
+        .ok_or(AppError::Ai("unknown provider".into()))?;
     if let Some(api_key) = request.api_key {
         ai.credentials
             .save_api_key(&config.credential_id, &api_key)
@@ -124,10 +138,22 @@ pub async fn ai_update_provider(
         config.name = name;
     }
     if let Some(model) = request.model {
+        if !definition.models.is_empty()
+            && !definition
+                .models
+                .iter()
+                .any(|available| available == model.trim())
+        {
+            return Err(AppError::Ai(
+                "model is not available for this provider".into(),
+            ));
+        }
         config.model = model;
     }
-    if request.base_url.is_some() {
+    if definition.default_base_url.is_none() && request.base_url.is_some() {
         config.base_url = request.base_url;
+    } else if let Some(default_base_url) = definition.default_base_url {
+        config.base_url = Some(default_base_url);
     }
     config.updated_at = now();
     sqlx::query("UPDATE llm_provider_configs SET name = ?, model = ?, base_url = ?, updated_at = ? WHERE id = ?").bind(&config.name).bind(&config.model).bind(&config.base_url).bind(config.updated_at).bind(&config.id).execute(&db.pool).await?;

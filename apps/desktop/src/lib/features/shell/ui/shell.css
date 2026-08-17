@@ -557,7 +557,7 @@
   height: 100%;
   min-height: 0;
   min-width: 0;
-  overflow-y: auto;
+  overflow: hidden;
   position: relative;
   border-radius: 18px;
   background-color: var(--colors-background, #1E1E1E);

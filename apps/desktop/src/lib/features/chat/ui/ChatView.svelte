@@ -48,7 +48,7 @@
     });
     const closeConversationMenu = (event: PointerEvent): void => {
       const target = event.target;
-      if (target instanceof Node && !(target as Element).closest('.conversation-menu-wrap')) openConversationMenuId = null;
+      if (target instanceof Node && !(target as Element).closest('.conversation-menu-wrap, .conversation-menu')) openConversationMenuId = null;
     };
     document.addEventListener('pointerdown', closeConversationMenu, true);
     return () => {
@@ -120,6 +120,7 @@
       onFinalizeKnowledgeNote={({ sourcePath, folderPath, title, content }) => chatController.finalizeKnowledgeNote(projectPath, sourcePath, folderPath, title, content)}
       onDeleteKnowledgeDraft={(path) => chatController.deleteKnowledgeDraft(projectPath, path)}
     />
+    {#if $chatState.error}<p class="chat-error" role="alert">{$chatState.error}</p>{/if}
     <ChatComposer bind:draft bind:selectedProviderId bind:selectedMode {configuredProviders} {selectedProvider} {planOptions} onSelectPlanOption={submitPlanOption} onSubmit={submitMessage} />
   </section>
 </div>

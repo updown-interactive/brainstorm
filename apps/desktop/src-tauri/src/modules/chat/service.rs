@@ -9,6 +9,7 @@ use crate::modules::{
         factory::ProviderFactory,
         request::{LlmMessage, LlmRequest, LlmRole},
     },
+    context::{ContextManager, ContextRequest},
     conversation::{
         db,
         model::{ConversationMessage, MessageRole, MessageStatus},
@@ -195,32 +196,40 @@ impl ChatService {
             .bind(&request.project_id)
             .execute(pool)
             .await?;
-        let history = db::messages(pool, &conversation_id, 100, 0).await?;
-        let mut messages = vec![LlmMessage {
-            role: LlmRole::System,
-            content: mode_instructions(&request.mode).into(),
-        }];
-        messages.extend(history.into_iter().map(|message| LlmMessage {
-            role: match message.role.as_str() {
-                "assistant" => LlmRole::Assistant,
-                "system" => LlmRole::System,
-                "tool" => LlmRole::Tool,
-                _ => LlmRole::User,
-            },
-            content: message.content,
-        }));
-        let llm_request = LlmRequest {
-            model: model.clone(),
-            messages,
-            tools: vec![],
-            temperature: None,
-            max_tokens: None,
-        };
         let provider = self
             .provider_factory
             .create(&provider_config)
             .await
             .map_err(|error| AppError::Ai(error.safe_message()))?;
+        let context = ContextManager::assemble(
+            pool,
+            provider.as_ref(),
+            ContextRequest {
+                conversation_id: &conversation_id,
+                provider_id: &provider_config.provider_id,
+                model: &model,
+                system_instruction: mode_instructions(&request.mode),
+                query: request.content.trim(),
+                tools: &[],
+            },
+        )
+        .await?;
+        let llm_request = LlmRequest {
+            model: model.clone(),
+            messages: context.messages,
+            tools: vec![],
+            temperature: None,
+            max_tokens: Some(context.usage.reserved_output_tokens.saturating_sub(1_024) as u32),
+        };
+        eprintln!(
+            "[Chat] provider request conversation_id={} provider={} endpoint={} model={} input_messages={} max_tokens={:?}",
+            conversation_id,
+            provider_config.provider_id,
+            provider_config.base_url.as_deref().unwrap_or("<missing>"),
+            model,
+            llm_request.messages.len(),
+            llm_request.max_tokens
+        );
 
         if should_generate_title {
             let title_request = LlmRequest {
@@ -310,6 +319,42 @@ impl ChatService {
                     return Err(AppError::Ai(error.safe_message()));
                 }
             }
+        }
+        if assistant_content.trim().is_empty() {
+            let message = "The provider returned an empty response. Check the selected model and provider configuration.";
+            db::update_message_content(
+                pool,
+                &assistant_id,
+                message,
+                MessageStatus::Failed.as_str(),
+            )
+            .await?;
+            eprintln!(
+                "[Chat] provider returned an empty response conversation_id={} provider={} model={}",
+                conversation_id, provider_config.provider_id, model
+            );
+            let failed_message = ConversationMessage {
+                id: assistant_id.clone(),
+                conversation_id: conversation_id.clone(),
+                role: MessageRole::Assistant,
+                content: message.into(),
+                status: MessageStatus::Failed,
+                provider: Some(provider_config.provider_id.clone()),
+                model: Some(model.clone()),
+                created_at,
+                updated_at: Some(now()),
+            };
+            let _ = app.emit(
+                "chat-stream",
+                super::commands::ChatStreamEvent {
+                    conversation_id: conversation_id.clone(),
+                    message_id: assistant_id,
+                    delta: String::new(),
+                    done: true,
+                    message: Some(failed_message),
+                },
+            );
+            return Err(AppError::Ai(message.into()));
         }
         let assistant = ConversationMessage {
             id: assistant_id,

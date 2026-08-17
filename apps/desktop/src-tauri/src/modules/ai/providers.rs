@@ -216,16 +216,18 @@ impl super::provider::LlmProvider for GeminiProvider {
             .as_ref()
             .ok_or(LlmError::ProviderNotConfigured)?;
         let body = json!({ "contents": request.messages.iter().map(|m| json!({"role": if matches!(m.role, LlmRole::User) { "user" } else { "model" }, "parts": [{"text": m.content}]})).collect::<Vec<_>>() });
-        let url = format!(
-            "{}/v1beta/models/{}:generateContent?key={}",
-            self.0.base_url.trim_end_matches('/'),
-            request.model,
-            key
-        );
+        let base_url = self.0.base_url.trim_end_matches('/');
+        let api_root = if base_url.ends_with("/v1beta") {
+            base_url.to_string()
+        } else {
+            format!("{base_url}/v1beta")
+        };
+        let url = format!("{api_root}/models/{}:generateContent", request.model);
         let response = self
             .0
             .client
             .post(url)
+            .header("x-goog-api-key", key)
             .json(&body)
             .send()
             .await
@@ -248,6 +250,83 @@ impl super::provider::LlmProvider for GeminiProvider {
             usage: None,
         })
     }
+
+    async fn stream(&self, request: LlmRequest) -> Result<super::provider::LlmStream, LlmError> {
+        let key = self
+            .0
+            .api_key
+            .as_ref()
+            .ok_or(LlmError::ProviderNotConfigured)?;
+        let body = json!({ "contents": request.messages.iter().map(|m| json!({"role": if matches!(m.role, LlmRole::User) { "user" } else { "model" }, "parts": [{"text": m.content}]})).collect::<Vec<_>>() });
+        let base_url = self.0.base_url.trim_end_matches('/');
+        let api_root = if base_url.ends_with("/v1beta") {
+            base_url.to_string()
+        } else {
+            format!("{base_url}/v1beta")
+        };
+        let response = self
+            .0
+            .client
+            .post(format!(
+                "{api_root}/models/{}:streamGenerateContent?alt=sse",
+                request.model
+            ))
+            .header("x-goog-api-key", key)
+            .json(&body)
+            .send()
+            .await
+            .map_err(LlmError::Request)?;
+        if !response.status().is_success() {
+            let status = response.status();
+            let detail = response.text().await.unwrap_or_default();
+            return Err(LlmError::Response(format_provider_detail(status, &detail)));
+        }
+
+        let bytes = response.bytes_stream();
+        let response_stream = stream::unfold(
+            (bytes, String::new(), false),
+            |(mut bytes, mut buffer, finished)| async move {
+                if finished {
+                    return None;
+                }
+                loop {
+                    if let Some(separator) = buffer.find("\n\n") {
+                        let event = buffer[..separator].to_owned();
+                        buffer.drain(..separator + 2);
+                        let data = event
+                            .lines()
+                            .filter_map(|line| line.strip_prefix("data:"))
+                            .map(str::trim)
+                            .collect::<Vec<_>>()
+                            .join("\n");
+                        if data.is_empty() {
+                            continue;
+                        }
+                        let delta = serde_json::from_str::<Value>(&data).ok().and_then(|value| {
+                            value["candidates"][0]["content"]["parts"][0]["text"]
+                                .as_str()
+                                .map(str::to_owned)
+                        });
+                        if let Some(delta) = delta.filter(|value| !value.is_empty()) {
+                            return Some((Ok(delta), (bytes, buffer, finished)));
+                        }
+                        continue;
+                    }
+                    match bytes.next().await {
+                        Some(Ok(chunk)) => {
+                            buffer.push_str(&String::from_utf8_lossy(&chunk).replace("\r\n", "\n"));
+                        }
+                        Some(Err(error)) => {
+                            return Some((Err(LlmError::Request(error)), (bytes, buffer, true)));
+                        }
+                        None => return None,
+                    }
+                }
+            },
+        );
+        Ok(Box::pin(response_stream))
+    }
+
     async fn validate(&self) -> Result<(), LlmError> {
         self.generate(LlmRequest {
             model: self.0.model.clone(),
