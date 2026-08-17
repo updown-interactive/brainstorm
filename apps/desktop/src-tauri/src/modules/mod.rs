@@ -1,5 +1,6 @@
 pub mod ai;
 pub mod chat;
+pub mod context;
 pub mod conversation;
 pub mod credentials;
 pub mod filesystem;

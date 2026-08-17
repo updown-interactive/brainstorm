@@ -4,6 +4,7 @@ export type ProviderDefinition = {
 	description: string;
 	authentication: 'api_key' | 'none';
 	default_base_url: string | null;
+	models: string[];
 };
 
 export type ProviderConfig = {
@@ -20,5 +21,13 @@ export type AddProviderRequest = {
 	name: string;
 	api_key?: string;
 	model: string;
+	base_url?: string;
+};
+
+export type UpdateProviderRequest = {
+	id: string;
+	name?: string;
+	api_key?: string;
+	model?: string;
 	base_url?: string;
 };

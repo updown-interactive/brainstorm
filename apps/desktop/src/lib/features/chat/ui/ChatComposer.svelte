@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { afterUpdate } from 'svelte';
   import { BookOpen, ChevronDown, Paperclip, Send, Square, Sparkles } from 'lucide-svelte';
   import LiquidGlassPanel from '$lib/shared/ui/LiquidGlassPanel.svelte';
   import type { ProviderConfig } from '../../settings/types/providers';
@@ -47,8 +48,12 @@
 
   const handleSubmit = (): void => {
     onSubmit();
-    resizeComposer();
+    requestAnimationFrame(() => resizeComposer());
   };
+
+  afterUpdate(() => {
+    if (!draft.trim()) resizeComposer();
+  });
 
 </script>
 

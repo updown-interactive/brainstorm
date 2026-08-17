@@ -217,7 +217,9 @@ class ChatController {
 			await this.loadForProject(projectId, response.conversationId);
 		} catch (error) {
 			if (sendVersion !== this.sessionVersion) return;
-			chatState.update((state) => ({ ...state, error: error instanceof Error ? error.message : 'Unable to generate a response.' }));
+			const message = error instanceof Error ? error.message : 'Unable to generate a response.';
+			console.error('[Chat] send failed', error);
+			chatState.update((state) => ({ ...state, error: message }));
 		}
 	}
 

@@ -18,6 +18,7 @@ pub struct ProviderDefinition {
     pub description: String,
     pub authentication: AuthenticationType,
     pub default_base_url: Option<String>,
+    pub models: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]

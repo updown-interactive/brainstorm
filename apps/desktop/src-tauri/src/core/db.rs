@@ -32,6 +32,9 @@ pub async fn init(_app_handle: &tauri::AppHandle) -> Result<DbState, String> {
     crate::modules::conversation::commands::init(&pool)
         .await
         .map_err(|e| e.to_string())?;
+    crate::modules::context::init(&pool)
+        .await
+        .map_err(|e| e.to_string())?;
     crate::modules::ai::commands::init(&pool)
         .await
         .map_err(|e| e.to_string())?;

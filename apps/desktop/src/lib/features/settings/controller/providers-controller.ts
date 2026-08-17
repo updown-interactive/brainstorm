@@ -1,6 +1,6 @@
 import { get, writable } from 'svelte/store';
 import { providersService } from '../data/providers-service';
-import type { AddProviderRequest, ProviderConfig, ProviderDefinition } from '../types/providers';
+import type { AddProviderRequest, ProviderConfig, ProviderDefinition, UpdateProviderRequest } from '../types/providers';
 
 type ProvidersState = { definitions: ProviderDefinition[]; configured: ProviderConfig[]; isLoading: boolean; error: string };
 
@@ -24,6 +24,16 @@ class ProvidersController {
 			this.state.update((state) => ({ ...state, configured: [...state.configured, provider], error: '' }));
 		} catch (error) {
 			this.state.update((state) => ({ ...state, error: error instanceof Error ? error.message : 'Failed to save provider.' }));
+			throw error;
+		}
+	};
+
+	update = async (request: UpdateProviderRequest): Promise<void> => {
+		try {
+			const provider = await providersService.update(request);
+			this.state.update((state) => ({ ...state, configured: state.configured.map((item) => item.id === provider.id ? provider : item), error: '' }));
+		} catch (error) {
+			this.state.update((state) => ({ ...state, error: error instanceof Error ? error.message : 'Failed to update provider.' }));
 			throw error;
 		}
 	};

@@ -1,8 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Cpu, Key, ShieldCheck, ChevronDown, Check, Sparkles } from 'lucide-svelte';
+  import { Cpu, Key, ShieldCheck, ChevronDown, Check, Pencil, X } from 'lucide-svelte';
   import { providersController } from '../controller/providers-controller';
-  import LiquidGlassPanel from '$lib/shared/ui/LiquidGlassPanel.svelte';
 
   let providerId = 'google';
   let name = '';
@@ -10,13 +9,20 @@
   let apiKey = '';
   let baseUrl = '';
   let isSaving = false;
+  let editingProviderId: string | null = null;
   let showProviderDropdown = false;
   let providerDropdownEl: HTMLDivElement;
 
   $: selectedDefinition = $providersController.definitions.find((definition) => definition.id === providerId);
 
+  const applyProviderDefaults = (id: string): void => {
+    const definition = providersController.snapshot().definitions.find((item) => item.id === id);
+    baseUrl = definition?.default_base_url ?? '';
+    model = definition?.models[0] ?? '';
+  };
+
   onMount(() => {
-    void providersController.load();
+    void providersController.load().then(() => applyProviderDefaults(providerId));
     const closeOnOutsidePointer = (event: PointerEvent): void => {
       if (showProviderDropdown && providerDropdownEl && !providerDropdownEl.contains(event.target as Node)) {
         showProviderDropdown = false;
@@ -34,17 +40,39 @@
   const selectProvider = (id: string, event: Event): void => {
     event.stopPropagation();
     providerId = id;
-    if (id === 'grok') model = 'grok-3-mini';
-    if (id === 'google') model = 'gemini-2.0-flash';
+    applyProviderDefaults(id);
+    showProviderDropdown = false;
+  };
+
+  const resetForm = (): void => {
+    editingProviderId = null;
+    providerId = 'google';
+    name = '';
+    model = '';
+    apiKey = '';
+    baseUrl = '';
+    applyProviderDefaults(providerId);
+  };
+
+  const editProvider = (provider: typeof $providersController.configured[number]): void => {
+    editingProviderId = provider.id;
+    providerId = provider.provider_id;
+    name = provider.name;
+    model = provider.model;
+    baseUrl = provider.base_url ?? '';
+    apiKey = '';
     showProviderDropdown = false;
   };
 
   const saveProvider = async (): Promise<void> => {
     isSaving = true;
     try {
-      await providersController.add({ provider_id: providerId, name: name.trim(), model: model.trim(), api_key: apiKey, base_url: baseUrl.trim() || undefined });
-      apiKey = '';
-      name = '';
+      if (editingProviderId) {
+        await providersController.update({ id: editingProviderId, name: name.trim(), model: model.trim(), api_key: apiKey.trim() || undefined, base_url: baseUrl.trim() || undefined });
+      } else {
+        await providersController.add({ provider_id: providerId, name: name.trim(), model: model.trim(), api_key: apiKey, base_url: undefined });
+      }
+      resetForm();
     } finally {
       isSaving = false;
     }
@@ -67,12 +95,12 @@
     {#each $providersController.configured as provider}
       <div class="settings-card-row">
         <div class="settings-card-label"><strong>{provider.name}</strong><p>{provider.provider_id} · {provider.model}</p></div>
-        <button type="button" onclick={() => providersController.remove(provider.id)}>Remove</button>
+        <div class="connected-provider-actions"><button type="button" class="connected-provider-edit" onclick={() => editProvider(provider)}><Pencil size={13} /> Edit</button><button type="button" onclick={() => providersController.remove(provider.id)}>Remove</button></div>
       </div>
     {/each}
   </div>
 
-  <div class="settings-section-heading">Add Provider</div>
+  <div class="settings-section-heading">{editingProviderId ? 'Edit Provider' : 'Add Provider'}</div>
   <form class="settings-card provider-form-card" onsubmit={(event) => { event.preventDefault(); void saveProvider(); }}>
     <div class="settings-card-row">
       <label for="provider-type">Provider</label>
@@ -81,6 +109,7 @@
           type="button"
           id="provider-type"
           class="provider-dropdown-trigger"
+          disabled={editingProviderId !== null}
           class:is-open={showProviderDropdown}
           onclick={toggleProviderDropdown}
           aria-expanded={showProviderDropdown}
@@ -93,7 +122,7 @@
         </button>
 
         {#if showProviderDropdown}
-          <LiquidGlassPanel class="provider-dropdown-menu" role="listbox" aria-labelledby="provider-type">
+          <div class="provider-dropdown-menu" role="listbox" aria-labelledby="provider-type">
             <div class="provider-dropdown-label">Choose provider</div>
             {#each $providersController.definitions as definition}
               <button
@@ -111,21 +140,33 @@
                 {#if definition.id === providerId}<Check size={14} class="provider-dropdown-check" />{/if}
               </button>
             {/each}
-          </LiquidGlassPanel>
+          </div>
         {/if}
       </div>
     </div>
     <div class="settings-card-row"><label for="provider-name">Name</label><input id="provider-name" bind:value={name} required /></div>
-    <div class="settings-card-row"><label for="provider-model">Model</label><input id="provider-model" bind:value={model} required /></div>
-    <div class="settings-card-row"><label for="provider-base-url">Base URL</label><input id="provider-base-url" bind:value={baseUrl} /></div>
+    <div class="settings-card-row">
+      <label for="provider-model">Model</label>
+      {#if selectedDefinition?.models.length}
+        <select id="provider-model" class="provider-model-select" bind:value={model} required>
+          {#each selectedDefinition.models as providerModel}
+            <option value={providerModel}>{providerModel}</option>
+          {/each}
+        </select>
+      {:else}
+        <input id="provider-model" bind:value={model} placeholder="Discovered by provider" required />
+      {/if}
+    </div>
+    <div class="settings-card-row"><label for="provider-base-url">Base URL</label><input id="provider-base-url" value={baseUrl} readonly aria-readonly="true" /></div>
     <div class="settings-card-row"><label for="provider-api-key">API key</label><input id="provider-api-key" type="password" autocomplete="off" bind:value={apiKey} /></div>
     <div class="provider-form-footer">
       <button class="save-provider-button" type="submit" disabled={isSaving}>
         <span class="save-provider-copy">
-          <span>{isSaving ? 'Securing provider…' : 'Save provider'}</span>
+          <span>{isSaving ? (editingProviderId ? 'Updating provider…' : 'Securing provider…') : (editingProviderId ? 'Update provider' : 'Save provider')}</span>
         </span>
         <span class="save-provider-arrow">→</span>
       </button>
+      {#if editingProviderId}<button class="provider-cancel-button" type="button" onclick={resetForm} disabled={isSaving}><X size={14} /> Cancel</button>{/if}
     </div>
   </form>
 
@@ -215,7 +256,7 @@
     transform: rotate(180deg);
   }
 
-  :global(.liquid-glass-panel.provider-dropdown-menu) {
+  .provider-dropdown-menu {
     position: absolute;
     top: calc(100% + 8px);
     right: 0;
@@ -223,11 +264,16 @@
     z-index: 1000;
     padding: 6px;
     border-radius: 14px;
+    background: var(--colors-surface, #1c1c1e);
+    border: 1px solid color-mix(in srgb, var(--colors-border, #3a3a3c) 80%, transparent);
+    color: var(--colors-text, #f5f5f7);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+    box-sizing: border-box;
   }
 
   .provider-dropdown-label {
     padding: 5px 10px 7px;
-    color: var(--colors-textMuted);
+    color: var(--colors-textMuted, #a1a1a6);
     font-size: 10px;
     font-weight: 650;
     letter-spacing: 0.08em;
@@ -244,7 +290,7 @@
     border: 0;
     border-radius: 9px;
     background: transparent;
-    color: var(--colors-text);
+    color: var(--colors-text, #f5f5f7) !important;
     text-align: left;
     cursor: pointer;
     transition: background 0.12s ease, color 0.12s ease;
@@ -268,14 +314,27 @@
   .provider-dropdown-name {
     font-size: 13px;
     font-weight: 520;
+    color: var(--colors-text, #f5f5f7);
   }
 
   .provider-dropdown-description {
     overflow: hidden;
-    color: var(--colors-textMuted);
+    color: var(--colors-textMuted, #a1a1a6);
     font-size: 11px;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .provider-model-select {
+    width: 250px;
+    min-height: 34px;
+    padding: 7px 11px;
+    border: 1px solid color-mix(in srgb, var(--colors-border) 60%, transparent);
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--colors-surfaceVariant, #242428) 48%, transparent);
+    color: var(--colors-text, #f5f5f7);
+    font: inherit;
+    font-size: 13px;
   }
 
   :global(.provider-dropdown-check) {
@@ -285,10 +344,48 @@
 
   .provider-form-footer {
     display: flex;
+    align-items: center;
+    gap: 8px;
     justify-content: flex-end;
     padding: 14px 16px 16px;
     background: color-mix(in srgb, var(--colors-background) 35%, transparent);
     border-top: 1px solid color-mix(in srgb, var(--colors-border) 25%, transparent);
+  }
+
+  .connected-provider-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .connected-provider-edit {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .provider-cancel-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 10px;
+    border: 1px solid color-mix(in srgb, var(--colors-border) 55%, transparent);
+    border-radius: 9px;
+    background: transparent;
+    color: var(--colors-textMuted);
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+  }
+
+  .provider-cancel-button:hover:not(:disabled) {
+    background: var(--colors-hover);
+    color: var(--colors-text);
+  }
+
+  .provider-dropdown-trigger:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
   }
 
   .save-provider-button {
@@ -322,15 +419,6 @@
     cursor: wait;
   }
 
-  .save-provider-icon {
-    display: grid;
-    place-items: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 9px;
-    background: rgba(255, 255, 255, 0.18);
-  }
-
   .save-provider-copy {
     display: flex;
     flex: 1;
@@ -338,12 +426,6 @@
     gap: 1px;
     font-size: 13px;
     font-weight: 600;
-  }
-
-  .save-provider-copy small {
-    font-size: 10px;
-    font-weight: 450;
-    opacity: 0.78;
   }
 
   .save-provider-arrow {

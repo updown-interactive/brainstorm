@@ -111,6 +111,10 @@
       <button class="chat-icon-button" type="button" aria-label="Close" onclick={() => void closeDialog()}><X size={16} /></button>
     </header>
 
+    <div class="knowledge-source-card" aria-label="Note source">
+      <div class="knowledge-source-heading"><span class="knowledge-source-label">Assistant response</span><span class="knowledge-source-chat">@{conversationTitle}</span></div>
+      <p>{sourceResponse}</p>
+    </div>
 
     {#if phase === 'generating'}
       {#if error}<p class="knowledge-error">{error}</p><footer class="knowledge-dialog-footer"><button type="button" class="knowledge-cancel-button" onclick={() => void closeDialog()}>Close</button><button type="button" class="knowledge-save-button" onclick={() => { error = ''; void generatePreview(); }}>Retry</button></footer>{:else}<div class="knowledge-generating"><LoaderCircle class="knowledge-spinner" size={20} /><span>Preparing knowledge preview…</span></div>{/if}
