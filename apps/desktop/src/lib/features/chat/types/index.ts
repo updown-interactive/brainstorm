@@ -52,6 +52,7 @@ export type ConversationMessage = {
 	model: string | null;
 	createdAt: number;
 	updatedAt: number | null;
+	metadata?: { knowledge?: KnowledgeContext };
 };
 
 export type ConversationHistory = { conversations: ConversationSummary[]; total: number };
@@ -62,4 +63,13 @@ export type ChatStreamEvent = {
 	delta: string;
 	done: boolean;
 	message: ConversationMessage | null;
+	knowledge: KnowledgeContext | null;
+};
+
+export type KnowledgeContext = {
+	query: string;
+	results: Array<{ filePath: string; title: string; chunk: string; relevanceScore: number }>;
+	sources: string[];
+	confidence: number;
+	retrievedAt: number;
 };

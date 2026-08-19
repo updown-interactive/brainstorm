@@ -118,6 +118,9 @@
   .message-markdown .mermaid-diagram { margin: 10px 0; overflow-x: auto; padding: 8px; border-radius: 8px; background: var(--colors-surfaceVariant); }
   .message-markdown .mermaid-diagram svg { max-width: 100%; height: auto; }
   .message-status { display: block; margin-top: 7px; color: var(--colors-textMuted); font-size: 10px; text-transform: capitalize; }
+  .knowledge-used-indicator { display: block; width: fit-content; margin-top: 7px; color: var(--colors-primary); font-size: 10px; }
+  .knowledge-used-indicator summary { cursor: pointer; }
+  .knowledge-used-indicator ul { margin: 5px 0 0 16px; padding: 0; color: var(--colors-textMuted); }
   .message-copy-button { display: grid; place-items: center; width: 24px; height: 24px; margin-top: 5px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--colors-textMuted); cursor: pointer; }
   .message-copy-button:hover { background: var(--colors-hover); color: var(--colors-text); }
   .knowledge-action-button { display: inline-grid; place-items: center; width: 24px; height: 24px; margin-top: 5px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--colors-primary); font: inherit; font-size: 10px; cursor: pointer; }

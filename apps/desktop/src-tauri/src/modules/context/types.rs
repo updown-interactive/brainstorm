@@ -59,6 +59,7 @@ pub struct TokenUsage {
 #[derive(Debug, Clone)]
 pub struct ContextAssembly {
     pub messages: Vec<LlmMessage>,
+    pub knowledge_context: Option<super::knowledge::KnowledgeContext>,
     pub context_version: i64,
     pub snapshot_version: Option<i64>,
     pub usage: TokenUsage,

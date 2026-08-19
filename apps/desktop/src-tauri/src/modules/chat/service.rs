@@ -201,11 +201,16 @@ impl ChatService {
             .create(&provider_config)
             .await
             .map_err(|error| AppError::Ai(error.safe_message()))?;
+        let project_path = sqlx::query_scalar::<_, String>("SELECT path FROM projects WHERE id = ?")
+            .bind(&request.project_id)
+            .fetch_one(pool)
+            .await?;
         let context = ContextManager::assemble(
             pool,
             provider.as_ref(),
             ContextRequest {
                 conversation_id: &conversation_id,
+                project_path: &project_path,
                 provider_id: &provider_config.provider_id,
                 model: &model,
                 system_instruction: mode_instructions(&request.mode),
@@ -283,6 +288,7 @@ impl ChatService {
                             delta,
                             done: false,
                             message: None,
+                            knowledge: None,
                         },
                     );
                 }
@@ -314,6 +320,7 @@ impl ChatService {
                             delta: String::new(),
                             done: true,
                             message: Some(failed_message),
+                            knowledge: None,
                         },
                     );
                     return Err(AppError::Ai(error.safe_message()));
@@ -352,6 +359,7 @@ impl ChatService {
                     delta: String::new(),
                     done: true,
                     message: Some(failed_message),
+                    knowledge: None,
                 },
             );
             return Err(AppError::Ai(message.into()));
@@ -383,11 +391,13 @@ impl ChatService {
                 delta: String::new(),
                 done: true,
                 message: Some(assistant.clone()),
+                knowledge: context.knowledge_context.clone(),
             },
         );
         Ok(SendMessageResponse {
             conversation_id,
             message: assistant,
+            knowledge: context.knowledge_context,
         })
     }
 

@@ -168,7 +168,9 @@ class ChatController {
 			if (selectionVersion !== this.sessionVersion || get(chatState).activeConversationId !== conversationId) return;
 			await conversationService.setActive({ projectId, conversationId });
 			if (selectionVersion !== this.sessionVersion || get(chatState).activeConversationId !== conversationId) return;
-			chatState.update((state) => ({ ...state, messages, isLoadingMessages: false }));
+			const previousMetadata = new Map(get(chatState).messages.map((message) => [message.id, message.metadata]));
+			const messagesWithMetadata = messages.map((message) => ({ ...message, metadata: message.metadata ?? previousMetadata.get(message.id) }));
+			chatState.update((state) => ({ ...state, messages: messagesWithMetadata, isLoadingMessages: false }));
 		} catch (error) {
 			if (selectionVersion !== this.sessionVersion) return;
 			chatState.update((state) => ({ ...state, isLoadingMessages: false, error: error instanceof Error ? error.message : 'Failed to load conversation.' }));
@@ -239,7 +241,9 @@ class ChatController {
 				createdAt: Date.now(),
 				updatedAt: null
 			};
-			const nextMessage = event.message ?? { ...streamedMessage, content: `${streamedMessage.content}${event.delta}`, status: 'streaming' as const };
+			const nextMessage = event.message
+				? { ...event.message, metadata: event.knowledge ? { knowledge: event.knowledge } : event.message.metadata }
+				: { ...streamedMessage, content: `${streamedMessage.content}${event.delta}`, status: 'streaming' as const, metadata: event.knowledge ? { knowledge: event.knowledge } : streamedMessage.metadata };
 			const messages = existingIndex === -1
 				? [...state.messages, nextMessage]
 				: state.messages.map((message, index) => index === existingIndex ? nextMessage : message);

@@ -1,11 +1,13 @@
 mod assembler;
 mod capabilities;
 mod compactor;
+mod knowledge;
 mod retriever;
 mod tokenizer;
 mod types;
 
 pub use assembler::{ContextManager, ContextRequest};
+pub use knowledge::KnowledgeContext;
 pub use types::{ContextAssembly, ContextItem, ContextItemType, StructuredConversationState};
 
 use crate::core::error::AppError;

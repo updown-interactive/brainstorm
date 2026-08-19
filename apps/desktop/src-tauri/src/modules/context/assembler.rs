@@ -1,6 +1,6 @@
 use super::{
     capabilities::for_model,
-    compactor, retriever,
+    compactor, knowledge, retriever,
     tokenizer::{estimate_messages, estimate_tokens},
     types::{ContextAssembly, StructuredConversationState, TokenUsage},
 };
@@ -16,6 +16,7 @@ pub struct ContextManager;
 
 pub struct ContextRequest<'a> {
     pub conversation_id: &'a str,
+    pub project_path: &'a str,
     pub provider_id: &'a str,
     pub model: &'a str,
     pub system_instruction: &'a str,
@@ -32,6 +33,7 @@ impl ContextManager {
         let capabilities = for_model(request.provider_id, request.model);
         let state = load_state(pool, request.conversation_id).await?;
         let recent = recent_messages(pool, request.conversation_id, 80).await?;
+        let knowledge_context = knowledge::retrieve(request.project_path, request.query).await;
         let oldest_recent = recent.first();
         let mut summary = state
             .as_ref()
@@ -63,6 +65,10 @@ impl ContextManager {
             .sum::<usize>();
         let reserved = capabilities.max_output_tokens + capabilities.safety_margin_tokens;
         let system_tokens = estimate_tokens(request.system_instruction)
+            + knowledge_context
+                .as_ref()
+                .map(|value| estimate_tokens(&value.prompt()))
+                .unwrap_or_default()
             + request
                 .tools
                 .iter()
@@ -122,6 +128,12 @@ impl ContextManager {
         if let Some(message) = summary_message {
             messages.push(message);
         }
+        if let Some(knowledge) = &knowledge_context {
+            messages.push(LlmMessage {
+                role: LlmRole::System,
+                content: knowledge.prompt(),
+            });
+        }
         let mut seen = std::collections::HashSet::new();
         for item in retrieved
             .iter()
@@ -154,6 +166,7 @@ impl ContextManager {
         eprintln!("[ContextEngine] conversation_id={} context_version={} model={} limit={} input_tokens={} reserved_output_tokens={} recent_message_tokens={} summary_tokens={} retrieved_context_tokens={} compaction_performed={} snapshot_version={:?}", request.conversation_id, snapshot_version.unwrap_or(0), request.model, usage.model_context_limit, usage.input_tokens, usage.reserved_output_tokens, usage.recent_message_tokens, usage.summary_tokens, usage.retrieved_context_tokens, compaction_performed, snapshot_version);
         Ok(ContextAssembly {
             messages,
+            knowledge_context,
             context_version: snapshot_version.unwrap_or(0),
             snapshot_version,
             usage,
