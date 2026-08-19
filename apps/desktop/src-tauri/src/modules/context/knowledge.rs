@@ -30,7 +30,12 @@ impl KnowledgeContext {
         let sources = self
             .results
             .iter()
-            .map(|result| format!("Source: {}\nTitle: {}\nRelevance: {:.2}\nRelevant content:\n{}", result.file_path, result.title, result.relevance_score, result.chunk))
+            .map(|result| {
+                format!(
+                    "Source: {}\nTitle: {}\nRelevance: {:.2}\nRelevant content:\n{}",
+                    result.file_path, result.title, result.relevance_score, result.chunk
+                )
+            })
             .collect::<Vec<_>>()
             .join("\n\n---\n\n");
         format!("You have access to the user's private knowledge base.\nUse it when relevant and do not invent facts attributed to it. If it does not contain enough information, say so clearly. Distinguish retrieved knowledge from general model knowledge and cite sources by path when possible.\n\nRetrieved knowledge:\n{sources}")
@@ -39,13 +44,31 @@ impl KnowledgeContext {
 
 pub fn should_retrieve(query: &str) -> bool {
     let normalized = query.to_ascii_lowercase();
-    let first_person = ["my ", "i wrote", "we decided", "our ", "in my", "based on my"]
-        .iter()
-        .any(|cue| normalized.contains(cue));
+    let first_person = [
+        "my ",
+        "i wrote",
+        "we decided",
+        "our ",
+        "in my",
+        "based on my",
+    ]
+    .iter()
+    .any(|cue| normalized.contains(cue));
     let knowledge_intent = [
-        "knowledge", "notes", "vault", "brainstorm", "decision",
-        "roadmap", "what did", "summarize", "according to", "based on", "wrote about",
-        "we decided", "my files", "my docs",
+        "knowledge",
+        "notes",
+        "vault",
+        "brainstorm",
+        "decision",
+        "roadmap",
+        "what did",
+        "summarize",
+        "according to",
+        "based on",
+        "wrote about",
+        "we decided",
+        "my files",
+        "my docs",
     ]
     .iter()
     .any(|cue| normalized.contains(cue));
@@ -61,7 +84,12 @@ pub async fn retrieve(project_path: &str, query: &str) -> Option<KnowledgeContex
     let result = tokio::task::spawn_blocking(move || {
         let mut index = SearchIndex::open(&root).map_err(|error| error.to_string())?;
         index
-            .query(SearchQuery { query: query.clone(), limit: Some(MAX_RESULTS), path: None, tags: None })
+            .query(SearchQuery {
+                query: query.clone(),
+                limit: Some(MAX_RESULTS),
+                path: None,
+                tags: None,
+            })
             .map_err(|error| error.to_string())
     })
     .await
@@ -72,29 +100,54 @@ pub async fn retrieve(project_path: &str, query: &str) -> Option<KnowledgeContex
 
 fn build_context(query: String, value: Value) -> Option<KnowledgeContext> {
     let mut used_chars = 0;
-    let results = value.get("results")?.as_array()?.iter().filter_map(|item| {
-        let file_path = item.get("path")?.as_str()?.to_string();
-        let chunk = item.get("snippet")?.as_str()?.trim().to_string();
-        if chunk.is_empty() || used_chars >= MAX_CONTEXT_CHARS { return None; }
-        let remaining = MAX_CONTEXT_CHARS - used_chars;
-        let chunk = chunk.chars().take(remaining).collect::<String>();
-        used_chars += chunk.len();
-        Some(KnowledgeResult {
-            file_path,
-            title: item.get("title").and_then(Value::as_str).unwrap_or_default().to_string(),
-            relevance_score: item.get("score").and_then(Value::as_f64).unwrap_or_default() as f32,
-            chunk,
+    let results = value
+        .get("results")?
+        .as_array()?
+        .iter()
+        .filter_map(|item| {
+            let file_path = item.get("path")?.as_str()?.to_string();
+            let chunk = item.get("snippet")?.as_str()?.trim().to_string();
+            if chunk.is_empty() || used_chars >= MAX_CONTEXT_CHARS {
+                return None;
+            }
+            let remaining = MAX_CONTEXT_CHARS - used_chars;
+            let chunk = chunk.chars().take(remaining).collect::<String>();
+            used_chars += chunk.len();
+            Some(KnowledgeResult {
+                file_path,
+                title: item
+                    .get("title")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string(),
+                relevance_score: item
+                    .get("score")
+                    .and_then(Value::as_f64)
+                    .unwrap_or_default() as f32,
+                chunk,
+            })
         })
-    }).collect::<Vec<_>>();
-    if results.is_empty() { return None; }
-    let sources = results.iter().map(|item| item.file_path.clone()).collect::<Vec<_>>();
-    let max_score = results.iter().map(|item| item.relevance_score).fold(0.0, f32::max);
+        .collect::<Vec<_>>();
+    if results.is_empty() {
+        return None;
+    }
+    let sources = results
+        .iter()
+        .map(|item| item.file_path.clone())
+        .collect::<Vec<_>>();
+    let max_score = results
+        .iter()
+        .map(|item| item.relevance_score)
+        .fold(0.0, f32::max);
     Some(KnowledgeContext {
         query,
         results,
         sources,
         confidence: (max_score / 100.0).clamp(0.0, 1.0),
-        retrieved_at: SystemTime::now().duration_since(UNIX_EPOCH).map(|value| value.as_secs() as i64).unwrap_or_default(),
+        retrieved_at: SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|value| value.as_secs() as i64)
+            .unwrap_or_default(),
     })
 }
 
@@ -105,7 +158,9 @@ mod tests {
     #[test]
     fn detects_private_knowledge_intent_without_retrieving_generic_requests() {
         assert!(should_retrieve("What did I write about MAASH?"));
-        assert!(should_retrieve("Based on my knowledge, what should I do next?"));
+        assert!(should_retrieve(
+            "Based on my knowledge, what should I do next?"
+        ));
         assert!(!should_retrieve("Write a poem about architecture."));
         assert!(!should_retrieve("What is 2 + 2?"));
     }

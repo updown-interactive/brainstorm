@@ -201,10 +201,11 @@ impl ChatService {
             .create(&provider_config)
             .await
             .map_err(|error| AppError::Ai(error.safe_message()))?;
-        let project_path = sqlx::query_scalar::<_, String>("SELECT path FROM projects WHERE id = ?")
-            .bind(&request.project_id)
-            .fetch_one(pool)
-            .await?;
+        let project_path =
+            sqlx::query_scalar::<_, String>("SELECT path FROM projects WHERE id = ?")
+                .bind(&request.project_id)
+                .fetch_one(pool)
+                .await?;
         let context = ContextManager::assemble(
             pool,
             provider.as_ref(),

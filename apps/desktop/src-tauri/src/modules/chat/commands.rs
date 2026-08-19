@@ -1,7 +1,7 @@
 use super::service::ChatService;
 use crate::core::{db::DbState, error::AppError};
-use crate::modules::conversation::model::ConversationMessage;
 use crate::modules::context::KnowledgeContext;
+use crate::modules::conversation::model::ConversationMessage;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tauri::{AppHandle, State};
