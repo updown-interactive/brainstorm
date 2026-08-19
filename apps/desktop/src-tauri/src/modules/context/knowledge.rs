@@ -81,11 +81,12 @@ pub async fn retrieve(project_path: &str, query: &str) -> Option<KnowledgeContex
     }
     let root = project_path.to_string();
     let query = query.trim().to_string();
+    let search_query = query.clone();
     let result = tokio::task::spawn_blocking(move || {
         let mut index = SearchIndex::open(&root).map_err(|error| error.to_string())?;
         index
             .query(SearchQuery {
-                query: query.clone(),
+                query: search_query,
                 limit: Some(MAX_RESULTS),
                 path: None,
                 tags: None,
