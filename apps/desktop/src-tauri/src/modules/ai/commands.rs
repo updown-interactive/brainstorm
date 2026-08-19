@@ -98,7 +98,7 @@ pub async fn ai_add_provider(
         provider_id: definition.id,
         name: request.name,
         model: request.model,
-        base_url: request.base_url.or(definition.default_base_url),
+        base_url: definition.default_base_url.or(request.base_url),
         credential_id,
         created_at: timestamp,
         updated_at: timestamp,
@@ -114,6 +114,10 @@ pub async fn ai_update_provider(
     ai: State<'_, AiState>,
 ) -> Result<ProviderConfigResponse, AppError> {
     let mut config = get_config(&db.pool, &request.id).await?;
+    let definition = registry::definitions()
+        .into_iter()
+        .find(|item| item.id == config.provider_id)
+        .ok_or(AppError::Ai("unknown provider".into()))?;
     if let Some(api_key) = request.api_key {
         ai.credentials
             .save_api_key(&config.credential_id, &api_key)
@@ -126,8 +130,10 @@ pub async fn ai_update_provider(
     if let Some(model) = request.model {
         config.model = model;
     }
-    if request.base_url.is_some() {
+    if definition.default_base_url.is_none() && request.base_url.is_some() {
         config.base_url = request.base_url;
+    } else if let Some(default_base_url) = definition.default_base_url {
+        config.base_url = Some(default_base_url);
     }
     config.updated_at = now();
     sqlx::query("UPDATE llm_provider_configs SET name = ?, model = ?, base_url = ?, updated_at = ? WHERE id = ?").bind(&config.name).bind(&config.model).bind(&config.base_url).bind(config.updated_at).bind(&config.id).execute(&db.pool).await?;

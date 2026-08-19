@@ -602,6 +602,7 @@
     color: var(--colors-text);
   }
 
+
   .brainstorm-settings.is-popup {
     background-color: transparent;
     padding: 8px;

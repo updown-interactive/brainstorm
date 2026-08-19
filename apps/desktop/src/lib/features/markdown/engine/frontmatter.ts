@@ -315,13 +315,6 @@ export function validateProperty(property: { key: string; value: unknown; type: 
 		return 'Must be a number.';
 	}
 
-	if (property.type === 'enum') {
-		const options = enumOptionsForKey(property.key);
-		if (options.length > 0 && property.value && !options.includes(`${property.value}`)) {
-			return `Expected one of: ${options.join(', ')}.`;
-		}
-	}
-
 	if (property.type === 'list' && Array.isArray(property.value)) {
 		const duplicates = findDuplicateStrings(property.value.map((item) => `${item}`));
 		if (duplicates.length > 0) return `Duplicate values: ${duplicates.join(', ')}.`;

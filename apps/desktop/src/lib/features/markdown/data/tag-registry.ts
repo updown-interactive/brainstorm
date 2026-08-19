@@ -10,8 +10,17 @@ export interface SharedTag {
 	created: string;
 }
 
+export interface SharedPropertyOption {
+	name: string;
+	title: string;
+	description: string;
+	color: string;
+	created: string;
+}
+
 export interface PropertyConfig {
 	tags?: SharedTag[];
+	propertyOptions?: Record<string, SharedPropertyOption[] | string[]>;
 }
 
 const configFileName = 'config.json';
@@ -20,6 +29,7 @@ const legacyPropertiesSchemaFileName = 'properties-schema.json';
 const brainstormFolderName = '.brainstorm';
 const configurationFolderName = 'configuration';
 let tagCache: SharedTag[] = [];
+const propertyOptionCache = new Map<string, SharedPropertyOption[]>();
 
 export async function listSharedTags(rootPathOverride?: string | null) {
 	const config = await readPropertyConfig(rootPathOverride);
@@ -63,6 +73,30 @@ export async function saveSharedTags(tags: SharedTag[], rootPathOverride?: strin
 
 export function getCachedSharedTags() {
 	return tagCache;
+}
+
+export async function listSharedPropertyOptions(key: string, rootPathOverride?: string | null): Promise<SharedPropertyOption[]> {
+	const config = await readPropertyConfig(rootPathOverride);
+	const options = normalizePropertyOptions(config.propertyOptions?.[key] ?? []);
+	propertyOptionCache.set(key, options);
+	return options;
+}
+
+export async function ensureSharedPropertyOption(key: string, option: Omit<SharedPropertyOption, 'created'> & { created?: string }, rootPathOverride?: string | null): Promise<SharedPropertyOption[]> {
+	const normalizedName = option.name.trim();
+	if (!normalizedName) return propertyOptionCache.get(key) ?? [];
+
+	const config = await readPropertyConfig(rootPathOverride);
+	const existing = normalizePropertyOptions(config.propertyOptions?.[key] ?? []);
+	const nextOptions = normalizePropertyOptions([...existing, {
+		...option,
+		name: normalizedName,
+		created: option.created || todayString()
+	}]);
+	const propertyOptions = { ...(config.propertyOptions ?? {}), [key]: nextOptions };
+	propertyOptionCache.set(key, nextOptions);
+	await writePropertyConfig({ ...config, propertyOptions }, rootPathOverride);
+	return nextOptions;
 }
 
 export function normalizeTagName(value: string) {
@@ -130,8 +164,38 @@ export async function writePropertyConfig(config: PropertyConfig, rootPathOverri
 	if (!schemaPath) return;
 	await invoke('write_file', {
 		path: schemaPath,
-		content: `${JSON.stringify({ ...config, tags: normalizeSharedTags(config.tags ?? []) }, null, 2)}\n`
+		content: `${JSON.stringify({ ...config, tags: normalizeSharedTags(config.tags ?? []), propertyOptions: normalizePropertyOptionsMap(config.propertyOptions) }, null, 2)}\n`
 	});
+}
+
+function normalizePropertyOptionsMap(options: Record<string, SharedPropertyOption[] | string[]> | undefined): Record<string, SharedPropertyOption[]> {
+	return Object.fromEntries(
+		Object.entries(options ?? {})
+			.map(([key, values]) => [key, normalizePropertyOptions(values)] as const)
+			.filter(([, values]) => values.length > 0)
+	);
+}
+
+function normalizePropertyOptions(values: SharedPropertyOption[] | string[]): SharedPropertyOption[] {
+	const seen = new Set<string>();
+	return values
+		.map((value) => typeof value === 'string'
+			? { name: value, title: value, description: '', color: defaultTagColor(), created: todayString() }
+			: {
+				name: `${value.name ?? ''}`,
+				title: `${value.title ?? value.name ?? ''}`,
+				description: `${value.description ?? ''}`,
+				color: normalizeTagColor(value.color),
+				created: `${value.created ?? todayString()}`
+			})
+		.map((value) => ({ ...value, name: value.name.trim(), title: value.title.trim() || value.name.trim() }))
+		.filter((value) => {
+			const normalized = value.name.toLocaleLowerCase();
+			if (!value.name || seen.has(normalized)) return false;
+			seen.add(normalized);
+			return true;
+		})
+		.sort((left, right) => left.name.localeCompare(right.name));
 }
 
 export async function ensurePropertyConfigPath(rootPathOverride?: string | null) {

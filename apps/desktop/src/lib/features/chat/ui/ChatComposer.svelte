@@ -1,8 +1,9 @@
 <script lang="ts">
+  import { afterUpdate } from 'svelte';
   import { BookOpen, ChevronDown, Paperclip, Send, Square, Sparkles } from 'lucide-svelte';
   import LiquidGlassPanel from '$lib/shared/ui/LiquidGlassPanel.svelte';
   import type { ProviderConfig } from '../../settings/types/providers';
-  import type { ChatMode, PlanOption } from '../types';
+  import type { ChatMode, ConversationMessage, PlanOption } from '../types';
   import { CHAT_MODES } from '../types';
 
   export let draft = '';
@@ -10,12 +11,19 @@
   export let selectedProviderId = '';
   export let selectedProvider: ProviderConfig | undefined;
   export let selectedMode: ChatMode = 'normal';
+  export let messages: ConversationMessage[] = [];
   export let planOptions: PlanOption[] = [];
   export let onSelectPlanOption: (option: PlanOption) => void = () => {};
   export let onSubmit: () => void;
   let isProviderMenuOpen = false;
   let isModeMenuOpen = false;
   let composerTextarea: HTMLTextAreaElement | undefined;
+  let showMentionMenu = false;
+  let mentionMatches: ConversationMessage[] = [];
+  let mentionStart = -1;
+  let mentionEnd = -1;
+  let selectedMentionIndex = 0;
+  let focusComposerAfterMention = false;
 
   const selectProvider = (providerId: string): void => {
     selectedProviderId = providerId;
@@ -46,9 +54,97 @@
   };
 
   const handleSubmit = (): void => {
+    showMentionMenu = false;
     onSubmit();
-    resizeComposer();
+    requestAnimationFrame(() => resizeComposer());
   };
+
+  const updateMentionMatches = (): void => {
+    const cursor = composerTextarea?.selectionStart ?? draft.length;
+    const beforeCursor = draft.slice(0, cursor);
+    const mentionMatch = beforeCursor.match(/(?:^|\s)#([^\s#]*)$/);
+    if (!mentionMatch) {
+      showMentionMenu = false;
+      mentionMatches = [];
+      return;
+    }
+
+    const query = mentionMatch[1].toLocaleLowerCase();
+    mentionStart = cursor - mentionMatch[0].length + mentionMatch[0].lastIndexOf('#');
+    mentionEnd = cursor;
+    mentionMatches = messages
+      .filter((message) => message.role === 'assistant')
+      .filter((message) => responseShortName(message.content).toLocaleLowerCase().includes(query))
+      .slice(0, 8);
+    selectedMentionIndex = Math.min(selectedMentionIndex, Math.max(mentionMatches.length - 1, 0));
+    showMentionMenu = mentionMatches.length > 0;
+  };
+
+  const responseShortName = (content: string): string => {
+    const line = content
+      .replace(/<!--\s*brainstorm-plan-data\s*[\s\S]*?-->/gi, '')
+      .split(/\r?\n/)
+      .map((item) => item.replace(/^\s{0,3}(?:#{1,6}\s+|[-*+]\s+)/, '').replace(/[*_`]/g, '').trim())
+      .find(Boolean);
+    if (!line) return 'Assistant response';
+    return line.length > 56 ? `${line.slice(0, 53).trimEnd()}…` : line;
+  };
+
+  const selectMention = (message: ConversationMessage): void => {
+    const replacement = `#${responseShortName(message.content)} `;
+    draft = `${draft.slice(0, mentionStart)}${replacement}${draft.slice(mentionEnd)}`;
+    showMentionMenu = false;
+    focusComposerAfterMention = true;
+  };
+
+  const handleComposerInput = (event: Event): void => {
+    resizeComposer(event.currentTarget instanceof HTMLTextAreaElement ? event.currentTarget : undefined);
+    updateMentionMatches();
+  };
+
+  const handleComposerKeydown = (event: KeyboardEvent): void => {
+    if (showMentionMenu && mentionMatches.length > 0) {
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        selectedMentionIndex = (selectedMentionIndex + 1) % mentionMatches.length;
+        return;
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        selectedMentionIndex = (selectedMentionIndex - 1 + mentionMatches.length) % mentionMatches.length;
+        return;
+      }
+      if (event.key === 'Enter' || event.key === 'Tab') {
+        event.preventDefault();
+        selectMention(mentionMatches[selectedMentionIndex]);
+        return;
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        showMentionMenu = false;
+        return;
+      }
+    }
+
+    if (event.key === 'Tab' && event.shiftKey) {
+      event.preventDefault();
+      cycleMode();
+    } else if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      handleSubmit();
+    }
+  };
+
+  afterUpdate(() => {
+    if (!draft.trim()) resizeComposer();
+    if (focusComposerAfterMention && composerTextarea) {
+      const cursor = draft.length;
+      composerTextarea.focus();
+      composerTextarea.setSelectionRange(cursor, cursor);
+      focusComposerAfterMention = false;
+      resizeComposer();
+    }
+  });
 
 </script>
 
@@ -65,7 +161,20 @@
         {/each}
       </div>
     {/if}
-    <textarea bind:this={composerTextarea} bind:value={draft} placeholder="Message Brainstorm..." aria-label="Message Brainstorm" rows="1" oninput={(event) => { resizeComposer(event.currentTarget instanceof HTMLTextAreaElement ? event.currentTarget : undefined); }} onkeydown={(event) => { if (event.key === 'Tab' && event.shiftKey) { event.preventDefault(); cycleMode(); } else if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); handleSubmit(); } }}></textarea>
+    <div class="composer-input-wrap">
+      <textarea bind:this={composerTextarea} bind:value={draft} placeholder="Message Brainstorm..." aria-label="Message Brainstorm" rows="1" oninput={handleComposerInput} onkeydown={handleComposerKeydown}></textarea>
+      {#if showMentionMenu}
+        <LiquidGlassPanel class="composer-mention-menu" role="listbox" aria-label="Conversation mentions">
+          <div class="composer-mention-label">Mention a conversation</div>
+          {#each mentionMatches as message, index}
+            <button type="button" class="composer-mention-item" class:is-selected={index === selectedMentionIndex} role="option" aria-selected={index === selectedMentionIndex} onclick={() => selectMention(message)}>
+              <span class="composer-mention-hash">#</span>
+              <span class="composer-mention-copy"><strong>{responseShortName(message.content)}</strong><small>Assistant response</small></span>
+            </button>
+          {/each}
+        </LiquidGlassPanel>
+      {/if}
+    </div>
     <div class="composer-toolbar">
       <div class="composer-tools"><button type="button" class="composer-tool-button"><Paperclip size={15} /> Attach</button></div>
       <div class="composer-selectors">
