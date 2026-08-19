@@ -16,7 +16,7 @@
   export let providerConfigId = '';
   export let model = '';
   export let onCreateKnowledgeDraft: (args: { title: string; response: string; messageId: string; providerConfigId?: string; model?: string }) => Promise<{ absolutePath: string; relativePath: string; title: string; content: string; properties: Record<string, unknown> }>;
-  export let onCreateKnowledgeResponse: (args: { response: string; messageId: string; providerConfigId?: string; model?: string }) => Promise<{ message: ConversationMessage; draft: { absolutePath: string; relativePath: string; content: string; properties: Record<string, unknown> }; title: string }>;
+  export let onCreateKnowledgeResponse: (args: { title: string; response: string; messageId: string; providerConfigId?: string; model?: string }) => Promise<{ message: ConversationMessage; draft: { absolutePath: string; relativePath: string; content: string; properties: Record<string, unknown> }; title: string }>;
   export let onPreviewKnowledge: (args: { message: ConversationMessage }) => Promise<{ absolutePath: string; relativePath: string; content: string; properties: Record<string, unknown> }>;
   export let onFinalizeKnowledgeNote: (args: { sourcePath: string; folderPath: string; title: string; content: string }) => Promise<void>;
   export let onDeleteKnowledgeDraft: (path: string) => Promise<void>;
@@ -108,14 +108,37 @@
       : withoutStructuredOptions.slice(0, optionsHeading).trim();
   };
 
+  const responseShortName = (content: string): string => {
+    const line = displayMessageContent(content)
+      .split(/\r?\n/)
+      .map((item) => item.replace(/^\s{0,3}(?:#{1,6}\s+|[-*+]\s+)/, '').replace(/[*_`]/g, '').trim())
+      .find(Boolean);
+    if (!line) return 'Assistant response';
+    return line.length > 56 ? `${line.slice(0, 53).trimEnd()}…` : line;
+  };
+
   const scrollToSourceResponse = (requestMessageId: string): void => {
     const requestIndex = messages.findIndex((message) => message.id === requestMessageId);
-    const sourceMessage = requestIndex === -1
-      ? undefined
-      : [...messages.slice(0, requestIndex)].reverse().find((message) => message.role === 'assistant');
+    const requestMessage = requestIndex === -1 ? undefined : messages[requestIndex];
+    const mentionedLabel = requestMessage?.content
+      .slice('Create notes '.length)
+      .replace(/^#/, '')
+      .trim();
+    const previousMessages = requestIndex === -1 ? [] : messages.slice(0, requestIndex);
+    const sourceMessage = [...previousMessages].reverse().find((message) => (
+      message.role === 'assistant' && mentionedLabel && responseShortName(message.content) === mentionedLabel
+    )) ?? [...previousMessages].reverse().find((message) => message.role === 'assistant');
     if (!sourceMessage) return;
     highlightedMessageId = sourceMessage.id;
-    document.getElementById(`chat-message-${sourceMessage.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const sourceElement = document.getElementById(`chat-message-${sourceMessage.id}`);
+    const scrollContainer = knowledgeMessage ? messageColumn : messageScroll;
+    if (sourceElement && scrollContainer) {
+      const sourceTop = sourceElement.getBoundingClientRect().top - scrollContainer.getBoundingClientRect().top + scrollContainer.scrollTop;
+      scrollContainer.scrollTo({
+        top: Math.max(0, sourceTop - (scrollContainer.clientHeight - sourceElement.offsetHeight) / 2),
+        behavior: 'smooth'
+      });
+    }
     window.setTimeout(() => {
       if (highlightedMessageId === sourceMessage.id) highlightedMessageId = null;
     }, 1400);
@@ -125,7 +148,7 @@
     if (creatingKnowledgeMessageId) return;
     creatingKnowledgeMessageId = message.id;
     try {
-      const result = await onCreateKnowledgeResponse({ response: message.content, messageId: message.id, providerConfigId, model });
+      const result = await onCreateKnowledgeResponse({ title: responseShortName(message.content), response: message.content, messageId: message.id, providerConfigId, model });
       knowledgePreview = result;
     } catch (error) {
       console.error('[Chat knowledge] response generation failed', error);
@@ -196,7 +219,7 @@
       <div class="chat-date-divider"><span class="conversation-title-markdown">{@html renderMarkdown(conversationTitle)}</span></div>
       {#each messages as message}
         <article id="chat-message-{message.id}" class:knowledge-source-target={highlightedMessageId === message.id} class="chat-message {message.role === 'assistant' ? 'assistant-message' : 'user-message'}">
-          <div class="message-body"><div class="message-markdown">{#if message.role === 'assistant'}{@html renderMarkdown(isKnowledgeResponse(message) ? knowledgeBody(message.content) : displayMessageContent(message.content))}{:else if message.content.startsWith('Create notes @')}<p><span>Create notes </span><button class="knowledge-source-mention" type="button" onclick={() => scrollToSourceResponse(message.id)} aria-label="View the assistant response used to create this note">{message.content.slice('Create notes '.length)}</button></p>{:else}<p>{escapeMessageText(message.content)}</p>{/if}</div>{#if message.role === 'assistant'}<span class="message-status">{message.status}</span>{/if}</div>
+          <div class="message-body"><div class="message-markdown">{#if message.role === 'assistant'}{@html renderMarkdown(isKnowledgeResponse(message) ? knowledgeBody(message.content) : displayMessageContent(message.content))}{:else if message.content.startsWith('Create notes #')}<p><span>Create notes </span><button class="knowledge-source-mention" type="button" onclick={() => scrollToSourceResponse(message.id)} aria-label="View the assistant response used to create this note">{message.content.slice('Create notes '.length)}</button></p>{:else}<p>{escapeMessageText(message.content)}</p>{/if}</div>{#if message.role === 'assistant'}<span class="message-status">{message.status}</span>{/if}</div>
           <div class="message-actions">
             {#if message.role === 'assistant' && isKnowledgeResponse(message) && message.id !== knowledgeMessage?.id}{#if message.id === knowledgePreview?.message.id}<button class="knowledge-preview-button knowledge-response-preview-button" type="button" onclick={openKnowledgePreview}>Preview knowledge</button>{:else}<button class="knowledge-preview-button knowledge-response-preview-button" type="button" onclick={() => void previewPersistedKnowledge(message)}>Preview knowledge</button>{/if}{:else if message.role === 'assistant' && message.id !== knowledgeMessage?.id}<button class="knowledge-action-button" type="button" aria-label="Create knowledge note from this assistant response" title={creatingKnowledgeMessageId === message.id ? 'Creating knowledge note' : 'Create note from this response'} disabled={creatingKnowledgeMessageId === message.id} onclick={() => void createKnowledgeResponse(message)}><FilePlus size={13} /></button>{/if}<button class="message-copy-button" type="button" aria-label="Copy message" title="Copy message" onclick={() => void copyMessage(message.id, message.content)}>{#if copiedMessageId === message.id}<Check size={12} />{:else}<Copy size={12} />{/if}</button>
           </div>
@@ -215,7 +238,7 @@
         {projectPath}
         inline
         existingDraft={knowledgeDraft}
-        conversationTitle={conversationTitle}
+        conversationTitle={responseShortName(knowledgeMessage.content)}
         sourceResponse={knowledgeMessage.content}
         initialTitle={knowledgePreview?.title ?? conversationTitle}
         onCreateFolder={(relativePath) => onCreateKnowledgeFolder(relativePath)}

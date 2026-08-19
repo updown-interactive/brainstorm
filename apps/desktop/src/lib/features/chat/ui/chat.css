@@ -178,6 +178,15 @@
   .message-actions .message-copy-button, .message-actions .knowledge-action-button { margin-top: 0; }
   .chat-composer-area { padding: 10px max(20px, calc((100% - 760px) / 2)) 14px; }
   .composer-shell { position: relative; z-index: 1; overflow: visible; padding: 14px 12px 10px; border: 1px solid color-mix(in srgb, var(--colors-border) 54%, transparent); border-radius: 15px; background: color-mix(in srgb, var(--colors-surfaceVariant) 60%, transparent); backdrop-filter: blur(18px) saturate(150%); box-shadow: 0 8px 24px color-mix(in srgb, var(--colors-background) 16%, transparent), inset 0 1px 0 color-mix(in srgb, var(--colors-text) 7%, transparent); }
+  .composer-input-wrap { position: relative; z-index: 4; }
+  :global(.liquid-glass-panel.composer-mention-menu) { position: absolute; right: 0; bottom: calc(100% + 8px); left: 0; z-index: 1000; width: 100%; max-height: min(300px, 50vh); overflow-y: auto; padding: 6px; border-radius: 12px; }
+  .composer-mention-label { padding: 4px 8px 6px; color: var(--colors-textMuted); font-size: 10px; font-weight: 650; letter-spacing: .05em; text-transform: uppercase; }
+  .composer-mention-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px; border: 0; border-radius: 8px; background: transparent; color: var(--colors-text); font: inherit; text-align: left; cursor: pointer; }
+  .composer-mention-item:hover, .composer-mention-item.is-selected { background: color-mix(in srgb, var(--colors-primary) 14%, var(--colors-hover)); }
+  .composer-mention-hash { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: color-mix(in srgb, var(--colors-primary) 20%, transparent); color: var(--colors-primary); font-size: 14px; font-weight: 700; }
+  .composer-mention-copy { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+  .composer-mention-copy strong { overflow: hidden; font-size: 11px; font-weight: 550; text-overflow: ellipsis; white-space: nowrap; }
+  .composer-mention-copy small { color: var(--colors-textMuted); font-size: 10px; }
   .composer-shell textarea { display: block; width: 100%; height: 28px; min-height: 28px; max-height: 166px; padding: 2px 2px 8px; resize: none; overflow-y: hidden; border: 0; outline: 0; background: transparent; color: var(--colors-text); font: inherit; font-size: 13px; line-height: 1.45; box-sizing: border-box; }
   .composer-shell textarea::placeholder { color: var(--colors-textMuted); }
   .composer-plan-options { display: grid; gap: 5px; margin: 0 0 10px; padding: 2px 2px 0; }

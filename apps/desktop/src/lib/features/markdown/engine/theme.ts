@@ -336,6 +336,24 @@ export const brainstormTheme = EditorView.theme({
 		borderColor: '#007AFF',
 		boxShadow: '0 0 0 3px color-mix(in srgb, #007AFF 25%, transparent)'
 	},
+	'.cm-property-option-custom-fields': {
+		display: 'grid',
+		gridTemplateColumns: '1fr auto',
+		gap: '5px',
+		padding: '2px 0 4px'
+	},
+	'.cm-property-option-custom-fields .cm-property-input:first-child': {
+		gridColumn: '1 / -1'
+	},
+	'.cm-property-option-color': {
+		width: '30px',
+		height: '30px',
+		padding: '2px',
+		border: '1px solid color-mix(in srgb, var(--colors-border) 60%, transparent)',
+		borderRadius: '7px',
+		background: 'transparent',
+		cursor: 'pointer'
+	},
 	'.cm-property-textarea': {
 		resize: 'vertical',
 		lineHeight: '1.5',

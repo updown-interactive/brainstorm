@@ -3,15 +3,19 @@
   import { Cpu, Key, ShieldCheck, ChevronDown, Check, Pencil, X } from 'lucide-svelte';
   import { providersController } from '../controller/providers-controller';
 
+  const CUSTOM_MODEL_OPTION = '__custom_model__';
   let providerId = 'google';
   let name = '';
   let model = 'gemini-2.0-flash';
+  let customModel = '';
   let apiKey = '';
   let baseUrl = '';
   let isSaving = false;
   let editingProviderId: string | null = null;
   let showProviderDropdown = false;
   let providerDropdownEl: HTMLDivElement;
+  let showModelDropdown = false;
+  let modelDropdownEl: HTMLDivElement;
 
   $: selectedDefinition = $providersController.definitions.find((definition) => definition.id === providerId);
 
@@ -19,6 +23,8 @@
     const definition = providersController.snapshot().definitions.find((item) => item.id === id);
     baseUrl = definition?.default_base_url ?? '';
     model = definition?.models[0] ?? '';
+    customModel = '';
+    showModelDropdown = false;
   };
 
   onMount(() => {
@@ -26,6 +32,9 @@
     const closeOnOutsidePointer = (event: PointerEvent): void => {
       if (showProviderDropdown && providerDropdownEl && !providerDropdownEl.contains(event.target as Node)) {
         showProviderDropdown = false;
+      }
+      if (showModelDropdown && modelDropdownEl && !modelDropdownEl.contains(event.target as Node)) {
+        showModelDropdown = false;
       }
     };
     document.addEventListener('pointerdown', closeOnOutsidePointer, true);
@@ -49,6 +58,7 @@
     providerId = 'google';
     name = '';
     model = '';
+    customModel = '';
     apiKey = '';
     baseUrl = '';
     applyProviderDefaults(providerId);
@@ -58,7 +68,9 @@
     editingProviderId = provider.id;
     providerId = provider.provider_id;
     name = provider.name;
-    model = provider.model;
+    const definition = providersController.snapshot().definitions.find((item) => item.id === provider.provider_id);
+    model = definition?.models.includes(provider.model) ? provider.model : CUSTOM_MODEL_OPTION;
+    customModel = model === CUSTOM_MODEL_OPTION ? provider.model : '';
     baseUrl = provider.base_url ?? '';
     apiKey = '';
     showProviderDropdown = false;
@@ -67,15 +79,38 @@
   const saveProvider = async (): Promise<void> => {
     isSaving = true;
     try {
+      const selectedModel = (!selectedDefinition?.models.length || model === CUSTOM_MODEL_OPTION) ? customModel.trim() : model.trim();
       if (editingProviderId) {
-        await providersController.update({ id: editingProviderId, name: name.trim(), model: model.trim(), api_key: apiKey.trim() || undefined, base_url: baseUrl.trim() || undefined });
+        await providersController.update({ id: editingProviderId, name: name.trim(), model: selectedModel, api_key: apiKey.trim() || undefined, base_url: baseUrl.trim() || undefined });
       } else {
-        await providersController.add({ provider_id: providerId, name: name.trim(), model: model.trim(), api_key: apiKey, base_url: undefined });
+        await providersController.add({ provider_id: providerId, name: name.trim(), model: selectedModel, api_key: apiKey, base_url: undefined });
       }
       resetForm();
     } finally {
       isSaving = false;
     }
+  };
+
+  const toggleModelDropdown = (event: Event): void => {
+    event.stopPropagation();
+    showModelDropdown = !showModelDropdown;
+  };
+
+  const selectModel = (providerModel: string, event: Event): void => {
+    event.stopPropagation();
+    model = providerModel;
+    customModel = '';
+    showModelDropdown = false;
+  };
+
+  const focusCustomModel = (event: Event): void => {
+    event.stopPropagation();
+    model = CUSTOM_MODEL_OPTION;
+  };
+
+  const updateCustomModel = (event: Event): void => {
+    if (event.currentTarget instanceof HTMLInputElement) customModel = event.currentTarget.value;
+    model = CUSTOM_MODEL_OPTION;
   };
 </script>
 
@@ -147,15 +182,51 @@
     <div class="settings-card-row"><label for="provider-name">Name</label><input id="provider-name" bind:value={name} required /></div>
     <div class="settings-card-row">
       <label for="provider-model">Model</label>
-      {#if selectedDefinition?.models.length}
-        <select id="provider-model" class="provider-model-select" bind:value={model} required>
-          {#each selectedDefinition.models as providerModel}
-            <option value={providerModel}>{providerModel}</option>
-          {/each}
-        </select>
-      {:else}
-        <input id="provider-model" bind:value={model} placeholder="Discovered by provider" required />
-      {/if}
+      <div class="provider-model-control">
+        <div class="model-dropdown-wrap" bind:this={modelDropdownEl}>
+          <button
+            type="button"
+            id="provider-model"
+            class="provider-dropdown-trigger model-dropdown-trigger"
+            class:is-open={showModelDropdown}
+            onclick={toggleModelDropdown}
+            aria-expanded={showModelDropdown}
+            aria-haspopup="listbox"
+          >
+            <span class="provider-dropdown-value">{model === CUSTOM_MODEL_OPTION ? (customModel || 'Custom model name…') : (model || 'Select model')}</span>
+            <ChevronDown size={14} class="provider-dropdown-arrow" />
+          </button>
+
+          {#if showModelDropdown}
+            <div class="provider-dropdown-menu model-dropdown-menu" role="listbox" aria-labelledby="provider-model">
+              <div class="provider-dropdown-label">Choose or enter model</div>
+              <input
+                id="provider-custom-model"
+                class="model-dropdown-input"
+                value={customModel}
+                onfocus={focusCustomModel}
+                oninput={updateCustomModel}
+                onclick={(event) => event.stopPropagation()}
+                placeholder="Type a custom model name"
+                autocomplete="off"
+              />
+              {#each selectedDefinition?.models ?? [] as providerModel}
+                <button
+                  type="button"
+                  class="provider-dropdown-item"
+                  class:is-selected={model === providerModel}
+                  role="option"
+                  aria-selected={model === providerModel}
+                  onclick={(event) => selectModel(providerModel, event)}
+                >
+                  <span class="provider-dropdown-name">{providerModel}</span>
+                  {#if model === providerModel}<Check size={14} class="provider-dropdown-check" />{/if}
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      </div>
     </div>
     <div class="settings-card-row"><label for="provider-base-url">Base URL</label><input id="provider-base-url" value={baseUrl} readonly aria-readonly="true" /></div>
     <div class="settings-card-row"><label for="provider-api-key">API key</label><input id="provider-api-key" type="password" autocomplete="off" bind:value={apiKey} /></div>
@@ -325,16 +396,47 @@
     white-space: nowrap;
   }
 
-  .provider-model-select {
+  .provider-model-control {
+    display: flex;
+    flex-direction: column;
     width: 250px;
+    gap: 8px;
+  }
+
+  .model-dropdown-wrap {
+    position: relative;
+    width: 250px;
+
+  }
+
+  .model-dropdown-trigger {
+    width: 100%;
+  }
+
+  .model-dropdown-menu {
+    right: 0;
+    width: 250px;
+    max-height: 330px;
+    overflow-y: auto;
+  }
+
+  .model-dropdown-input {
+    width: 100%;
     min-height: 34px;
-    padding: 7px 11px;
-    border: 1px solid color-mix(in srgb, var(--colors-border) 60%, transparent);
-    border-radius: 9px;
-    background: color-mix(in srgb, var(--colors-surfaceVariant, #242428) 48%, transparent);
-    color: var(--colors-text, #f5f5f7);
+    margin-bottom: 6px;
+    padding: 7px 10px;
+    border: 1px solid color-mix(in srgb, var(--colors-primary) 55%, var(--colors-border));
+    border-radius: 8px;
+    outline: 0;
+    background: color-mix(in srgb, var(--colors-surfaceVariant, #242428) 60%, transparent);
+    color: var(--colors-text);
     font: inherit;
-    font-size: 13px;
+    font-size: 12px;
+    box-sizing: border-box;
+  }
+
+  .model-dropdown-input:focus {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--colors-primary) 14%, transparent);
   }
 
   :global(.provider-dropdown-check) {
