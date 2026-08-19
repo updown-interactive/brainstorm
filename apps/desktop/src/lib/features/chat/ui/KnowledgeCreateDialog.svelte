@@ -112,7 +112,7 @@
     </header>
 
     <div class="knowledge-source-card" aria-label="Note source">
-      <div class="knowledge-source-heading"><span class="knowledge-source-label">Assistant response</span><span class="knowledge-source-chat">@{conversationTitle}</span></div>
+      <div class="knowledge-source-heading"><span class="knowledge-source-label">Assistant response</span><span class="knowledge-source-chat">#{conversationTitle}</span></div>
       <p>{sourceResponse}</p>
     </div>
 

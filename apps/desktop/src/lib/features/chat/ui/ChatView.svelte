@@ -78,9 +78,42 @@
     if (projectId) void chatController.remove(projectId, conversationId);
   };
 
+  const responseShortName = (content: string): string => {
+    const line = content
+      .replace(/<!--\s*brainstorm-plan-data\s*[\s\S]*?-->/gi, '')
+      .split(/\r?\n/)
+      .map((item) => item.replace(/^\s{0,3}(?:#{1,6}\s+|[-*+]\s+)/, '').replace(/[*_`]/g, '').trim())
+      .find(Boolean);
+    if (!line) return 'Assistant response';
+    return line.length > 56 ? `${line.slice(0, 53).trimEnd()}…` : line;
+  };
+
+  const submitKnowledgeRequest = (content: string): boolean => {
+    if (!/^create notes\b/i.test(content)) return false;
+    const assistantMessages = $chatState.messages.filter((message) => message.role === 'assistant');
+    const mentionedLabel = content.match(/(?:^|\s)#(.+)$/)?.[1]?.trim();
+    const sourceMessage = mentionedLabel
+      ? [...assistantMessages].reverse().find((message) => responseShortName(message.content) === mentionedLabel)
+      : assistantMessages.at(-1);
+    if (!sourceMessage) return false;
+
+    draft = '';
+    void chatController.createKnowledgeResponse({
+      projectId,
+      projectPath,
+      title: responseShortName(sourceMessage.content),
+      response: sourceMessage.content,
+      messageId: sourceMessage.id,
+      providerConfigId: selectedProvider?.id,
+      model: selectedProvider?.model
+    });
+    return true;
+  };
+
   const submitMessage = (): void => {
     const content = draft.trim();
     if (!content || !projectId) return;
+    if (submitKnowledgeRequest(content)) return;
     draft = '';
     void chatController.send(projectId, content, selectedMode, selectedProvider?.id, selectedProvider?.model);
   };
@@ -115,12 +148,12 @@
       model={selectedProvider?.model ?? ''}
       onCreateKnowledgeFolder={(relativePath) => chatController.createKnowledgeFolder(projectPath, relativePath)}
       onCreateKnowledgeDraft={({ title, response, messageId, providerConfigId, model }) => chatController.createKnowledgeDraft({ projectPath, title, response, conversationTitle: activeConversation?.title ?? 'Conversation', messageId, providerConfigId, model })}
-      onCreateKnowledgeResponse={({ response, messageId, providerConfigId, model }) => chatController.createKnowledgeResponse({ projectId, projectPath, title: activeConversation?.title ?? 'Conversation', response, messageId, providerConfigId, model })}
+      onCreateKnowledgeResponse={({ title, response, messageId, providerConfigId, model }) => chatController.createKnowledgeResponse({ projectId, projectPath, title, response, messageId, providerConfigId, model })}
       onPreviewKnowledge={({ message }) => chatController.previewKnowledgeMessage(projectPath, message)}
       onFinalizeKnowledgeNote={({ sourcePath, folderPath, title, content }) => chatController.finalizeKnowledgeNote(projectPath, sourcePath, folderPath, title, content)}
       onDeleteKnowledgeDraft={(path) => chatController.deleteKnowledgeDraft(projectPath, path)}
     />
     {#if $chatState.error}<p class="chat-error" role="alert">{$chatState.error}</p>{/if}
-    <ChatComposer bind:draft bind:selectedProviderId bind:selectedMode {configuredProviders} {selectedProvider} {planOptions} onSelectPlanOption={submitPlanOption} onSubmit={submitMessage} />
+    <ChatComposer bind:draft bind:selectedProviderId bind:selectedMode messages={$chatState.messages} {configuredProviders} {selectedProvider} {planOptions} onSelectPlanOption={submitPlanOption} onSubmit={submitMessage} />
   </section>
 </div>

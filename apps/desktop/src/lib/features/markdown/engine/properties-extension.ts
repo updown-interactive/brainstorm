@@ -37,11 +37,14 @@ import {
 } from './frontmatter';
 import {
 	ensureSharedTags,
+	ensureSharedPropertyOption,
+	listSharedPropertyOptions,
 	listSharedTags,
 	normalizeTagColor,
 	normalizeTagName,
 	readPropertyConfig,
 	ensureSharedTags as ensureTags,
+	type SharedPropertyOption,
 	type SharedTag
 } from '../data/tag-registry';
 import { getCachedEditorConfig } from '../config/editor-config';
@@ -317,9 +320,10 @@ class PropertiesWidget extends WidgetType {
 			return input;
 		}
 
-		if (property.type === 'enum') {
+	if (property.type === 'enum') {
 			return this.createOptionPicker(
 				view,
+				property.key,
 				valueToInputString(property.value),
 				enumOptionsForKey(property.key),
 				'Select value',
@@ -1019,7 +1023,7 @@ class PropertiesWidget extends WidgetType {
 		return wrap;
 	}
 
-	private createOptionPicker(view: EditorView, value: string, options: string[], placeholder: string, onSelect: (value: string) => void) {
+	private createOptionPicker(view: EditorView, key: string, value: string, options: string[], placeholder: string, onSelect: (value: string) => void) {
 		const wrap = document.createElement('div');
 		wrap.className = 'cm-property-popover-host';
 
@@ -1031,21 +1035,104 @@ class PropertiesWidget extends WidgetType {
 		const menu = document.createElement('div');
 		menu.className = 'cm-property-menu cm-property-option-menu';
 		menu.hidden = true;
+		const search = document.createElement('input');
+		search.className = 'cm-property-input cm-property-option-search';
+		search.placeholder = `Search or create ${formatLabel(key).toLocaleLowerCase()}`;
+		search.value = options.includes(value) ? '' : value;
+		menu.appendChild(search);
 
-		for (const option of options) {
-			const item = document.createElement('button');
-			item.type = 'button';
-			item.className = option === value ? 'cm-property-menu-item is-selected' : 'cm-property-menu-item';
-			item.textContent = formatLabel(option);
-			item.addEventListener('click', () => {
-				onSelect(option);
-				menu.hidden = true;
-			});
-			menu.appendChild(item);
-		}
+		let sharedOptions: SharedPropertyOption[] = [];
+		let currentValue = value;
+		const customFields = document.createElement('div');
+		customFields.className = 'cm-property-option-custom-fields';
+		customFields.hidden = true;
+		const titleInput = document.createElement('input');
+		titleInput.className = 'cm-property-input';
+		titleInput.placeholder = 'Title';
+		const descriptionInput = document.createElement('input');
+		descriptionInput.className = 'cm-property-input';
+		descriptionInput.placeholder = 'Description (optional)';
+		const colorInput = document.createElement('input');
+		colorInput.type = 'color';
+		colorInput.className = 'cm-property-option-color';
+		colorInput.value = '#007ACC';
+		customFields.append(titleInput, descriptionInput, colorInput);
+		menu.appendChild(customFields);
+		const renderMenu = (): void => {
+			const query = search.value.trim().toLocaleLowerCase();
+			menu.querySelectorAll('.cm-property-menu-item, .cm-property-option-create').forEach((item) => item.remove());
+			const sharedNames = sharedOptions.map((option) => option.name);
+			const allOptions = [...new Set([...options, ...sharedNames, currentValue].filter(Boolean))];
+			const visibleOptions = allOptions.filter((option) => !query || option.toLocaleLowerCase().includes(query));
+
+			for (const option of visibleOptions) {
+				const item = document.createElement('button');
+				item.type = 'button';
+				item.className = option === currentValue ? 'cm-property-menu-item is-selected' : 'cm-property-menu-item';
+				const sharedOption = sharedOptions.find((item) => item.name.toLocaleLowerCase() === option.toLocaleLowerCase());
+				item.textContent = sharedOption?.title || formatLabel(option);
+				if (sharedOption?.description) item.title = sharedOption.description;
+				item.addEventListener('click', () => {
+					currentValue = option;
+					onSelect(option);
+					button.textContent = formatLabel(option);
+					search.value = option;
+					menu.hidden = true;
+				});
+				menu.appendChild(item);
+			}
+
+			const exactMatch = allOptions.some((option) => option.toLocaleLowerCase() === query);
+			customFields.hidden = !(query && !exactMatch);
+			if (query && !exactMatch) {
+				if (!titleInput.value.trim()) titleInput.value = formatLabel(search.value.trim());
+				const create = document.createElement('button');
+				create.type = 'button';
+				create.className = 'cm-property-menu-item cm-property-option-create is-selected';
+				create.textContent = `Create ${search.value.trim()}`;
+				create.addEventListener('click', () => {
+					const nextValue = search.value.trim();
+					if (!nextValue) return;
+					const option: Omit<SharedPropertyOption, 'created'> = {
+						name: nextValue,
+						title: titleInput.value.trim() || formatLabel(nextValue),
+						description: descriptionInput.value.trim(),
+						color: colorInput.value
+					};
+					currentValue = nextValue;
+					sharedOptions = [...sharedOptions, { ...option, created: new Date().toISOString().slice(0, 10) }];
+					onSelect(nextValue);
+					button.textContent = option.title;
+					menu.hidden = true;
+					void ensureSharedPropertyOption(key, option);
+				});
+				menu.appendChild(create);
+			}
+		};
+
+		search.addEventListener('input', () => {
+			if (!titleInput.value.trim()) titleInput.value = formatLabel(search.value.trim());
+			renderMenu();
+		});
+		search.addEventListener('click', (event) => event.stopPropagation());
+		search.addEventListener('keydown', (event) => {
+			if (event.key === 'Enter') {
+				event.preventDefault();
+				const create = menu.querySelector<HTMLButtonElement>('.cm-property-option-create');
+				create?.click();
+			}
+		});
 
 		button.addEventListener('click', () => {
 			menu.hidden = !menu.hidden;
+			if (!menu.hidden) {
+				renderMenu();
+				search.focus();
+				void listSharedPropertyOptions(key).then((loadedOptions) => {
+					sharedOptions = loadedOptions;
+					renderMenu();
+				});
+			}
 		});
 		this.bindPopoverDismiss(view, button, menu, button);
 

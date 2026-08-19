@@ -81,16 +81,6 @@ pub async fn ai_add_provider(
     if request.model.trim().is_empty() || request.name.trim().is_empty() {
         return Err(AppError::Ai("provider configuration is invalid".into()));
     }
-    if !definition.models.is_empty()
-        && !definition
-            .models
-            .iter()
-            .any(|model| model == request.model.trim())
-    {
-        return Err(AppError::Ai(
-            "model is not available for this provider".into(),
-        ));
-    }
     let id = uuid::Uuid::new_v4().to_string();
     let credential_id = format!("brainstorm.llm.{}.{}", definition.id, id);
     if matches!(
@@ -138,16 +128,6 @@ pub async fn ai_update_provider(
         config.name = name;
     }
     if let Some(model) = request.model {
-        if !definition.models.is_empty()
-            && !definition
-                .models
-                .iter()
-                .any(|available| available == model.trim())
-        {
-            return Err(AppError::Ai(
-                "model is not available for this provider".into(),
-            ));
-        }
         config.model = model;
     }
     if definition.default_base_url.is_none() && request.base_url.is_some() {
