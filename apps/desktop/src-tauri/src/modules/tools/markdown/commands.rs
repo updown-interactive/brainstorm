@@ -104,12 +104,40 @@ pub async fn markdown_execute(
                 "markdown.create only supports .md and .mdx files".into(),
             ));
         }
-        let formatted = format_document(request.properties.as_ref(), request.content.as_deref())?;
+        let mut properties = request
+            .properties
+            .clone()
+            .unwrap_or_else(|| serde_json::json!({}));
+        let content = request.content.as_deref().unwrap_or_default();
+        let relations = match automatic_knowledge_links(root, path, &mut properties, content) {
+            Ok(relations) => relations,
+            Err(error) => {
+                eprintln!("[KnowledgeLinker] link discovery failed; creating without automatic links: {error}");
+                Vec::new()
+            }
+        };
+        let formatted = format_document(Some(&properties), Some(content))?;
         let service = crate::modules::vault::VaultService::new(root)
             .map_err(|error| AppError::Tool(error.to_string()))?;
         service
             .create_file(path, Some(&formatted))
             .map_err(|error| AppError::Tool(error.to_string()))?;
+        if !relations.is_empty() {
+            let new_name = properties
+                .get("name")
+                .and_then(Value::as_str)
+                .or_else(|| {
+                    std::path::Path::new(path)
+                        .file_stem()
+                        .and_then(|value| value.to_str())
+                })
+                .unwrap_or(path);
+            if let Err(error) =
+                crate::modules::tools::linker::update_backlinks(root, &relations, new_name)
+            {
+                eprintln!("[KnowledgeLinker] backlink update failed: {error}");
+            }
+        }
         let document =
             parse_document(path, &formatted).map_err(|error| AppError::Tool(error.to_string()))?;
         return Ok(json!({ "success": true, "path": path, "document": document }));
@@ -119,6 +147,30 @@ pub async fn markdown_execute(
     let document = parse_document(&request.path, &content)
         .map_err(|error| AppError::Tool(error.to_string()))?;
     Ok(result_for_operation(operation, document))
+}
+
+fn automatic_knowledge_links(
+    root: &std::path::Path,
+    new_relative_path: &str,
+    properties: &mut Value,
+    content: &str,
+) -> Result<Vec<crate::modules::tools::linker::KnowledgeRelation>, String> {
+    let candidate =
+        crate::modules::tools::linker::KnowledgeCandidate::from_parts(properties, content);
+    eprintln!(
+        "[KnowledgeLinker] searching related knowledge name={:?}",
+        candidate.name
+    );
+    let relations =
+        crate::modules::tools::linker::discover_links(root, new_relative_path, &candidate)?;
+    crate::modules::tools::linker::merge_links(
+        properties,
+        relations
+            .iter()
+            .map(|relation| relation.name.clone())
+            .collect(),
+    );
+    Ok(relations)
 }
 
 #[derive(Debug, Deserialize)]

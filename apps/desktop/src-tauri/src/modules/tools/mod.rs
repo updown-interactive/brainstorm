@@ -1,3 +1,4 @@
+pub mod linker;
 pub mod markdown;
 pub mod registry;
 pub mod runtime;
