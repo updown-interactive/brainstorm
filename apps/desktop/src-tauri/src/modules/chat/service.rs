@@ -1,5 +1,6 @@
 use super::commands::{
     ChatMode, GenerateKnowledgeRequest, KnowledgeDraft, SendMessageRequest, SendMessageResponse,
+    WorkingStep, WorkingTrace,
 };
 use crate::core::error::AppError;
 use crate::modules::{
@@ -201,11 +202,17 @@ impl ChatService {
             .create(&provider_config)
             .await
             .map_err(|error| AppError::Ai(error.safe_message()))?;
+        let project_path =
+            sqlx::query_scalar::<_, String>("SELECT path FROM projects WHERE id = ?")
+                .bind(&request.project_id)
+                .fetch_one(pool)
+                .await?;
         let context = ContextManager::assemble(
             pool,
             provider.as_ref(),
             ContextRequest {
                 conversation_id: &conversation_id,
+                project_path: &project_path,
                 provider_id: &provider_config.provider_id,
                 model: &model,
                 system_instruction: mode_instructions(&request.mode),
@@ -221,13 +228,46 @@ impl ChatService {
             temperature: None,
             max_tokens: Some(context.usage.reserved_output_tokens.saturating_sub(1_024) as u32),
         };
+        let mut working = WorkingTrace {
+            working_type: if context.knowledge_context.is_some() {
+                "knowledge_grounded".into()
+            } else {
+                "general_generation".into()
+            },
+            status: "working".into(),
+            steps: vec![
+                WorkingStep {
+                    id: "search_knowledge_base".into(),
+                    label: "Search knowledge base".into(),
+                    status: "completed".into(),
+                },
+                WorkingStep {
+                    id: "build_context".into(),
+                    label: "Build response context".into(),
+                    status: "completed".into(),
+                },
+                WorkingStep {
+                    id: "generate_response".into(),
+                    label: "Generate response".into(),
+                    status: "working".into(),
+                },
+            ],
+            started_at: now(),
+            completed_at: None,
+        };
+        let initial_metadata = serde_json::json!({
+            "knowledge": context.knowledge_context,
+            "working": working,
+        });
         eprintln!(
-            "[Chat] provider request conversation_id={} provider={} endpoint={} model={} input_messages={} max_tokens={:?}",
+            "[Chat] provider request conversation_id={} provider={} endpoint={} model={} input_messages={} kb_results={} kb_context_tokens={} max_tokens={:?}",
             conversation_id,
             provider_config.provider_id,
             provider_config.base_url.as_deref().unwrap_or("<missing>"),
             model,
             llm_request.messages.len(),
+            context.knowledge_context.as_ref().map(|value| value.results.len()).unwrap_or_default(),
+            context.usage.knowledge_context_tokens,
             llm_request.max_tokens
         );
 
@@ -262,8 +302,8 @@ impl ChatService {
         let assistant_id = uuid::Uuid::new_v4().to_string();
         let mut assistant_content = String::new();
         let created_at = now();
-        sqlx::query("INSERT INTO conversation_messages (id, conversation_id, role, content, status, provider, model, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-            .bind(&assistant_id).bind(&conversation_id).bind(MessageRole::Assistant.as_str()).bind("").bind(MessageStatus::Streaming.as_str()).bind(&provider_config.provider_id).bind(&model).bind(created_at).execute(pool).await?;
+        sqlx::query("INSERT INTO conversation_messages (id, conversation_id, role, content, status, provider, model, created_at, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+            .bind(&assistant_id).bind(&conversation_id).bind(MessageRole::Assistant.as_str()).bind("").bind(MessageStatus::Streaming.as_str()).bind(&provider_config.provider_id).bind(&model).bind(created_at).bind(initial_metadata.to_string()).execute(pool).await?;
         while let Some(chunk) = stream.next().await {
             match chunk {
                 Ok(delta) => {
@@ -283,6 +323,8 @@ impl ChatService {
                             delta,
                             done: false,
                             message: None,
+                            knowledge: None,
+                            working: Some(working.clone()),
                         },
                     );
                 }
@@ -305,6 +347,7 @@ impl ChatService {
                         model: Some(model.clone()),
                         created_at,
                         updated_at: Some(now()),
+                        metadata: None,
                     };
                     let _ = app.emit(
                         "chat-stream",
@@ -314,6 +357,8 @@ impl ChatService {
                             delta: String::new(),
                             done: true,
                             message: Some(failed_message),
+                            knowledge: None,
+                            working: None,
                         },
                     );
                     return Err(AppError::Ai(error.safe_message()));
@@ -343,6 +388,7 @@ impl ChatService {
                 model: Some(model.clone()),
                 created_at,
                 updated_at: Some(now()),
+                metadata: None,
             };
             let _ = app.emit(
                 "chat-stream",
@@ -352,10 +398,25 @@ impl ChatService {
                     delta: String::new(),
                     done: true,
                     message: Some(failed_message),
+                    knowledge: None,
+                    working: None,
                 },
             );
             return Err(AppError::Ai(message.into()));
         }
+        working.status = "completed".into();
+        working.completed_at = Some(now());
+        if let Some(step) = working
+            .steps
+            .iter_mut()
+            .find(|step| step.id == "generate_response")
+        {
+            step.status = "completed".into();
+        }
+        let message_metadata = serde_json::json!({
+            "working": working,
+            "knowledge": context.knowledge_context,
+        });
         let assistant = ConversationMessage {
             id: assistant_id,
             conversation_id: conversation_id.clone(),
@@ -366,6 +427,7 @@ impl ChatService {
             model: Some(model.clone()),
             created_at,
             updated_at: Some(now()),
+            metadata: Some(message_metadata.clone()),
         };
         db::update_message_content(
             pool,
@@ -374,6 +436,7 @@ impl ChatService {
             MessageStatus::Completed.as_str(),
         )
         .await?;
+        db::update_message_metadata(pool, &assistant.id, &message_metadata).await?;
         sqlx::query("UPDATE conversations SET updated_at = ?, last_message_at = ? WHERE id = ? AND project_id = ?").bind(now()).bind(now()).bind(&conversation_id).bind(&request.project_id).execute(pool).await?;
         let _ = app.emit(
             "chat-stream",
@@ -383,11 +446,20 @@ impl ChatService {
                 delta: String::new(),
                 done: true,
                 message: Some(assistant.clone()),
+                knowledge: context.knowledge_context.clone(),
+                working: Some(
+                    serde_json::from_value(message_metadata["working"].clone()).map_err(
+                        |error| AppError::Internal(format!("Invalid working trace: {error}")),
+                    )?,
+                ),
             },
         );
         Ok(SendMessageResponse {
             conversation_id,
             message: assistant,
+            knowledge: context.knowledge_context,
+            working: serde_json::from_value(message_metadata["working"].clone())
+                .map_err(|error| AppError::Internal(format!("Invalid working trace: {error}")))?,
         })
     }
 
@@ -435,7 +507,7 @@ impl ChatService {
     ) -> Result<ConversationMessage, AppError> {
         let id = uuid::Uuid::new_v4().to_string();
         let timestamp = now();
-        sqlx::query("INSERT INTO conversation_messages (id, conversation_id, role, content, status, provider, model, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").bind(&id).bind(conversation_id).bind(role.as_str()).bind(content).bind(status.as_str()).bind(provider).bind(model).bind(timestamp).execute(pool).await?;
+        sqlx::query("INSERT INTO conversation_messages (id, conversation_id, role, content, status, provider, model, created_at, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)").bind(&id).bind(conversation_id).bind(role.as_str()).bind(content).bind(status.as_str()).bind(provider).bind(model).bind(timestamp).execute(pool).await?;
         sqlx::query("UPDATE conversations SET updated_at = ?, last_message_at = ? WHERE id = ? AND project_id = ?").bind(timestamp).bind(timestamp).bind(conversation_id).bind(project_id).execute(pool).await?;
         sqlx::query("UPDATE projects SET last_conversation_id = ?, updated_at = ? WHERE id = ?")
             .bind(conversation_id)
@@ -453,6 +525,7 @@ impl ChatService {
             model: model.map(str::to_owned),
             created_at: timestamp,
             updated_at: None,
+            metadata: None,
         })
     }
 }
@@ -968,7 +1041,7 @@ fn has_markdown_structure(content: &str) -> bool {
 
 fn mode_instructions(mode: &ChatMode) -> &'static str {
     match mode {
-        ChatMode::Normal => "You are Brainstorm in Normal mode. Have a natural conversation. Use tools when they help, especially local workspace tools for Brainstorm-related questions, but answer simple questions directly.",
+        ChatMode::Normal => "You are Brainstorm in Normal mode. Have a natural conversation. The local knowledge base is checked before every response; when retrieved notes are present, use them as the primary source and only fall back to general model knowledge when they do not answer the request.",
         ChatMode::Plan => "You are Brainstorm in Plan mode. Understand the objective before consequential actions. Ask concise questions only when important information is missing; otherwise present a clear plan and proceed according to the application's confirmation behavior. When the user must choose between approaches, include a concise markdown section titled 'Options' for readable fallback rendering. At the very end, append exactly one hidden machine-readable block in this form: <!-- brainstorm-plan-data {\"type\":\"plan\",\"selectionMode\":\"single\",\"options\":[{\"id\":\"stable-kebab-id\",\"title\":\"Short visible label\",\"description\":\"Brief explanation\",\"prompt\":\"Complete natural-language prompt to put in the composer\"}]} -->. Use selectionMode 'multiple' only when several choices can be selected together. Options must represent meaningful user decisions, not ordinary plan steps. Do not put commentary or Markdown inside the hidden JSON block, and never expose internal IDs outside it.",
         ChatMode::Research => "You are Brainstorm in Research mode. Investigate carefully, prefer relevant workspace and web sources when available, distinguish evidence from inference, and provide a concise synthesis with useful source context.",
     }

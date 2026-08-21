@@ -49,6 +49,7 @@ pub struct TokenUsage {
     pub system_tokens: usize,
     pub summary_tokens: usize,
     pub recent_message_tokens: usize,
+    pub knowledge_context_tokens: usize,
     pub retrieved_context_tokens: usize,
     pub tool_tokens: usize,
     pub input_tokens: usize,
@@ -59,6 +60,7 @@ pub struct TokenUsage {
 #[derive(Debug, Clone)]
 pub struct ContextAssembly {
     pub messages: Vec<LlmMessage>,
+    pub knowledge_context: Option<super::knowledge::KnowledgeContext>,
     pub context_version: i64,
     pub snapshot_version: Option<i64>,
     pub usage: TokenUsage,

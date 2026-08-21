@@ -1,5 +1,6 @@
 use super::service::ChatService;
 use crate::core::{db::DbState, error::AppError};
+use crate::modules::context::KnowledgeContext;
 use crate::modules::conversation::model::ConversationMessage;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -58,6 +59,26 @@ pub struct KnowledgeDraft {
 pub struct SendMessageResponse {
     pub conversation_id: String,
     pub message: ConversationMessage,
+    pub knowledge: Option<KnowledgeContext>,
+    pub working: WorkingTrace,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkingStep {
+    pub id: String,
+    pub label: String,
+    pub status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkingTrace {
+    pub working_type: String,
+    pub status: String,
+    pub steps: Vec<WorkingStep>,
+    pub started_at: i64,
+    pub completed_at: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -68,6 +89,8 @@ pub struct ChatStreamEvent {
     pub delta: String,
     pub done: bool,
     pub message: Option<ConversationMessage>,
+    pub knowledge: Option<KnowledgeContext>,
+    pub working: Option<WorkingTrace>,
 }
 
 #[tauri::command]

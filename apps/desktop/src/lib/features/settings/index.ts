@@ -6,7 +6,7 @@ export type { AppearanceSettingsState, GeneralSettingsForm, SettingsIconId, Sett
 export { settingsFeatureService } from './data/settings-service';
 export { providersService } from './data/providers-service';
 export { providersController } from './controller/providers-controller';
-export { default as SettingsView } from './components/SettingsView.svelte';
-export { default as GeneralSettings } from './components/GeneralSettings.svelte';
-export { default as AppearanceSettings } from './components/AppearanceSettings.svelte';
-export { default as ProvidersSettings } from './components/ProvidersSettings.svelte';
+export { default as SettingsView } from './ui/SettingsView.svelte';
+export { default as GeneralSettings } from './ui/GeneralSettings.svelte';
+export { default as AppearanceSettings } from './ui/AppearanceSettings.svelte';
+export { default as ProvidersSettings } from './ui/ProvidersSettings.svelte';

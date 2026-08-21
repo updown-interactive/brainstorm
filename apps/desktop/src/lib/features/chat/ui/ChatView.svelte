@@ -3,6 +3,8 @@
   import { listen, type UnlistenFn } from '@tauri-apps/api/event';
   import { providersController } from '$lib/features/settings/controller/providers-controller';
   import { shellState } from '$lib/features/shell/state/state';
+  import { shellController } from '$lib/features/shell/controller/controller';
+  import { filesController } from '$lib/features/files';
   import ChatComposer from './ChatComposer.svelte';
   import ChatMessageList from './ChatMessageList.svelte';
   import ChatSidebar from './ChatSidebar.svelte';
@@ -124,6 +126,12 @@
     draft = '';
     void chatController.send(projectId, content, selectedMode, selectedProvider?.id, selectedProvider?.model);
   };
+
+  const openKnowledgeSource = (relativePath: string): void => {
+    if (!projectPath) return;
+    filesController.openFilePath(projectPath, relativePath);
+    shellController.switchTab('files');
+  };
 </script>
 
 <div class="chat-workspace">
@@ -152,6 +160,7 @@
       onPreviewKnowledge={({ message }) => chatController.previewKnowledgeMessage(projectPath, message)}
       onFinalizeKnowledgeNote={({ sourcePath, folderPath, title, content }) => chatController.finalizeKnowledgeNote(projectPath, sourcePath, folderPath, title, content)}
       onDeleteKnowledgeDraft={(path) => chatController.deleteKnowledgeDraft(projectPath, path)}
+      onOpenKnowledgeSource={openKnowledgeSource}
     />
     {#if $chatState.error}<p class="chat-error" role="alert">{$chatState.error}</p>{/if}
     <ChatComposer bind:draft bind:selectedProviderId bind:selectedMode messages={$chatState.messages} {configuredProviders} {selectedProvider} {planOptions} onSelectPlanOption={submitPlanOption} onSubmit={submitMessage} />

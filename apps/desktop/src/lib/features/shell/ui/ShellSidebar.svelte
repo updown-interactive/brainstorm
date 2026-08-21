@@ -1,6 +1,6 @@
 <script lang="ts">
   import { MessageSquare, Folder, Network, Settings } from 'lucide-svelte';
-  import type { ShellTab } from '../state';
+  import type { ShellTab } from '../state/state';
   import LiquidGlassPanel from '$lib/shared/ui/LiquidGlassPanel.svelte';
 
   export let mode: 'hover' | 'expanded';
