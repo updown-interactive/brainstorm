@@ -114,7 +114,9 @@ impl ChatService {
                     "[KnowledgeEngine] metadata generation failed; using emergency properties: {}",
                     error
                 );
+                let original_properties = draft.properties.clone();
                 draft.properties = emergency_knowledge_properties(&draft.title, &draft.content);
+                preserve_knowledge_links(&original_properties, &mut draft.properties);
             }
             Err(error) => {
                 eprintln!(
@@ -717,6 +719,17 @@ fn normalize_knowledge_tags(properties: &mut serde_json::Map<String, serde_json:
     }
 }
 
+fn preserve_knowledge_links(original: &serde_json::Value, fallback: &mut serde_json::Value) {
+    let Some(links) = original.get("links") else {
+        return;
+    };
+    if !links.is_null() {
+        if let Some(properties) = fallback.as_object_mut() {
+            properties.entry("links").or_insert_with(|| links.clone());
+        }
+    }
+}
+
 fn emergency_knowledge_properties(title: &str, content: &str) -> serde_json::Value {
     let title = title.trim();
     let name = if title.is_empty() {
@@ -1069,5 +1082,30 @@ fn fallback_title(source: &str) -> String {
         format!("{shortened}…")
     } else {
         shortened
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::preserve_knowledge_links;
+    use serde_json::json;
+
+    #[test]
+    fn preserves_links_when_fallback_metadata_replaces_properties() {
+        let original = json!({
+            "title": "King Cobra",
+            "links": ["[[Snake Venom Composition and Effects]]"]
+        });
+        let mut fallback = json!({
+            "name": "King Cobra",
+            "summary": "A venomous snake."
+        });
+
+        preserve_knowledge_links(&original, &mut fallback);
+
+        assert_eq!(
+            fallback["links"],
+            json!(["[[Snake Venom Composition and Effects]]"])
+        );
     }
 }
