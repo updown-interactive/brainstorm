@@ -64,11 +64,12 @@ impl ContextManager {
             .map(|message| estimate_tokens(&message.content))
             .sum::<usize>();
         let reserved = capabilities.max_output_tokens + capabilities.safety_margin_tokens;
+        let knowledge_context_tokens = knowledge_context
+            .as_ref()
+            .map(|value| estimate_tokens(&value.prompt()))
+            .unwrap_or_default();
         let system_tokens = estimate_tokens(request.system_instruction)
-            + knowledge_context
-                .as_ref()
-                .map(|value| estimate_tokens(&value.prompt()))
-                .unwrap_or_default()
+            + knowledge_context_tokens
             + request
                 .tools
                 .iter()
@@ -154,6 +155,7 @@ impl ContextManager {
             system_tokens,
             summary_tokens: estimate_tokens(&summary),
             recent_message_tokens,
+            knowledge_context_tokens,
             retrieved_context_tokens: retrieved
                 .iter()
                 .map(|item| estimate_tokens(&item.content))
@@ -163,7 +165,7 @@ impl ContextManager {
             reserved_output_tokens: reserved,
             model_context_limit: capabilities.context_window_tokens,
         };
-        eprintln!("[ContextEngine] conversation_id={} context_version={} model={} limit={} input_tokens={} reserved_output_tokens={} recent_message_tokens={} summary_tokens={} retrieved_context_tokens={} compaction_performed={} snapshot_version={:?}", request.conversation_id, snapshot_version.unwrap_or(0), request.model, usage.model_context_limit, usage.input_tokens, usage.reserved_output_tokens, usage.recent_message_tokens, usage.summary_tokens, usage.retrieved_context_tokens, compaction_performed, snapshot_version);
+        eprintln!("[ContextEngine] conversation_id={} context_version={} model={} limit={} input_tokens={} reserved_output_tokens={} recent_message_tokens={} knowledge_context_tokens={} retrieved_context_tokens={} knowledge_results={} compaction_performed={} snapshot_version={:?}", request.conversation_id, snapshot_version.unwrap_or(0), request.model, usage.model_context_limit, usage.input_tokens, usage.reserved_output_tokens, usage.recent_message_tokens, usage.knowledge_context_tokens, usage.retrieved_context_tokens, knowledge_context.as_ref().map(|value| value.results.len()).unwrap_or_default(), compaction_performed, snapshot_version);
         Ok(ContextAssembly {
             messages,
             knowledge_context,
@@ -211,7 +213,7 @@ async fn recent_messages(
     conversation_id: &str,
     limit: i64,
 ) -> Result<Vec<MessageRow>, AppError> {
-    let mut rows = sqlx::query_as::<_, MessageRow>("SELECT id, conversation_id, role, content, status, provider, model, created_at, updated_at FROM conversation_messages WHERE conversation_id = ? ORDER BY created_at DESC, id DESC LIMIT ?").bind(conversation_id).bind(limit).fetch_all(pool).await?;
+    let mut rows = sqlx::query_as::<_, MessageRow>("SELECT id, conversation_id, role, content, status, provider, model, created_at, updated_at, metadata FROM conversation_messages WHERE conversation_id = ? ORDER BY created_at DESC, id DESC LIMIT ?").bind(conversation_id).bind(limit).fetch_all(pool).await?;
     rows.reverse();
     Ok(rows)
 }
@@ -225,7 +227,7 @@ async fn load_uncompacted_messages(
 ) -> Result<Vec<MessageRow>, AppError> {
     let before_created_at = before.map(|message| message.created_at);
     let before_id = before.map(|message| message.id.as_str());
-    Ok(sqlx::query_as::<_, MessageRow>("SELECT id, conversation_id, role, content, status, provider, model, created_at, updated_at FROM conversation_messages WHERE conversation_id = ? AND (? IS NULL OR created_at > ? OR (created_at = ? AND id > ?)) AND (? IS NULL OR created_at < ? OR (created_at = ? AND id < ?)) ORDER BY created_at ASC, id ASC LIMIT 600")
+    Ok(sqlx::query_as::<_, MessageRow>("SELECT id, conversation_id, role, content, status, provider, model, created_at, updated_at, metadata FROM conversation_messages WHERE conversation_id = ? AND (? IS NULL OR created_at > ? OR (created_at = ? AND id > ?)) AND (? IS NULL OR created_at < ? OR (created_at = ? AND id < ?)) ORDER BY created_at ASC, id ASC LIMIT 600")
         .bind(conversation_id)
         .bind(after)
         .bind(after.unwrap_or(i64::MIN))
@@ -364,6 +366,7 @@ mod tests {
             model: None,
             created_at: 1,
             updated_at: None,
+            metadata: None,
         }
     }
 

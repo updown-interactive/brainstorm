@@ -10,7 +10,7 @@ use serde_json::{json, Value};
 
 use crate::modules::{tools::markdown::parse_document, vault::VaultService};
 
-const INDEX_VERSION: u32 = 1;
+const INDEX_VERSION: u32 = 2;
 const DEFAULT_LIMIT: usize = 10;
 const MAX_LIMIT: usize = 50;
 const MAX_QUERY_LENGTH: usize = 512;
@@ -37,19 +37,26 @@ pub enum SearchError {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct PersistedIndex {
     version: u32,
-    documents: Vec<IndexedDocument>,
+    chunks: Vec<KnowledgeChunk>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct IndexedDocument {
+struct KnowledgeChunk {
+    id: String,
+    file_id: String,
     path: String,
     filename: String,
     title: String,
-    aliases: Vec<String>,
-    headings: Vec<String>,
+    heading: String,
+    heading_path: String,
     body: String,
     tags: Vec<String>,
     frontmatter: String,
+    chunk_index: usize,
+    token_count: usize,
+    keywords: Vec<String>,
+    #[serde(default)]
+    embedding: Option<Vec<f32>>,
     modified_at: u64,
     size: u64,
 }
@@ -95,10 +102,18 @@ impl SearchIndex {
 
     pub fn query(&mut self, request: SearchQuery) -> Result<Value, SearchError> {
         validate_query(&request.query)?;
-        let terms = tokenize(&request.query);
-        if terms.is_empty() {
+        let raw_terms = tokenize(&request.query);
+        if raw_terms.is_empty() {
             return Err(SearchError::EmptyQuery);
         }
+        let terms = expand_terms(&raw_terms);
+        eprintln!(
+            "[KB Search] query={:?} normalized_query={:?} expanded_terms={:?} semantic_search=unavailable indexed_chunks={}",
+            request.query.chars().take(160).collect::<String>(),
+            raw_terms.join(" "),
+            terms,
+            self.data.chunks.len()
+        );
         let limit = request.limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT);
         let path_prefix = request
             .path
@@ -115,21 +130,23 @@ impl SearchIndex {
 
         let mut results = self
             .data
-            .documents
+            .chunks
             .iter()
-            .filter(|document| {
+            .filter(|chunk| {
                 path_prefix
                     .as_deref()
                     .map(|prefix| {
-                        document.path == prefix || document.path.starts_with(&format!("{prefix}/"))
+                        chunk.path == prefix || chunk.path.starts_with(&format!("{prefix}/"))
                     })
                     .unwrap_or(true)
             })
-            .filter(|document| {
+            .filter(|chunk| {
                 tags.iter()
-                    .all(|tag| document.tags.iter().any(|value| value == tag))
+                    .all(|tag| chunk.tags.iter().any(|value| value == tag))
             })
-            .filter_map(|document| score_document(document, &terms).map(|score| (document, score)))
+            .filter_map(|chunk| {
+                score_chunk(chunk, &terms, &request.query).map(|score| (chunk, score))
+            })
             .collect::<Vec<_>>();
         results.sort_by(
             |(left_document, left_score), (right_document, right_score)| {
@@ -141,19 +158,41 @@ impl SearchIndex {
         );
 
         let total = results.len();
+        eprintln!(
+            "[KB Search] ranked_results={:?}",
+            results
+                .iter()
+                .take(limit)
+                .map(|(chunk, score)| {
+                    format!(
+                        "{}#{} heading={:?} score={score:.2}",
+                        chunk.path, chunk.chunk_index, chunk.heading
+                    )
+                })
+                .collect::<Vec<_>>()
+        );
         let results = results
             .into_iter()
             .take(limit)
-            .map(|(document, score)| {
+            .map(|(chunk, score)| {
                 json!({
-                    "path": document.path,
-                    "title": document.title,
+                    "path": chunk.path,
+                    "title": chunk.title,
+                    "heading": chunk.heading,
+                    "headingPath": chunk.heading_path,
+                    "chunkIndex": chunk.chunk_index,
                     "score": score,
-                    "snippet": snippet(document, &terms),
-                    "matches": matched_fields(document, &terms),
+                    "snippet": snippet(chunk, &terms),
+                    "matches": matched_fields(chunk, &terms),
                 })
             })
             .collect::<Vec<_>>();
+        eprintln!(
+            "[KB Search] completed lexical_candidates={} returned_chunks={} limit={}",
+            total,
+            results.len(),
+            limit
+        );
         Ok(json!({ "query": request.query, "results": results, "total": total }))
     }
 
@@ -162,49 +201,40 @@ impl SearchIndex {
         if !is_markdown_path(path) || relative.starts_with(".brainstorm/") {
             return Ok(());
         }
-        let Some(existing) = self
-            .data
-            .documents
-            .iter_mut()
-            .find(|doc| doc.path == relative)
-        else {
-            self.data.documents.push(index_document(path, &relative)?);
-            return self.persist();
-        };
-        *existing = index_document(path, &relative)?;
+        self.data.chunks.retain(|chunk| chunk.path != relative);
+        self.data.chunks.extend(index_document(path, &relative)?);
         self.persist()
     }
 
     pub fn remove_path(&mut self, path: &Path) -> Result<(), SearchError> {
         let relative = relative_path(&self.root, path)?;
-        self.data
-            .documents
-            .retain(|document| document.path != relative);
+        self.data.chunks.retain(|chunk| chunk.path != relative);
         self.persist()
     }
 
     fn refresh_stale_documents(&mut self) -> Result<(), SearchError> {
         let stale = self
             .data
-            .documents
+            .chunks
             .iter()
-            .filter_map(|document| {
-                let path = self.root.join(&document.path);
+            .filter_map(|chunk| {
+                let path = self.root.join(&chunk.path);
                 let metadata = fs::metadata(path).ok()?;
-                if metadata.len() != document.size || modified_at(&metadata) != document.modified_at
-                {
-                    Some(document.path.clone())
+                if metadata.len() != chunk.size || modified_at(&metadata) != chunk.modified_at {
+                    Some(chunk.path.clone())
                 } else {
                     None
                 }
             })
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
             .collect::<Vec<_>>();
         for path in stale {
             self.refresh_path(&self.root.join(path))?;
         }
         self.data
-            .documents
-            .retain(|document| self.root.join(&document.path).exists());
+            .chunks
+            .retain(|chunk| self.root.join(&chunk.path).exists());
         self.persist()
     }
 
@@ -250,7 +280,7 @@ pub fn handle_file_event(root: &Path, kind: &str, path: &Path) {
 }
 
 fn rebuild_data(root: &Path) -> Result<PersistedIndex, SearchError> {
-    let mut documents = Vec::new();
+    let mut chunks = Vec::new();
     let walker = WalkBuilder::new(root)
         .hidden(false)
         .git_ignore(true)
@@ -270,16 +300,16 @@ fn rebuild_data(root: &Path) -> Result<PersistedIndex, SearchError> {
         let path = entry.path();
         if path.is_file() && is_markdown_path(path) {
             let relative = relative_path(root, path)?;
-            documents.push(index_document(path, &relative)?);
+            chunks.extend(index_document(path, &relative)?);
         }
     }
     Ok(PersistedIndex {
         version: INDEX_VERSION,
-        documents,
+        chunks,
     })
 }
 
-fn index_document(path: &Path, relative: &str) -> Result<IndexedDocument, SearchError> {
+fn index_document(path: &Path, relative: &str) -> Result<Vec<KnowledgeChunk>, SearchError> {
     let content = fs::read_to_string(path).map_err(|_| SearchError::Io)?;
     let document = parse_document(relative, &content).map_err(|_| SearchError::Io)?;
     let metadata = fs::metadata(path).map_err(|_| SearchError::Io)?;
@@ -289,28 +319,106 @@ fn index_document(path: &Path, relative: &str) -> Result<IndexedDocument, Search
         .unwrap_or_default()
         .to_string();
     let title = title_for(&document, &filename);
-    let aliases = frontmatter_strings(&document.frontmatter, "aliases");
     let frontmatter = serde_json::to_string(&document.frontmatter).unwrap_or_default();
-    Ok(IndexedDocument {
-        path: relative.to_string(),
-        filename,
-        title,
-        aliases,
-        headings: document
-            .headings
-            .into_iter()
-            .map(|heading| heading.text)
-            .collect(),
-        body: document.body,
-        tags: document
-            .tags
-            .into_iter()
-            .map(|tag| normalize_tag(&tag.value))
-            .collect(),
-        frontmatter,
-        modified_at: modified_at(&metadata),
-        size: metadata.len(),
-    })
+    let tags = document
+        .tags
+        .iter()
+        .map(|tag| normalize_tag(&tag.value))
+        .collect::<Vec<_>>();
+    let aliases = frontmatter_strings(&document.frontmatter, "aliases");
+    let chunks = split_into_chunks(&title, &document.body, &document.headings);
+    Ok(chunks
+        .into_iter()
+        .enumerate()
+        .map(|(chunk_index, (heading, heading_path, body))| {
+            let keywords = tokenize(&format!(
+                "{} {} {} {} {}",
+                title,
+                heading,
+                aliases.join(" "),
+                tags.join(" "),
+                body
+            ));
+            KnowledgeChunk {
+                id: format!("{relative}#{chunk_index}"),
+                file_id: relative.to_string(),
+                path: relative.to_string(),
+                filename: filename.clone(),
+                title: title.clone(),
+                heading,
+                heading_path,
+                token_count: keywords.len(),
+                keywords,
+                body,
+                tags: tags.clone(),
+                frontmatter: frontmatter.clone(),
+                chunk_index,
+                embedding: None,
+                modified_at: modified_at(&metadata),
+                size: metadata.len(),
+            }
+        })
+        .collect())
+}
+
+fn split_into_chunks(
+    title: &str,
+    body: &str,
+    headings: &[crate::modules::tools::markdown::types::Heading],
+) -> Vec<(String, String, String)> {
+    let mut chunks = Vec::new();
+    let mut heading_index = 0;
+    let mut current_heading = "Introduction".to_string();
+    let mut heading_stack: Vec<(u8, String)> = Vec::new();
+    let mut current_content = String::new();
+
+    for line in body.lines() {
+        let heading = headings.get(heading_index).filter(|heading| {
+            let prefix = "#".repeat(heading.level as usize);
+            line.trim_start()
+                .starts_with(&format!("{prefix} {}", heading.text))
+        });
+        if let Some(heading) = heading {
+            if !current_content.trim().is_empty() {
+                chunks.push((
+                    current_heading.clone(),
+                    heading_stack
+                        .iter()
+                        .map(|(_, value)| value.as_str())
+                        .collect::<Vec<_>>()
+                        .join(" > "),
+                    current_content.trim().to_string(),
+                ));
+                current_content.clear();
+            }
+            heading_stack.retain(|(level, _)| *level < heading.level);
+            heading_stack.push((heading.level, heading.text.clone()));
+            current_heading = heading.text.clone();
+            heading_index += 1;
+        } else {
+            current_content.push_str(line);
+            current_content.push('\n');
+        }
+    }
+    if !current_content.trim().is_empty() {
+        chunks.push((
+            current_heading,
+            heading_stack
+                .iter()
+                .map(|(_, value)| value.as_str())
+                .collect::<Vec<_>>()
+                .join(" > "),
+            current_content.trim().to_string(),
+        ));
+    }
+    if chunks.is_empty() {
+        chunks.push((
+            "Introduction".to_string(),
+            title.to_string(),
+            body.trim().to_string(),
+        ));
+    }
+    chunks
 }
 
 fn title_for(
@@ -348,50 +456,58 @@ fn frontmatter_strings(value: &Value, key: &str) -> Vec<String> {
     }
 }
 
-fn score_document(document: &IndexedDocument, terms: &[String]) -> Option<f32> {
-    let fields = [
-        (&document.title, 8.0),
-        (&document.filename, 7.0),
-        (&document.aliases.join(" "), 7.0),
-        (&document.headings.join(" "), 5.0),
-        (&document.tags.join(" "), 5.0),
-        (&document.frontmatter, 3.0),
-        (&document.body, 1.0),
-    ];
-    let mut score = 0.0;
-    for term in terms {
-        let mut term_score = 0.0;
-        for (field, weight) in fields.iter() {
-            let count = occurrences(field, term);
-            term_score += count as f32 * *weight;
-        }
-        if term_score == 0.0 {
-            return None;
-        }
-        score += term_score;
+fn score_chunk(chunk: &KnowledgeChunk, terms: &[String], raw_query: &str) -> Option<f32> {
+    let title_score = field_match_score(&chunk.title, terms);
+    let heading_score = field_match_score(&chunk.heading, terms);
+    let content_score = field_match_score(&chunk.body, terms);
+    let keyword_score = field_match_score(&chunk.keywords.join(" "), terms);
+    let phrase_score = phrase_match_score(raw_query, chunk);
+    let matched_terms = terms
+        .iter()
+        .filter(|term| {
+            [
+                &chunk.title,
+                &chunk.heading,
+                &chunk.body,
+                &chunk.keywords.join(" "),
+            ]
+            .iter()
+            .any(|field| field_match_score(field, std::slice::from_ref(*term)) > 0.0)
+        })
+        .count();
+    if matched_terms == 0 {
+        return None;
     }
+    let coverage = matched_terms as f32 / terms.len().max(1) as f32;
+    let score = (title_score * 0.30
+        + heading_score * 0.30
+        + phrase_score * 0.20
+        + keyword_score * 0.15
+        + content_score * 0.05)
+        * (0.7 + coverage * 0.3)
+        * 100.0;
     Some(score)
 }
 
-fn matched_fields(document: &IndexedDocument, terms: &[String]) -> Vec<Value> {
+fn matched_fields(chunk: &KnowledgeChunk, terms: &[String]) -> Vec<Value> {
     let fields = [
-        ("title", &document.title),
-        ("aliases", &document.aliases.join(" ")),
-        ("headings", &document.headings.join(" ")),
-        ("tags", &document.tags.join(" ")),
-        ("frontmatter", &document.frontmatter),
-        ("body", &document.body),
+        ("title", &chunk.title),
+        ("heading", &chunk.heading_path),
+        ("keywords", &chunk.keywords.join(" ")),
+        ("tags", &chunk.tags.join(" ")),
+        ("frontmatter", &chunk.frontmatter),
+        ("body", &chunk.body),
     ];
     fields
         .into_iter()
-        .filter(|(_, field)| terms.iter().any(|term| field.to_lowercase().contains(term)))
+        .filter(|(_, field)| field_match_score(field, terms) > 0.0)
         .map(|(field, _)| json!({ "field": field }))
         .collect()
 }
 
-fn snippet(document: &IndexedDocument, terms: &[String]) -> String {
-    let body = document.body.trim();
-    let lower = body.to_lowercase();
+fn snippet(chunk: &KnowledgeChunk, terms: &[String]) -> String {
+    let body = chunk.body.trim();
+    let lower = normalize_text(body);
     let start = terms
         .iter()
         .filter_map(|term| lower.find(term))
@@ -410,22 +526,200 @@ fn snippet(document: &IndexedDocument, terms: &[String]) -> String {
     }
 }
 
-fn occurrences(field: &str, term: &str) -> usize {
-    let lower = field.to_lowercase();
-    lower.match_indices(term).count()
+fn field_match_score(field: &str, terms: &[String]) -> f32 {
+    let field_terms = tokenize(field);
+    if field_terms.is_empty() {
+        return 0.0;
+    }
+    terms
+        .iter()
+        .filter(|term| {
+            field_terms
+                .iter()
+                .any(|candidate| related_terms(term, candidate))
+        })
+        .count() as f32
+        / terms.len().max(1) as f32
+}
+
+fn phrase_match_score(raw_query: &str, chunk: &KnowledgeChunk) -> f32 {
+    let terms = tokenize(raw_query);
+    if terms.len() < 2 {
+        return 0.0;
+    }
+    let fields = [&chunk.title, &chunk.heading_path, &chunk.body];
+    let phrase_length = terms.len();
+    fields
+        .iter()
+        .map(|field| {
+            let field_terms = tokenize(field);
+            field_terms.windows(phrase_length).any(|window| {
+                window
+                    .iter()
+                    .zip(terms.iter())
+                    .all(|(candidate, term)| related_terms(term, candidate))
+            }) as u8 as f32
+        })
+        .fold(0.0, f32::max)
+}
+
+fn related_terms(query_term: &str, candidate: &str) -> bool {
+    if query_term == candidate || concept_equivalent(query_term, candidate) {
+        return true;
+    }
+    let common_prefix = query_term
+        .chars()
+        .zip(candidate.chars())
+        .take_while(|(left, right)| left == right)
+        .count();
+    common_prefix >= 5 && (query_term.len() >= 6 || candidate.len() >= 6)
+}
+
+fn expand_terms(terms: &[String]) -> Vec<String> {
+    let mut expanded = terms.to_vec();
+    for term in terms {
+        let concept = if [
+            "compos",
+            "component",
+            "constituent",
+            "ingredient",
+            "substance",
+        ]
+        .iter()
+        .any(|prefix| term.starts_with(prefix))
+        {
+            Some("compos")
+        } else if ["contain", "consist"]
+            .iter()
+            .any(|prefix| term.starts_with(prefix))
+        {
+            Some("compos")
+        } else if ["effect", "affect", "impact"]
+            .iter()
+            .any(|prefix| term.starts_with(prefix))
+        {
+            Some("effect")
+        } else if ["deliver", "inject", "transport"]
+            .iter()
+            .any(|prefix| term.starts_with(prefix))
+        {
+            Some("deliver")
+        } else {
+            None
+        };
+        if let Some(concept) = concept {
+            if !expanded.iter().any(|candidate| candidate == concept) {
+                expanded.push(concept.to_string());
+            }
+        }
+    }
+    expanded
+}
+
+fn concept_equivalent(left: &str, right: &str) -> bool {
+    let concept = |term: &str| -> String {
+        if [
+            "compos",
+            "component",
+            "constituent",
+            "ingredient",
+            "substance",
+            "contain",
+            "consist",
+        ]
+        .iter()
+        .any(|prefix| term.starts_with(prefix))
+        {
+            "composition".to_string()
+        } else if ["effect", "affect", "impact"]
+            .iter()
+            .any(|prefix| term.starts_with(prefix))
+        {
+            "effect".to_string()
+        } else if ["deliver", "inject", "transport"]
+            .iter()
+            .any(|prefix| term.starts_with(prefix))
+        {
+            "delivery".to_string()
+        } else {
+            term.to_string()
+        }
+    };
+    let left_concept = concept(left);
+    let right_concept = concept(right);
+    left_concept == right_concept && left_concept != left
 }
 
 fn tokenize(value: &str) -> Vec<String> {
-    value
+    normalize_text(value)
         .split_whitespace()
-        .map(|term| {
-            term.trim_matches(|c: char| {
-                !c.is_alphanumeric() && c != '#' && c != '_' && c != '/' && c != '-'
-            })
-            .to_lowercase()
-        })
+        .map(str::to_string)
+        .filter(|term| !is_stop_word(term))
+        .map(|term| stem_token(&term))
         .filter(|term| !term.is_empty())
         .collect()
+}
+
+fn normalize_text(value: &str) -> String {
+    value
+        .chars()
+        .map(|character| {
+            if character.is_alphanumeric() || character == '_' {
+                character.to_ascii_lowercase()
+            } else {
+                ' '
+            }
+        })
+        .collect::<String>()
+}
+
+fn stem_token(token: &str) -> String {
+    let suffixes = ["ing", "ed", "ion", "ions", "es", "s"];
+    suffixes
+        .iter()
+        .find_map(|suffix| {
+            token
+                .strip_suffix(suffix)
+                .filter(|root| root.len() >= 5)
+                .map(str::to_string)
+        })
+        .unwrap_or_else(|| token.to_string())
+}
+
+fn is_stop_word(term: &str) -> bool {
+    matches!(
+        term,
+        "a" | "an"
+            | "the"
+            | "is"
+            | "are"
+            | "was"
+            | "were"
+            | "what"
+            | "which"
+            | "who"
+            | "where"
+            | "when"
+            | "why"
+            | "how"
+            | "of"
+            | "to"
+            | "in"
+            | "on"
+            | "for"
+            | "with"
+            | "and"
+            | "or"
+            | "from"
+            | "about"
+            | "does"
+            | "do"
+            | "did"
+            | "can"
+            | "could"
+            | "would"
+            | "should"
+    )
 }
 
 fn normalize_tag(tag: &str) -> String {
@@ -601,5 +895,31 @@ mod tests {
                 tags: None,
             })
             .is_err());
+    }
+
+    #[test]
+    fn matches_composed_query_to_composition_heading_chunk() {
+        let root = test_root("semantic-lexical");
+        write(
+            &root,
+            "snake-venom.md",
+            "# Snake Venom Composition and Effects\n\n## Introduction\n\nSnakes use venom for defense.\n\n## Composition of Snake Venom\n\nThe venom is a complex mixture of enzymes, peptides, and proteins.\n\n## Effects of Snake Venom\n\nThe venom affects tissues.\n",
+        );
+        let mut index = SearchIndex::open(&root).unwrap();
+        let results = index
+            .query(SearchQuery {
+                query: "What snake venom is composed of?".into(),
+                limit: Some(5),
+                path: None,
+                tags: None,
+            })
+            .unwrap();
+        let first = &results["results"].as_array().unwrap()[0];
+        assert_eq!(first["path"], "snake-venom.md");
+        assert_eq!(first["heading"], "Composition of Snake Venom");
+        assert!(first["snippet"]
+            .as_str()
+            .unwrap()
+            .contains("enzymes, peptides"));
     }
 }

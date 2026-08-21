@@ -11,6 +11,9 @@ const MAX_CONTEXT_CHARS: usize = 12_000;
 pub struct KnowledgeResult {
     pub file_path: String,
     pub title: String,
+    pub heading: String,
+    pub heading_path: String,
+    pub chunk_index: usize,
     pub chunk: String,
     pub relevance_score: f32,
 }
@@ -32,57 +35,47 @@ impl KnowledgeContext {
             .iter()
             .map(|result| {
                 format!(
-                    "Source: {}\nTitle: {}\nRelevance: {:.2}\nRelevant content:\n{}",
-                    result.file_path, result.title, result.relevance_score, result.chunk
+                    "Source: {}\nTitle: {}\nHeading: {}\nHeading path: {}\nRelevance: {:.2}\nRelevant content:\n{}",
+                    result.file_path,
+                    result.title,
+                    result.heading,
+                    result.heading_path,
+                    result.relevance_score,
+                    result.chunk
                 )
             })
             .collect::<Vec<_>>()
             .join("\n\n---\n\n");
-        format!("You have access to the user's private knowledge base.\nUse it when relevant and do not invent facts attributed to it. If it does not contain enough information, say so clearly. Distinguish retrieved knowledge from general model knowledge and cite sources by path when possible.\n\nRetrieved knowledge:\n{sources}")
+        format!("You have access to the user's private knowledge base.\nThese retrieved notes are the primary source for this response. Answer from them whenever they contain relevant information, preserve their meaning, and cite sources by path when possible. Do not invent facts attributed to the knowledge base. If the notes do not answer the request, say that clearly before adding any general model knowledge, and distinguish that general knowledge from the retrieved notes.\n\nRetrieved knowledge:\n{sources}")
     }
 }
 
-pub fn should_retrieve(query: &str) -> bool {
-    let normalized = query.to_ascii_lowercase();
-    let first_person = [
-        "my ",
-        "i wrote",
-        "we decided",
-        "our ",
-        "in my",
-        "based on my",
-    ]
-    .iter()
-    .any(|cue| normalized.contains(cue));
-    let knowledge_intent = [
-        "knowledge",
-        "notes",
-        "vault",
-        "brainstorm",
-        "decision",
-        "roadmap",
-        "what did",
-        "summarize",
-        "according to",
-        "based on",
-        "wrote about",
-        "we decided",
-        "my files",
-        "my docs",
-    ]
-    .iter()
-    .any(|cue| normalized.contains(cue));
-    first_person || knowledge_intent
-}
-
 pub async fn retrieve(project_path: &str, query: &str) -> Option<KnowledgeContext> {
-    if project_path.trim().is_empty() || !should_retrieve(query) {
+    // Every user prompt goes through the KB. An empty prompt cannot produce a
+    // useful search, while a non-matching query naturally falls back to the LLM.
+    if project_path.trim().is_empty() || !has_search_query(query) {
+        eprintln!(
+            "[KB] retrieval_skipped reason={} query_len={} project_path_configured={}",
+            if project_path.trim().is_empty() {
+                "missing_project_path"
+            } else {
+                "empty_query"
+            },
+            query.trim().chars().count(),
+            !project_path.trim().is_empty()
+        );
         return None;
     }
     let root = project_path.to_string();
     let query = query.trim().to_string();
+    eprintln!(
+        "[KB] retrieval_started query={:?} query_len={} max_results={}",
+        query.chars().take(160).collect::<String>(),
+        query.chars().count(),
+        MAX_RESULTS
+    );
     let search_query = query.clone();
-    let result = tokio::task::spawn_blocking(move || {
+    let search_result = tokio::task::spawn_blocking(move || {
         let mut index = SearchIndex::open(&root).map_err(|error| error.to_string())?;
         index
             .query(SearchQuery {
@@ -93,10 +86,40 @@ pub async fn retrieve(project_path: &str, query: &str) -> Option<KnowledgeContex
             })
             .map_err(|error| error.to_string())
     })
-    .await
-    .ok()?
-    .ok()?;
-    build_context(query, result)
+    .await;
+    let result = match search_result {
+        Ok(Ok(value)) => value,
+        Ok(Err(error)) => {
+            eprintln!("[KB] retrieval_failed stage=index_query error={error}");
+            return None;
+        }
+        Err(error) => {
+            eprintln!("[KB] retrieval_failed stage=worker_join error={error}");
+            return None;
+        }
+    };
+    let context = build_context(query, result);
+    match &context {
+        Some(value) => {
+            let ranked_results = value
+                .results
+                .iter()
+                .map(|result| format!("{}:{:.1}", result.file_path, result.relevance_score))
+                .collect::<Vec<_>>();
+            eprintln!(
+                "[KB] retrieval_completed outcome=matched result_count={} confidence={:.2} ranked_results={:?}",
+                value.results.len(),
+                value.confidence,
+                ranked_results
+            );
+        }
+        None => eprintln!("[KB] retrieval_completed outcome=no_match fallback=llm"),
+    }
+    context
+}
+
+fn has_search_query(query: &str) -> bool {
+    !query.trim().is_empty()
 }
 
 fn build_context(query: String, value: Value) -> Option<KnowledgeContext> {
@@ -121,6 +144,20 @@ fn build_context(query: String, value: Value) -> Option<KnowledgeContext> {
                     .and_then(Value::as_str)
                     .unwrap_or_default()
                     .to_string(),
+                heading: item
+                    .get("heading")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string(),
+                heading_path: item
+                    .get("headingPath")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string(),
+                chunk_index: item
+                    .get("chunkIndex")
+                    .and_then(Value::as_u64)
+                    .unwrap_or_default() as usize,
                 relevance_score: item
                     .get("score")
                     .and_then(Value::as_f64)
@@ -154,15 +191,13 @@ fn build_context(query: String, value: Value) -> Option<KnowledgeContext> {
 
 #[cfg(test)]
 mod tests {
-    use super::should_retrieve;
+    #[test]
+    fn empty_queries_are_not_sent_to_the_knowledge_index() {
+        assert!(!super::has_search_query("   "));
+    }
 
     #[test]
-    fn detects_private_knowledge_intent_without_retrieving_generic_requests() {
-        assert!(should_retrieve("What did I write about MAASH?"));
-        assert!(should_retrieve(
-            "Based on my knowledge, what should I do next?"
-        ));
-        assert!(!should_retrieve("Write a poem about architecture."));
-        assert!(!should_retrieve("What is 2 + 2?"));
+    fn generic_queries_are_eligible_for_knowledge_retrieval() {
+        assert!(super::has_search_query("Explain the architecture"));
     }
 }

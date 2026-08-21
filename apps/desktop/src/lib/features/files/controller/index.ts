@@ -449,6 +449,16 @@ class FilesController {
 		}
 	};
 
+	openFilePath = (projectPath: string, relativePath: string): void => {
+		const normalizedPath = relativePath.replace(/\\/g, '/').replace(/^\/+/, '');
+		if (!projectPath.trim() || !normalizedPath || normalizedPath.split('/').some((segment) => segment === '..')) return;
+		const rootPath = projectPath.replace(/[\\/]$/, '');
+		const fullPath = `${rootPath}/${normalizedPath}`;
+		const name = normalizedPath.split('/').at(-1) ?? normalizedPath;
+		fileTreeState.update((state) => ({ ...state, focusedPath: fullPath }));
+		editorState.openFile(fullPath, name);
+	};
+
 	syncQuickOpenSelectedIndex(filteredFiles: QuickOpenFile[], selectedIndex: number): void {
 		if (selectedIndex >= filteredFiles.length && filteredFiles.length > 0) {
 			quickOpenController.setSelectedIndex(filteredFiles.length - 1);

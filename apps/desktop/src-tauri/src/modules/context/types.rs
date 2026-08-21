@@ -49,6 +49,7 @@ pub struct TokenUsage {
     pub system_tokens: usize,
     pub summary_tokens: usize,
     pub recent_message_tokens: usize,
+    pub knowledge_context_tokens: usize,
     pub retrieved_context_tokens: usize,
     pub tool_tokens: usize,
     pub input_tokens: usize,

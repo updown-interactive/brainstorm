@@ -12,7 +12,7 @@ pub async fn retrieve(
 ) -> Result<Vec<ContextItem>, AppError> {
     let cutoff = before_created_at.unwrap_or(i64::MAX);
     let rows = sqlx::query_as::<_, MessageRow>(
-        "SELECT id, conversation_id, role, content, status, provider, model, created_at, updated_at
+        "SELECT id, conversation_id, role, content, status, provider, model, created_at, updated_at, metadata
          FROM conversation_messages
          WHERE conversation_id = ? AND created_at < ?
          ORDER BY created_at DESC LIMIT 300",

@@ -60,6 +60,25 @@ pub struct SendMessageResponse {
     pub conversation_id: String,
     pub message: ConversationMessage,
     pub knowledge: Option<KnowledgeContext>,
+    pub working: WorkingTrace,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkingStep {
+    pub id: String,
+    pub label: String,
+    pub status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkingTrace {
+    pub working_type: String,
+    pub status: String,
+    pub steps: Vec<WorkingStep>,
+    pub started_at: i64,
+    pub completed_at: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -71,6 +90,7 @@ pub struct ChatStreamEvent {
     pub done: bool,
     pub message: Option<ConversationMessage>,
     pub knowledge: Option<KnowledgeContext>,
+    pub working: Option<WorkingTrace>,
 }
 
 #[tauri::command]

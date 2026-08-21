@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { ChatMode, Conversation, ConversationHistory, ConversationMessage, ConversationSummary, MessageRole, MessageStatus } from '../types';
+import type { ChatMode, Conversation, ConversationHistory, ConversationMessage, ConversationSummary, KnowledgeContext, MessageRole, MessageStatus, WorkingTrace } from '../types';
 
 type ProjectRequest = { projectId: string; conversationId: string };
 
@@ -12,5 +12,5 @@ export const conversationService = {
 	rename: (request: ProjectRequest & { title: string }): Promise<Conversation> => invoke('rename_conversation', { request }),
 	remove: (request: ProjectRequest): Promise<void> => invoke('delete_conversation', { request })
 ,
-	sendMessage: (request: { projectId: string; conversationId?: string; content: string; mode: ChatMode; providerConfigId?: string; model?: string }): Promise<{ conversationId: string; message: ConversationMessage }> => invoke('chat_send_message', { request })
+	sendMessage: (request: { projectId: string; conversationId?: string; content: string; mode: ChatMode; providerConfigId?: string; model?: string }): Promise<{ conversationId: string; message: ConversationMessage; knowledge: KnowledgeContext | null; working: WorkingTrace }> => invoke('chat_send_message', { request })
 };

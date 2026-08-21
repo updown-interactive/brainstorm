@@ -31,7 +31,7 @@ pub async fn messages(
     limit: u32,
     offset: u32,
 ) -> Result<Vec<MessageRow>, AppError> {
-    Ok(sqlx::query_as("SELECT id, conversation_id, role, content, status, provider, model, created_at, updated_at FROM conversation_messages WHERE conversation_id = ? ORDER BY created_at ASC LIMIT ? OFFSET ?").bind(conversation_id).bind(limit).bind(offset).fetch_all(pool).await?)
+    Ok(sqlx::query_as("SELECT id, conversation_id, role, content, status, provider, model, created_at, updated_at, metadata FROM conversation_messages WHERE conversation_id = ? ORDER BY created_at ASC LIMIT ? OFFSET ?").bind(conversation_id).bind(limit).bind(offset).fetch_all(pool).await?)
 }
 pub async fn summaries(
     pool: &SqlitePool,
@@ -63,5 +63,27 @@ pub async fn update_message_content(
     .bind(message_id)
     .execute(pool)
     .await?;
+    Ok(())
+}
+
+pub async fn update_message_metadata(
+    pool: &SqlitePool,
+    message_id: &str,
+    metadata: &serde_json::Value,
+) -> Result<(), AppError> {
+    let serialized = serde_json::to_string(metadata).map_err(|error| {
+        AppError::Internal(format!("Failed to serialize message metadata: {error}"))
+    })?;
+    sqlx::query("UPDATE conversation_messages SET metadata = ?, updated_at = ? WHERE id = ?")
+        .bind(serialized)
+        .bind(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|duration| duration.as_secs() as i64)
+                .unwrap_or_default(),
+        )
+        .bind(message_id)
+        .execute(pool)
+        .await?;
     Ok(())
 }

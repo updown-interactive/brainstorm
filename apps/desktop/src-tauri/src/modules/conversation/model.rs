@@ -59,6 +59,7 @@ pub struct MessageRow {
     pub model: Option<String>,
     pub created_at: i64,
     pub updated_at: Option<i64>,
+    pub metadata: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -73,6 +74,7 @@ pub struct ConversationMessage {
     pub model: Option<String>,
     pub created_at: i64,
     pub updated_at: Option<i64>,
+    pub metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, sqlx::FromRow)]
@@ -197,6 +199,9 @@ impl From<MessageRow> for ConversationMessage {
             model: row.model,
             created_at: row.created_at,
             updated_at: row.updated_at,
+            metadata: row
+                .metadata
+                .and_then(|value| serde_json::from_str(&value).ok()),
         }
     }
 }

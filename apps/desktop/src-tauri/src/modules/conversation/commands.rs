@@ -124,7 +124,7 @@ pub async fn add_conversation_message(
     let id = uuid::Uuid::new_v4().to_string();
     let timestamp = now();
     let status = request.status.unwrap_or(MessageStatus::Completed);
-    sqlx::query("INSERT INTO conversation_messages (id, conversation_id, role, content, status, provider, model, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").bind(&id).bind(&request.conversation_id).bind(request.role.as_str()).bind(&request.content).bind(status.as_str()).bind(&request.provider).bind(&request.model).bind(timestamp).execute(&state.pool).await?;
+    sqlx::query("INSERT INTO conversation_messages (id, conversation_id, role, content, status, provider, model, created_at, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)").bind(&id).bind(&request.conversation_id).bind(request.role.as_str()).bind(&request.content).bind(status.as_str()).bind(&request.provider).bind(&request.model).bind(timestamp).execute(&state.pool).await?;
     sqlx::query("UPDATE conversations SET updated_at = ?, last_message_at = ? WHERE id = ? AND project_id = ?").bind(timestamp).bind(timestamp).bind(&request.conversation_id).bind(&request.project_id).execute(&state.pool).await?;
     sqlx::query("UPDATE projects SET last_conversation_id = ?, updated_at = ? WHERE id = ?")
         .bind(&request.conversation_id)
@@ -142,6 +142,7 @@ pub async fn add_conversation_message(
         model: request.model,
         created_at: timestamp,
         updated_at: None,
+        metadata: None,
     })
 }
 

@@ -162,13 +162,13 @@ class ChatController {
 	}
 
 	async select(projectId: string, conversationId: string): Promise<void> {
+		const previousMetadata = new Map(get(chatState).messages.map((message) => [message.id, message.metadata]));
 		const selectionVersion = this.beginSession(conversationId, true);
 		try {
 			const [, messages] = await conversationService.get({ projectId, conversationId });
 			if (selectionVersion !== this.sessionVersion || get(chatState).activeConversationId !== conversationId) return;
 			await conversationService.setActive({ projectId, conversationId });
 			if (selectionVersion !== this.sessionVersion || get(chatState).activeConversationId !== conversationId) return;
-			const previousMetadata = new Map(get(chatState).messages.map((message) => [message.id, message.metadata]));
 			const messagesWithMetadata = messages.map((message) => ({ ...message, metadata: message.metadata ?? previousMetadata.get(message.id) }));
 			chatState.update((state) => ({ ...state, messages: messagesWithMetadata, isLoadingMessages: false }));
 		} catch (error) {
@@ -217,6 +217,15 @@ class ChatController {
 			const response = await conversationService.sendMessage({ projectId, conversationId: conversationId ?? undefined, content, mode, providerConfigId, model });
 			if (sendVersion !== this.sessionVersion || get(chatState).activeConversationId !== response.conversationId) return;
 			await this.loadForProject(projectId, response.conversationId);
+			if (response.knowledge) {
+				const knowledge = response.knowledge;
+				chatState.update((state) => ({
+					...state,
+					messages: state.messages.map((message) => message.id === response.message.id
+						? { ...message, metadata: { ...message.metadata, knowledge } }
+						: message)
+				}));
+			}
 		} catch (error) {
 			if (sendVersion !== this.sessionVersion) return;
 			const message = error instanceof Error ? error.message : 'Unable to generate a response.';
@@ -241,9 +250,12 @@ class ChatController {
 				createdAt: Date.now(),
 				updatedAt: null
 			};
+			const metadata = event.knowledge || event.working
+				? { ...streamedMessage.metadata, ...(event.knowledge ? { knowledge: event.knowledge } : {}), ...(event.working ? { working: event.working } : {}) }
+				: streamedMessage.metadata;
 			const nextMessage = event.message
-				? { ...event.message, metadata: event.knowledge ? { knowledge: event.knowledge } : event.message.metadata }
-				: { ...streamedMessage, content: `${streamedMessage.content}${event.delta}`, status: 'streaming' as const, metadata: event.knowledge ? { knowledge: event.knowledge } : streamedMessage.metadata };
+				? { ...event.message, metadata: event.message.metadata ?? metadata }
+				: { ...streamedMessage, content: `${streamedMessage.content}${event.delta}`, status: 'streaming' as const, metadata };
 			const messages = existingIndex === -1
 				? [...state.messages, nextMessage]
 				: state.messages.map((message, index) => index === existingIndex ? nextMessage : message);
